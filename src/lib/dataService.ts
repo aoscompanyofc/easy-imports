@@ -33,21 +33,35 @@ export const dataService = {
   async addProduct(product: any) {
     if (useMock) return mockDataService.addProduct(product);
     const uid = await getUid();
-    const { name, category, purchase_price, sale_price, stock_quantity, status } = product;
-    const { data, error } = await supabase
-      .from('products')
-      .insert([{ name, category, purchase_price, sale_price, stock_quantity, status, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    const { name, category, purchase_price, sale_price, stock_quantity, status,
+      imei, supplier_id, product_capacity, product_color, product_condition } = product;
+
+    const isColErr = (e: any) =>
+      e?.code === '42703' || e?.message?.includes('schema cache') || e?.message?.includes('Could not find');
+
+    const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
+    const full: any = { ...base };
+    if (imei) full.imei = imei;
+    if (supplier_id) full.supplier_id = supplier_id;
+    if (product_capacity) full.product_capacity = product_capacity;
+    if (product_color) full.product_color = product_color;
+    if (product_condition) full.product_condition = product_condition;
+
+    let res = await supabase.from('products').insert([full]).select();
+    if (isColErr(res.error)) {
+      // Extra columns don't exist yet — fallback to base schema
+      res = await supabase.from('products').insert([base]).select();
+    }
+    if (res.error) throw res.error;
+    return res.data![0];
   },
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
-    const { name, category, purchase_price, sale_price, stock_quantity, status } = updates;
+    const { name, category, purchase_price, sale_price, stock_quantity, status, imei } = updates;
+    const payload: any = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
+    if (imei !== undefined) payload.imei = imei;
     const { data, error } = await supabase
-      .from('products')
-      .update({ name, category, purchase_price, sale_price, stock_quantity, status })
-      .eq('id', id).select();
+      .from('products').update(payload).eq('id', id).select();
     if (error) throw error;
     return data[0];
   },

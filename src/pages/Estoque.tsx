@@ -353,12 +353,11 @@ export const Estoque: React.FC = () => {
               onChange={e => setAddForm(f => ({ ...f, purchase_price: e.target.value }))}
             />
             <Input
-              label="Preço de Venda (R$)"
+              label="Preço de Venda (R$) — opcional"
               type="number"
               step="0.01"
               min="0"
-              required
-              placeholder="0,00"
+              placeholder="Definir na hora da venda"
               value={addForm.sale_price}
               onChange={e => setAddForm(f => ({ ...f, sale_price: e.target.value }))}
             />
@@ -418,11 +417,11 @@ export const Estoque: React.FC = () => {
               onChange={e => setEditForm(f => ({ ...f, purchase_price: e.target.value }))}
             />
             <Input
-              label="Preço de Venda (R$)"
+              label="Preço de Venda (R$) — opcional"
               type="number"
               step="0.01"
               min="0"
-              required
+              placeholder="Definir na hora da venda"
               value={editForm.sale_price}
               onChange={e => setEditForm(f => ({ ...f, sale_price: e.target.value }))}
             />

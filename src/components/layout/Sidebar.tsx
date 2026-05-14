@@ -80,9 +80,7 @@ export const Sidebar: React.FC = () => {
       {/* Logo */}
       <NavLink to="/dashboard" className="h-16 flex items-center px-5 mb-4 flex-shrink-0 overflow-hidden">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-black font-bold text-sm">E</span>
-          </div>
+          <img src="/favicon.png" alt="Five Akon" className="w-8 h-8 object-contain flex-shrink-0" />
           {!isCollapsed && (
             <div className="font-bold text-xl tracking-tight whitespace-nowrap">
               <span>Easy</span>

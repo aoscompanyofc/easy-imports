@@ -116,7 +116,8 @@ export const dataService = {
         const newQty = product.stock_quantity - item.quantity;
         await supabase.from('products')
           .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
-          .eq('id', item.product_id);
+          .eq('id', item.product_id)
+          .eq('stock_quantity', product.stock_quantity); // optimistic lock — prevents double-sell race
         if (product.purchase_price > 0) {
           await this.addTransaction({
             description: `Custo Mercadoria #${saleId.slice(0, 8)}`,

@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppRoutes } from './routes';
 import { useAuthStore } from './stores/authStore';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -12,6 +13,7 @@ function App() {
   }, [checkAuth]);
 
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <AppRoutes />
       <Toaster 
@@ -36,6 +38,7 @@ function App() {
         }}
       />
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

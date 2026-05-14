@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, User } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { FiveAkonLogo } from '../components/ui/FiveAkonLogo';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 
@@ -71,9 +72,7 @@ export const Login: React.FC = () => {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
         <div className="w-full max-w-[440px] text-center animate-in fade-in zoom-in duration-500">
           <div className="flex items-center justify-center mb-6">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-black font-bold text-2xl">E</span>
-            </div>
+            <FiveAkonLogo size="md" />
           </div>
           <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-xl shadow-neutral-900/5">
             <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
@@ -99,14 +98,8 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
       <div className="w-full max-w-[440px] animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-black font-bold text-2xl">E</span>
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight">
-              <span>Easy</span>
-              <span className="text-primary">Imports</span>
-            </h1>
+          <div className="flex items-center justify-center mb-3">
+            <FiveAkonLogo size="lg" />
           </div>
           <p className="text-neutral-500 font-medium">Sistema de Gestão</p>
         </div>
@@ -212,7 +205,7 @@ export const Login: React.FC = () => {
         </div>
 
         <p className="text-center mt-10 text-xs text-neutral-400 font-medium">
-          © 2026 Easy Imports • Todos os direitos reservados
+          © 2026 Five Akon Importações • Todos os direitos reservados
         </p>
       </div>
     </div>

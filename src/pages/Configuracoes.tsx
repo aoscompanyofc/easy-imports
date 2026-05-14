@@ -77,6 +77,7 @@ const emptyMemberForm = () => ({
   name: '',
   email: '',
   password: '',
+  role: 'Vendedor',
   allowedPages: [...DEFAULT_VENDEDOR_PAGES] as PageKey[],
 });
 
@@ -300,7 +301,7 @@ export const Configuracoes: React.FC = () => {
       await dataService.addTeamMember({
         name,
         email,
-        role: 'vendedor',
+        role: memberForm.role.trim() || 'Vendedor',
         allowed_pages: memberForm.allowedPages,
       });
 
@@ -695,7 +696,7 @@ export const Configuracoes: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Nome Completo"
-                placeholder="Ex: João Vendas"
+                placeholder="Ex: João Silva"
                 value={memberForm.name}
                 onChange={(e) => setMemberForm((f) => ({ ...f, name: e.target.value }))}
                 autoComplete="off"
@@ -708,6 +709,20 @@ export const Configuracoes: React.FC = () => {
                 onChange={(e) => setMemberForm((f) => ({ ...f, email: e.target.value }))}
                 autoComplete="off"
               />
+            </div>
+
+            {/* Role / function — free text */}
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Cargo / Função</label>
+              <input
+                type="text"
+                placeholder="Ex: Vendedor, Estagiário, Gestor de Tráfego, Marketing…"
+                value={memberForm.role}
+                onChange={(e) => setMemberForm((f) => ({ ...f, role: e.target.value }))}
+                autoComplete="off"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+              />
+              <p className="text-xs text-neutral-400 mt-1">Digite o cargo desta pessoa na empresa.</p>
             </div>
 
             {/* Password field */}

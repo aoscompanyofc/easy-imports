@@ -130,6 +130,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
     set({ isAuthenticated: false, user: null });
     removeStorage(STORAGE_KEY);
+    // Wipe all profile data so the next user on this device starts clean
+    ['user_name', 'user_cargo', 'user_avatar', 'user_telefone', 'company_cnpj', 'user_signature']
+      .forEach((k) => localStorage.removeItem(k));
+    useProfileStore.getState().reset();
+    usePermissionsStore.getState().reset();
   },
 
   checkAuth: async () => {

@@ -10,6 +10,7 @@ import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
   ChevronLeft, ChevronRight, Calendar, TrendingUp, ArrowRight,
 } from 'lucide-react';
+import { FiveAkonLogo } from '../components/ui/FiveAkonLogo';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { format, getDaysInMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
@@ -169,7 +170,7 @@ export const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight">Dashboard</h2>
+          <FiveAkonLogo size="md" className="mb-1" />
           <p className="text-neutral-500 font-medium">Visão geral do seu negócio</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

@@ -37,6 +37,7 @@ export const usePermissionsStore = create<PermissionsStore>((set) => ({
         .maybeSingle();
 
       if (data) {
+        // Found in team_members → restricted collaborator
         set({
           role: data.role as 'admin' | 'vendedor',
           allowedPages: data.allowed_pages as string[],
@@ -44,11 +45,18 @@ export const usePermissionsStore = create<PermissionsStore>((set) => ({
           loaded: true,
         });
       } else {
+        // No record → owner (admin)
         set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
       }
-    } catch {
-      // Table may not exist yet or network error — treat as admin
-      set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+    } catch (err: any) {
+      const isTableMissing = err?.code === '42P01' || err?.message?.includes('does not exist');
+      if (isTableMissing) {
+        // Table not set up yet → treat as owner/admin
+        set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+      } else {
+        // Network or auth error → fail safe: minimal access until resolved
+        set({ role: 'vendedor', allowedPages: ['dashboard', 'vendas'], isAdmin: false, loaded: true });
+      }
     }
   },
 

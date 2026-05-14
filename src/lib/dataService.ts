@@ -84,12 +84,17 @@ export const dataService = {
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       user_id: uid,
     };
+    const isColumnError = (e: any) =>
+      e?.code === '42703' ||
+      e?.message?.includes('schema cache') ||
+      e?.message?.includes('Could not find');
+
     let saleData: any[], saleError: any;
     try {
       const res = await supabase.from('sales').insert([fullPayload]).select();
       saleData = res.data || [];
       saleError = res.error;
-      if (saleError?.code === '42703') {
+      if (isColumnError(saleError)) {
         // Fallback to basic schema if extra columns don't exist yet
         const res2 = await supabase.from('sales')
           .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])

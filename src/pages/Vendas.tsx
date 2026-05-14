@@ -197,12 +197,37 @@ export const Vendas: React.FC = () => {
           : []
       );
 
+      // Generate PDF immediately with form data (don't wait for refetch)
+      const pdfData: SalePDFData = {
+        sale_number: saleNumber,
+        sale_type: form.sale_type,
+        created_at: new Date(form.sale_date).toISOString(),
+        seller_name: form.sale_type === 'compra' ? form.seller_name : (localStorage.getItem('user_name') || 'Easy Imports'),
+        seller_cpf: form.sale_type === 'compra' ? form.seller_cpf : (localStorage.getItem('company_cnpj') || ''),
+        seller_rg: form.sale_type === 'compra' ? form.seller_rg : '',
+        seller_phone: form.sale_type === 'compra' ? form.seller_phone : (localStorage.getItem('user_telefone') || ''),
+        seller_address: form.sale_type === 'compra' ? form.seller_address : '',
+        seller_email: form.sale_type === 'compra' ? form.seller_email : 'easyimportsbrstore@gmail.com',
+        customer_name: customerName,
+        customer_phone: form.customer_phone || selectedCustomerData?.phone || '',
+        customer_cpf: form.customer_cpf,
+        product_name: productName || '',
+        product_capacity: form.product_capacity,
+        product_color: form.product_color,
+        product_condition: form.product_condition,
+        product_imei: form.product_imei,
+        product_accessories: form.product_accessories,
+        total_amount: totalAmount,
+        payment_method: form.payment_method,
+      };
+      generatePDF(pdfData, getCompanyInfo());
+
       toast.success(`✅ ${TYPE_LABELS[form.sale_type]} ${saleNumber} registrada!`);
       setIsModalOpen(false);
       setForm(emptyForm());
       fetchData();
     } catch (error: any) {
-      toast.error('Erro: ' + error.message);
+      toast.error('Erro ao salvar: ' + error.message);
     } finally {
       setIsSaving(false);
     }

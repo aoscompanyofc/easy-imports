@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
-  RefreshCw, Eye, Link2,
+  RefreshCw, Eye, Link2, MessageCircle, Copy,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -61,6 +61,13 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_condition TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_imei TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_accessories TEXT;`;
 
+function toWhatsAppNumber(phone: string) {
+  const d = phone.replace(/\D/g, '');
+  if (d.startsWith('55') && d.length >= 12) return d;
+  if (d.length >= 10) return '55' + d;
+  return d;
+}
+
 function getCompanyInfo(): CompanyInfo {
   const store = useProfileStore.getState();
   return {
@@ -95,6 +102,8 @@ const emptyForm = () => ({
   payment_method: 'PIX',
   installments: 1,
   sale_date: new Date().toISOString().slice(0, 16),
+  // WhatsApp para envio automático do link de assinatura
+  whatsapp_number: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -114,6 +123,10 @@ export const Vendas: React.FC = () => {
   const [showSQL, setShowSQL] = useState(false);
 
   const [form, setForm] = useState(emptyForm());
+  const [postSaleData, setPostSaleData] = useState<{
+    customerName: string; phone: string; signLink: string;
+    saleNumber: string; saleType: string;
+  } | null>(null);
 
   const setF = (field: string) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -143,12 +156,37 @@ export const Vendas: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Auto-fill WhatsApp number from selected customer
+  useEffect(() => {
+    if (form.selectedCustomer) {
+      const c = customers.find((c) => c.id === form.selectedCustomer);
+      if (c?.phone) setForm((f) => ({ ...f, whatsapp_number: c.phone }));
+    }
+  }, [form.selectedCustomer, customers]);
+
   const selectedProductData = products.find((p) => p.id === form.selectedProduct);
   const selectedCustomerData = customers.find((c) => c.id === form.selectedCustomer);
 
+  // When a product is selected from stock, pre-fill its details into the form
+  useEffect(() => {
+    if (!form.selectedProduct || !selectedProductData) return;
+    setForm((f) => ({
+      ...f,
+      product_imei: f.product_imei || selectedProductData.imei || '',
+      product_capacity: f.product_capacity || selectedProductData.product_capacity || '',
+      product_color: f.product_color || selectedProductData.product_color || '',
+      product_condition: f.product_condition || selectedProductData.product_condition || 'Seminovo',
+      // Pre-fill sale price only if product has one defined (> 0) and user hasn't typed one yet
+      sale_price_manual: f.sale_price_manual || (selectedProductData.sale_price > 0 ? String(selectedProductData.sale_price) : ''),
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.selectedProduct]);
+
+  // Actual unit price: manual input wins, then product.sale_price if > 0, else 0
+  const resolvedUnitPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price > 0 ? selectedProductData.sale_price : 0);
   const salePrice = form.sale_type === 'compra'
     ? (Number(form.sale_price_manual) || 0)
-    : (selectedProductData ? selectedProductData.sale_price * form.quantity : Number(form.sale_price_manual) || 0);
+    : resolvedUnitPrice * form.quantity;
 
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,11 +199,13 @@ export const Vendas: React.FC = () => {
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
     const customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';
+    // Manual price wins over product.sale_price; product.sale_price only if > 0
+    const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
     const totalAmount = form.sale_type === 'compra'
       ? (Number(form.sale_price_manual) || 0)
-      : (product ? product.sale_price * form.quantity : Number(form.sale_price_manual) || 0);
+      : unitPrice * form.quantity;
 
-    if (totalAmount <= 0) { toast.error('Informe o valor da operação.'); return; }
+    if (totalAmount <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
 
     const saleNumber = generateSaleNumber(sales.length, form.sale_type);
 
@@ -198,7 +238,7 @@ export const Vendas: React.FC = () => {
           product_accessories: form.product_accessories,
         },
         product
-          ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: product.sale_price }]
+          ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
           : []
       );
 
@@ -229,13 +269,18 @@ export const Vendas: React.FC = () => {
       };
       generatePDF(pdfData, getCompanyInfo());
 
-      // Copy signing link to clipboard automatically if sale has sign_token
-      if (savedSale?.sign_token) {
-        const link = `${window.location.origin}/assinar/${savedSale.sign_token}`;
-        try { await navigator.clipboard.writeText(link); } catch {}
-      }
+      // Build WhatsApp post-sale data
+      const signLink = savedSale?.sign_token
+        ? `${window.location.origin}/assinar/${savedSale.sign_token}`
+        : '';
+      const whatsappPhone = form.sale_type === 'compra'
+        ? form.seller_phone
+        : (form.whatsapp_number || form.customer_phone || selectedCustomerData?.phone || '');
+      const postName = form.sale_type === 'compra'
+        ? form.seller_name
+        : (selectedCustomerData?.name || form.seller_name || 'Cliente');
 
-      toast.success(`✅ ${TYPE_LABELS[form.sale_type]} ${saleNumber} registrada!`);
+      setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
       setForm(emptyForm());
       fetchData();
@@ -604,12 +649,27 @@ export const Vendas: React.FC = () => {
                   </select>
                 </div>
                 {!form.selectedCustomer && (
-                  <>
-                    <Input label="Nome (se não cadastrado)" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" />
-                    <Input label="Telefone" value={form.customer_phone} onChange={setF('customer_phone')} autoComplete="off" />
-                    <Input label="CPF" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />
-                  </>
-                )}
+                <>
+                  <Input label="Nome (se não cadastrado)" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" />
+                  <Input label="CPF" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />
+                </>
+              )}
+
+              {/* WhatsApp — always visible so the signing link can be sent */}
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5 flex items-center gap-1.5">
+                  <MessageCircle size={15} className="text-green-500" />
+                  WhatsApp do Cliente <span className="text-neutral-400 font-normal text-xs">(para envio do link de assinatura)</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={form.whatsapp_number}
+                  onChange={setF('whatsapp_number')}
+                  autoComplete="off"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400/30 focus:border-green-400"
+                />
+              </div>
               </div>
             </div>
           )}
@@ -672,11 +732,11 @@ export const Vendas: React.FC = () => {
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
-                label={form.sale_type === 'compra' ? 'Valor Pago (R$) *' : 'Valor (R$) *'}
+                label={form.sale_type === 'compra' ? 'Valor Pago (R$) *' : 'Valor de Venda (R$) *'}
                 type="number"
                 step="0.01"
-                placeholder="0,00"
-                value={form.sale_price_manual || (selectedProductData ? String(selectedProductData.sale_price) : '')}
+                placeholder="Digite o valor"
+                value={form.sale_price_manual}
                 onChange={setF('sale_price_manual')}
                 required
               />
@@ -702,8 +762,7 @@ export const Vendas: React.FC = () => {
                     onChange={(e) => setForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
                   >
                     {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
-                      const total = Number(form.sale_price_manual) || (selectedProductData ? selectedProductData.sale_price * form.quantity : 0);
-                      const label = n === 1 ? '1x (à vista)' : `${n}x de ${total > 0 ? formatCurrency(total / n) : '—'}`;
+                      const label = n === 1 ? '1x (à vista)' : `${n}x de ${salePrice > 0 ? formatCurrency(salePrice / n) : '—'}`;
                       return <option key={n} value={n}>{label}</option>;
                     })}
                   </select>
@@ -721,12 +780,10 @@ export const Vendas: React.FC = () => {
             </div>
 
             {/* Preview total */}
-            {(Number(form.sale_price_manual) > 0 || selectedProductData) && (
+            {salePrice > 0 && (
               <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
                 <span className="text-sm font-bold text-neutral-700">Total da operação:</span>
-                <span className="text-2xl font-black text-primary-900">
-                  {formatCurrency(Number(form.sale_price_manual) || (selectedProductData ? selectedProductData.sale_price * form.quantity : 0))}
-                </span>
+                <span className="text-2xl font-black text-primary-900">{formatCurrency(salePrice)}</span>
               </div>
             )}
           </div>
@@ -738,6 +795,97 @@ export const Vendas: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ─── POST-SALE SUCCESS MODAL ─── */}
+      <Modal
+        isOpen={!!postSaleData}
+        onClose={() => setPostSaleData(null)}
+        title="✅ Operação registrada!"
+        maxWidth="md"
+      >
+        {postSaleData && (() => {
+          const { customerName, phone, signLink, saleNumber, saleType } = postSaleData;
+          const waNumber = toWhatsAppNumber(phone);
+          const companyName = useProfileStore.getState().name || 'Five Akon';
+          const waMessage = [
+            `Olá ${customerName}! 👋`,
+            ``,
+            `Aqui é a *${companyName}*.`,
+            ``,
+            `Seu documento *${saleNumber}* foi gerado com sucesso! ✅`,
+            signLink ? `\nPara assinar digitalmente, acesse o link abaixo:` : '',
+            signLink ? `👉 ${signLink}` : '',
+            ``,
+            `Qualquer dúvida é só chamar! 😊`,
+          ].filter((l) => l !== undefined).join('\n');
+
+          return (
+            <div className="space-y-5">
+              <div className="bg-neutral-50 rounded-2xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Operação</span>
+                  <span className="font-bold">{saleNumber} — {TYPE_LABELS[saleType]}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Cliente</span>
+                  <span className="font-bold">{customerName}</span>
+                </div>
+                {phone && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">WhatsApp</span>
+                    <span className="font-bold">{phone}</span>
+                  </div>
+                )}
+                {signLink && (
+                  <div className="pt-1 border-t border-neutral-200">
+                    <p className="text-neutral-500 text-xs mb-1">Link de assinatura</p>
+                    <p className="text-xs font-mono text-neutral-700 break-all">{signLink}</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-neutral-600 font-medium">
+                O PDF foi gerado. Agora envie o link de assinatura pelo WhatsApp:
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {phone && waNumber ? (
+                  <a
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-base transition-colors"
+                  >
+                    <MessageCircle size={20} />
+                    Enviar pelo WhatsApp
+                  </a>
+                ) : (
+                  <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    Número de WhatsApp não informado. Copie o link abaixo e envie manualmente.
+                  </div>
+                )}
+
+                {signLink && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(signLink); toast.success('Link copiado!'); }}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
+                  >
+                    <Copy size={15} />
+                    Copiar link de assinatura
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setPostSaleData(null)}
+                  className="w-full py-2.5 rounded-xl text-neutral-500 hover:text-neutral-700 text-sm font-medium transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* ─── DETAIL / PDF MODAL ─── */}
@@ -787,12 +935,29 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button fullWidth leftIcon={<Link2 size={18} />} variant="secondary"
+            <div className="flex gap-3 flex-col sm:flex-row">
+              {detailSale.sign_token && (detailSale.customer_phone || detailSale.seller_phone) && (
+                <a
+                  href={(() => {
+                    const phone = detailSale.customer_phone || detailSale.seller_phone || '';
+                    const link = `${window.location.origin}/assinar/${detailSale.sign_token}`;
+                    const name = detailSale.customer_name || detailSale.customers?.name || 'Cliente';
+                    const msg = `Olá ${name}! 👋\n\nAqui é a *${useProfileStore.getState().name || 'Five Akon'}*.\n\nSeu documento *${detailSale.sale_number || ''}* está pronto! ✅\n\nPara assinar digitalmente:\n👉 ${link}\n\nQualquer dúvida é só chamar! 😊`;
+                    return `https://wa.me/${toWhatsAppNumber(phone)}?text=${encodeURIComponent(msg)}`;
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-sm transition-colors"
+                >
+                  <MessageCircle size={16} />
+                  WhatsApp
+                </a>
+              )}
+              <Button fullWidth={!(detailSale.customer_phone || detailSale.seller_phone)} leftIcon={<Link2 size={16} />} variant="secondary"
                 onClick={() => handleCopySignLink(detailSale)}>
-                Copiar Link para Cliente Assinar
+                Copiar Link
               </Button>
-              <Button fullWidth leftIcon={<Download size={18} />} onClick={() => handleGeneratePDF(detailSale)}>
+              <Button fullWidth leftIcon={<Download size={16} />} onClick={() => handleGeneratePDF(detailSale)}>
                 Gerar PDF
               </Button>
             </div>

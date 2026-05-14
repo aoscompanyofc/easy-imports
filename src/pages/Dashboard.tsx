@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { RevenueChart } from '../components/dashboard/RevenueChart';
 import { ChannelChart } from '../components/dashboard/ChannelChart';
@@ -10,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Plus, ShoppingCart, Package, DollarSign, UserPlus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
-import { format, getDaysInMonth, startOfMonth, addMonths, subMonths, isSameMonth, isToday } from 'date-fns';
+import { format, getDaysInMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -65,6 +66,7 @@ function buildChannelData(sales: any[]) {
 }
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [isFABOpen, setIsFABOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
@@ -185,9 +187,9 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Button onClick={() => window.location.href = '/estoque'} leftIcon={<Package size={18} />}>Adicionar Estoque</Button>
-            <Button variant="secondary" onClick={() => window.location.href = '/clientes'} leftIcon={<UserPlus size={18} />}>Cadastrar Clientes</Button>
-            <Button variant="secondary" onClick={() => window.location.href = '/leads'} leftIcon={<UserPlus size={18} />}>Cadastrar Leads</Button>
+            <Button onClick={() => navigate('/estoque')} leftIcon={<Package size={18} />}>Adicionar Estoque</Button>
+            <Button variant="secondary" onClick={() => navigate('/clientes')} leftIcon={<UserPlus size={18} />}>Cadastrar Clientes</Button>
+            <Button variant="secondary" onClick={() => navigate('/leads')} leftIcon={<UserPlus size={18} />}>Cadastrar Leads</Button>
           </div>
         </Card>
       ) : (
@@ -252,7 +254,7 @@ export const Dashboard: React.FC = () => {
               { icon: DollarSign, label: 'Nova Despesa', action: '/financeiro' },
               { icon: UserPlus, label: 'Novo Lead', action: '/leads' },
             ].map((item, idx) => (
-              <button key={idx} onClick={() => { window.location.href = item.action; }} className="flex items-center gap-3 bg-neutral-900 text-white px-4 py-2.5 rounded-xl shadow-xl hover:bg-neutral-800 transition-all whitespace-nowrap group">
+              <button key={idx} onClick={() => { navigate(item.action); setIsFABOpen(false); }} className="flex items-center gap-3 bg-neutral-900 text-white px-4 py-2.5 rounded-xl shadow-xl hover:bg-neutral-800 transition-all whitespace-nowrap group">
                 <div className="p-1.5 bg-neutral-800 rounded-lg group-hover:bg-primary group-hover:text-black transition-colors">
                   <item.icon size={18} />
                 </div>

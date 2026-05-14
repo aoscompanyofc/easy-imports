@@ -175,7 +175,7 @@ export const Estoque: React.FC = () => {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <Input label="Nome do Produto" placeholder="Ex: iPhone 15 Pro Max 256GB" required value={data.name} onChange={e => setData({...data, name: e.target.value})} />
+            <Input label="Nome do Produto" placeholder="Ex: iPhone 15 Pro Max 256GB" required autoComplete="off" value={data.name} onChange={e => setData({...data, name: e.target.value})} />
           </div>
           <Input label="SKU / Código" placeholder="IP15PM-256" value={data.sku} onChange={e => setData({...data, sku: e.target.value})} />
           <Input label="IMEI / Serial" placeholder="Opcional" value={data.imei} onChange={e => setData({...data, imei: e.target.value})} />

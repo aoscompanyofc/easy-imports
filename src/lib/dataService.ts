@@ -24,13 +24,15 @@ export const dataService = {
   },
   async addProduct(product: any) {
     if (useMock) return mockDataService.addProduct(product);
-    const { data, error } = await supabase.from('products').insert([product]).select();
+    const { name, category, purchase_price, sale_price, stock_quantity, status } = product;
+    const { data, error } = await supabase.from('products').insert([{ name, category, purchase_price, sale_price, stock_quantity, status }]).select();
     if (error) throw error;
     return data[0];
   },
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
-    const { data, error } = await supabase.from('products').update(updates).eq('id', id).select();
+    const { name, category, purchase_price, sale_price, stock_quantity, status } = updates;
+    const { data, error } = await supabase.from('products').update({ name, category, purchase_price, sale_price, stock_quantity, status }).eq('id', id).select();
     if (error) throw error;
     return data[0];
   },

@@ -475,7 +475,23 @@ export const Vendas: React.FC = () => {
 
                           {/* Payment */}
                           <span className="hidden sm:block text-xs text-neutral-500 flex-shrink-0">
-                            {sale.payment_method}
+                            {sale.installments > 1
+                              ? `${sale.installments}x ${formatCurrency(sale.total_amount / sale.installments)}`
+                              : sale.payment_method}
+                          </span>
+
+                          {/* Signature status */}
+                          <span className={cn(
+                            'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0',
+                            sale.signature_client
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-amber-100 text-amber-700'
+                          )}>
+                            {sale.signature_client ? (
+                              <><CheckCircle2 size={10} /> Assinado</>
+                            ) : (
+                              <><RefreshCw size={10} /> Aguardando</>
+                            )}
                           </span>
 
                           {/* Date */}

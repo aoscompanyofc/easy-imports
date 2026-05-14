@@ -94,7 +94,7 @@ export const Dashboard: React.FC = () => {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [allSales, setAllSales] = useState<any[]>([]);
 
-  const [stats, setStats] = useState({ revenue: 0, salesCount: 0, profit: 0, cash: 0, margin: 0 });
+  const [stats, setStats] = useState({ revenue: 0, salesCount: 0, profit: 0, cash: 0, margin: 0, stockValue: 0 });
   const [chartData, setChartData] = useState<{ date: string; value: number }[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<{ id: string; name: string; salesCount: number }[]>([]);
@@ -104,7 +104,7 @@ export const Dashboard: React.FC = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [sales, , transactions] = await Promise.all([
+      const [sales, products, transactions] = await Promise.all([
         dataService.getSales(),
         dataService.getProducts(),
         dataService.getTransactions(),
@@ -118,8 +118,11 @@ export const Dashboard: React.FC = () => {
       const totalExpense = transactions?.filter((t) => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
       const netProfit = totalIncome - totalExpense;
       const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+      const stockValue = (products || [])
+        .filter((p: any) => p.stock_quantity > 0)
+        .reduce((acc: number, p: any) => acc + (p.sale_price > 0 ? Number(p.sale_price) : Number(p.purchase_price || 0)), 0);
 
-      setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: netProfit, cash: totalIncome - totalExpense, margin });
+      setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: netProfit, cash: totalIncome - totalExpense, margin, stockValue });
       setRecentSales((sales || []).slice(0, 5));
       setTopProducts(buildTopProducts(sales || []));
       setChannelData(buildChannelData(sales || []));
@@ -226,10 +229,11 @@ export const Dashboard: React.FC = () => {
               iconBgColor="bg-info-light"
             />
             <MetricCard
-              title="Saldo em Caixa"
-              value={formatCurrency(stats.cash)}
-              subtitle="Receitas − Despesas"
-              icon="Wallet"
+              title="Valor em Estoque"
+              value={formatCurrency(stats.stockValue)}
+              subtitle="Preço de venda dos aparelhos"
+              icon="Package"
+              iconBgColor="bg-purple-100"
             />
           </div>
 

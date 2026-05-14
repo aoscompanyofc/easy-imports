@@ -23,9 +23,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const SALE_TYPES = [
-  { value: 'compra', label: 'Compra de Produto Usado', desc: 'Easy Imports compra de um vendedor' },
   { value: 'venda', label: 'Venda ao Cliente', desc: 'Easy Imports vende para um cliente' },
-  { value: 'troca', label: 'Troca', desc: 'Troca de aparelho com o cliente' },
+  { value: 'troca', label: 'Troca de Aparelhos', desc: 'Cliente entrega um aparelho e leva outro' },
 ];
 
 const PAYMENT_METHODS = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'];
@@ -79,18 +78,17 @@ function getCompanyInfo(): CompanyInfo {
 }
 
 function generateSaleNumber(existingCount: number, type: string) {
-  const prefix = type === 'compra' ? 'C' : type === 'troca' ? 'T' : 'V';
+  const prefix = type === 'troca' ? 'T' : 'V';
   return `#${prefix}${String(existingCount + 1).padStart(4, '0')}`;
 }
 
 const emptyForm = () => ({
-  sale_type: 'compra',
-  // Vendedor (para compra)
+  sale_type: 'venda',
+  // Cliente
+  selectedCustomer: '', customer_phone: '', customer_cpf: '',
   seller_name: '', seller_cpf: '', seller_rg: '',
   seller_phone: '', seller_address: '', seller_email: '',
-  // Cliente (para venda/troca)
-  selectedCustomer: '', customer_phone: '', customer_cpf: '',
-  // Produto
+  // Produto que sai do estoque
   selectedProduct: '',
   product_name_manual: '',
   product_capacity: '', product_color: '',
@@ -98,6 +96,14 @@ const emptyForm = () => ({
   product_accessories: '',
   quantity: 1,
   sale_price_manual: '',
+  // Aparelho que entra (troca)
+  incoming_name: '',
+  incoming_imei: '',
+  incoming_category: 'Smartphones',
+  incoming_capacity: '',
+  incoming_color: '',
+  incoming_condition: 'Seminovo',
+  incoming_purchase_price: '',
   // Pagamento
   payment_method: 'PIX',
   installments: 1,
@@ -184,14 +190,12 @@ export const Vendas: React.FC = () => {
 
   // Actual unit price: manual input wins, then product.sale_price if > 0, else 0
   const resolvedUnitPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price > 0 ? selectedProductData.sale_price : 0);
-  const salePrice = form.sale_type === 'compra'
-    ? (Number(form.sale_price_manual) || 0)
-    : resolvedUnitPrice * form.quantity;
+  const salePrice = resolvedUnitPrice * form.quantity;
 
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (form.sale_type !== 'compra' && !form.selectedCustomer && !form.product_name_manual) {
+    if (!form.selectedCustomer && !form.product_name_manual && !form.selectedProduct) {
       toast.error('Selecione um cliente e um produto.');
       return;
     }
@@ -199,11 +203,8 @@ export const Vendas: React.FC = () => {
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
     const customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';
-    // Manual price wins over product.sale_price; product.sale_price only if > 0
     const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
-    const totalAmount = form.sale_type === 'compra'
-      ? (Number(form.sale_price_manual) || 0)
-      : unitPrice * form.quantity;
+    const totalAmount = unitPrice * form.quantity;
 
     if (totalAmount <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
 
@@ -214,7 +215,7 @@ export const Vendas: React.FC = () => {
       const savedSale = await dataService.addSale(
         {
           customer_id: form.selectedCustomer || null,
-          customer_name: form.sale_type === 'compra' ? form.seller_name : customerName,
+          customer_name: customerName,
           product_name: productName,
           total_amount: totalAmount,
           payment_method: form.payment_method,
@@ -242,17 +243,33 @@ export const Vendas: React.FC = () => {
           : []
       );
 
+      // For troca: add incoming device to stock
+      if (form.sale_type === 'troca' && form.incoming_name.trim()) {
+        await dataService.addProduct({
+          name: form.incoming_name.trim(),
+          category: form.incoming_category || 'Smartphones',
+          purchase_price: Number(form.incoming_purchase_price) || 0,
+          sale_price: 0,
+          stock_quantity: 1,
+          status: 'available',
+          imei: form.incoming_imei || '',
+          product_capacity: form.incoming_capacity || '',
+          product_color: form.incoming_color || '',
+          product_condition: form.incoming_condition || 'Seminovo',
+        });
+      }
+
       // Generate PDF immediately with form data
       const pdfData: SalePDFData = {
         sale_number: saleNumber,
         sale_type: form.sale_type,
         created_at: new Date(form.sale_date).toISOString(),
-        seller_name: form.sale_type === 'compra' ? form.seller_name : getCompanyInfo().name,
-        seller_cpf: form.sale_type === 'compra' ? form.seller_cpf : getCompanyInfo().cnpj,
-        seller_rg: form.sale_type === 'compra' ? form.seller_rg : '',
-        seller_phone: form.sale_type === 'compra' ? form.seller_phone : getCompanyInfo().phone,
-        seller_address: form.sale_type === 'compra' ? form.seller_address : '',
-        seller_email: form.sale_type === 'compra' ? form.seller_email : getCompanyInfo().email,
+        seller_name: getCompanyInfo().name,
+        seller_cpf: getCompanyInfo().cnpj,
+        seller_rg: '',
+        seller_phone: getCompanyInfo().phone,
+        seller_address: '',
+        seller_email: getCompanyInfo().email,
         customer_name: customerName,
         customer_phone: form.customer_phone || selectedCustomerData?.phone || '',
         customer_cpf: form.customer_cpf,
@@ -273,12 +290,8 @@ export const Vendas: React.FC = () => {
       const signLink = savedSale?.sign_token
         ? `${window.location.origin}/assinar/${savedSale.sign_token}`
         : '';
-      const whatsappPhone = form.sale_type === 'compra'
-        ? form.seller_phone
-        : (form.whatsapp_number || form.customer_phone || selectedCustomerData?.phone || '');
-      const postName = form.sale_type === 'compra'
-        ? form.seller_name
-        : (selectedCustomerData?.name || form.seller_name || 'Cliente');
+      const whatsappPhone = form.whatsapp_number || form.customer_phone || selectedCustomerData?.phone || '';
+      const postName = selectedCustomerData?.name || form.seller_name || 'Cliente';
 
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
@@ -591,7 +604,7 @@ export const Vendas: React.FC = () => {
           {/* Tipo */}
           <div>
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Tipo de Operação</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {SALE_TYPES.map((t) => (
                 <label
                   key={t.value}
@@ -611,28 +624,8 @@ export const Vendas: React.FC = () => {
             </div>
           </div>
 
-          {/* Dados do Vendedor (para compra) */}
-          {form.sale_type === 'compra' && (
-            <div>
-              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Dados do Vendedor</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <Input label="Nome Completo *" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" required />
-                </div>
-                <Input label="CPF" placeholder="000.000.000-00" value={form.seller_cpf} onChange={setF('seller_cpf')} autoComplete="off" />
-                <Input label="RG" value={form.seller_rg} onChange={setF('seller_rg')} autoComplete="off" />
-                <Input label="Telefone" placeholder="(11) 99999-9999" value={form.seller_phone} onChange={setF('seller_phone')} autoComplete="off" />
-                <Input label="E-mail" type="email" value={form.seller_email} onChange={setF('seller_email')} autoComplete="off" />
-                <div className="sm:col-span-2">
-                  <Input label="Endereço Completo" value={form.seller_address} onChange={setF('seller_address')} autoComplete="off" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Dados do Cliente (para venda/troca) */}
-          {(form.sale_type === 'venda' || form.sale_type === 'troca') && (
-            <div>
+          {/* Dados do Cliente */}
+          <div>
               <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Dados do Comprador</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
@@ -672,33 +665,32 @@ export const Vendas: React.FC = () => {
               </div>
               </div>
             </div>
-          )}
 
-          {/* Dados do Produto */}
+          {/* Dados do Produto (que sai do estoque) */}
           <div>
-            <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Dados do Produto</p>
+            <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">
+              {form.sale_type === 'troca' ? 'Aparelho Saindo (do seu estoque)' : 'Dados do Produto'}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {form.sale_type !== 'compra' ? (
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Produto do Estoque</label>
-                  <select
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                    value={form.selectedProduct}
-                    onChange={setF('selectedProduct')}
-                  >
-                    <option value="">Selecione do estoque ou preencha manualmente...</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — {formatCurrency(p.sale_price)} ({p.stock_quantity} un.)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Produto do Estoque</label>
+                <select
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                  value={form.selectedProduct}
+                  onChange={setF('selectedProduct')}
+                >
+                  <option value="">Selecione do estoque ou preencha manualmente...</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {formatCurrency(p.sale_price)} ({p.stock_quantity} un.)
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="sm:col-span-2">
                 <Input
-                  label={form.sale_type === 'compra' ? 'Produto / Modelo *' : 'Modelo (manual, se não selecionou acima)'}
+                  label="Modelo (manual, se não selecionou acima)"
                   placeholder="Ex: iPhone 13 Pro Max"
                   value={form.product_name_manual}
                   onChange={setF('product_name_manual')}
@@ -727,12 +719,55 @@ export const Vendas: React.FC = () => {
             </div>
           </div>
 
+          {/* Aparelho Entrando (troca) */}
+          {form.sale_type === 'troca' && (
+            <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
+              <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
+                Aparelho Entrando (do cliente)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Modelo do aparelho *"
+                    placeholder="Ex: Samsung Galaxy S22"
+                    value={form.incoming_name}
+                    onChange={setF('incoming_name')}
+                    autoComplete="off"
+                  />
+                </div>
+                <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={form.incoming_imei} onChange={setF('incoming_imei')} autoComplete="off" />
+                <Input label="Capacidade" placeholder="128GB" value={form.incoming_capacity} onChange={setF('incoming_capacity')} autoComplete="off" />
+                <Input label="Cor" placeholder="Preto" value={form.incoming_color} onChange={setF('incoming_color')} autoComplete="off" />
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
+                  <select
+                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                    value={form.incoming_condition}
+                    onChange={setF('incoming_condition')}
+                  >
+                    {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <Input
+                  label="Preço de Custo (R$)"
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor atribuído ao aparelho"
+                  value={form.incoming_purchase_price}
+                  onChange={setF('incoming_purchase_price')}
+                  autoComplete="off"
+                />
+              </div>
+              <p className="text-xs text-purple-500">Este aparelho será adicionado automaticamente ao seu estoque.</p>
+            </div>
+          )}
+
           {/* Condições de Pagamento */}
           <div>
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
-                label={form.sale_type === 'compra' ? 'Valor Pago (R$) *' : 'Valor de Venda (R$) *'}
+                label="Valor de Venda (R$) *"
                 type="number"
                 step="0.01"
                 placeholder="Digite o valor"

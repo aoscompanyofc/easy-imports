@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
-import { useProfileStore } from '../../stores/profileStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -65,17 +64,12 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
 export const Sidebar: React.FC = () => {
   const { sidebarMode, toggleSidebar } = useAppStore();
   const { allowedPages } = usePermissionsStore();
-  const { name, cargo, avatar } = useProfileStore();
 
   const isCollapsed = sidebarMode === 'collapsed';
 
   const menuItems = ALL_MENU_ITEMS.filter(
     (item) => allowedPages.includes(item.path.slice(1))
   );
-
-  const displayName = name || 'Usuário';
-  const initials = displayName
-    .split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <aside
@@ -120,33 +114,6 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* User profile at bottom */}
-      <div className={cn(
-        'p-3 mt-4 border-t border-neutral-100 flex-shrink-0',
-        isCollapsed ? 'flex justify-center' : ''
-      )}>
-        {isCollapsed ? (
-          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 overflow-hidden">
-            {avatar
-              ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
-              : <span>{initials}</span>
-            }
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-neutral-50">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 overflow-hidden flex-shrink-0">
-              {avatar
-                ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
-                : <span>{initials}</span>
-              }
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-neutral-900 truncate">{displayName}</p>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-tight">{cargo || 'Administrador'}</p>
-            </div>
-          </div>
-        )}
-      </div>
     </aside>
   );
 };

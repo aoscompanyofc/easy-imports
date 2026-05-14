@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, Menu, LogOut, User as UserIcon, Settings } from 'lucide-react';
+import { Bell, Search, Menu, LogOut, Settings } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useProfileStore } from '../../stores/profileStore';
 import { useAppStore } from '../../stores/appStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -19,38 +20,41 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => {
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuthStore();
+  const { name, cargo, avatar } = useProfileStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const getPageTitle = () => {
     const path = location.pathname.split('/')[1];
     return PAGE_TITLES[path] || 'Dashboard';
   };
 
-  // Close dropdown on click outside
+  const displayName = name || 'Usuário';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    if (isDropdownOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
-  // Close dropdown on ESC
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsDropdownOpen(false);
     };
-    if (isDropdownOpen) {
-      window.addEventListener('keydown', handleEsc);
-    }
+    if (isDropdownOpen) window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isDropdownOpen]);
 
@@ -70,7 +74,7 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
         >
           <Menu size={24} />
         </button>
-        
+
         <div>
           <h1 className="text-lg font-bold text-neutral-900 leading-none">
             {getPageTitle()}
@@ -96,14 +100,14 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
-        <button 
+        <button
           className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors relative"
           aria-label="Notificações"
         >
           <Bell size={20} />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-danger rounded-full border-2 border-white" />
         </button>
-        
+
         {/* Avatar & Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
@@ -114,20 +118,35 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
           >
             <div className="hidden lg:text-right md:block">
               <p className="text-sm font-bold text-neutral-900 group-hover:text-primary transition-colors">
-                {user?.name || 'Usuário'}
+                {displayName}
               </p>
               <p className="text-[10px] text-neutral-400 font-medium uppercase tracking-tight">
-                Administrador
+                {cargo || 'Administrador'}
               </p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 border-2 border-primary-100">
-              {user?.avatar || 'JE'}
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 border-2 border-primary-100 overflow-hidden flex-shrink-0">
+              {avatar
+                ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                : <span>{initials}</span>
+              }
             </div>
           </button>
 
-          {/* Dropdown Menu */}
           {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+              {/* Mini profile header */}
+              <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 overflow-hidden flex-shrink-0">
+                  {avatar
+                    ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    : <span>{initials}</span>
+                  }
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-neutral-900 truncate">{displayName}</p>
+                  <p className="text-[10px] text-neutral-400 uppercase tracking-tight">{cargo || 'Administrador'}</p>
+                </div>
+              </div>
               <button
                 onClick={() => { setIsDropdownOpen(false); navigate('/configuracoes'); }}
                 className="flex items-center gap-3 w-full px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"

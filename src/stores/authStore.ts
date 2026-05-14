@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { User, AuthState } from '../types';
 import { getStorage, setStorage, removeStorage } from '../lib/storage';
 import { supabase } from '../lib/supabase';
+import { useProfileStore } from './profileStore';
+import { usePermissionsStore } from './permissionsStore';
 
 interface AuthStore extends AuthState {
   isLoading: boolean;
@@ -30,6 +32,11 @@ function makeUser(supabaseUser: any): User {
   };
 }
 
+function afterLogin(user: User) {
+  useProfileStore.getState().hydrate(user.name);
+  usePermissionsStore.getState().loadPermissions(user.email);
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: storedAuth?.isAuthenticated || false,
   user: storedAuth?.user || null,
@@ -44,6 +51,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         const user = makeUser(signInData.user);
         set({ isAuthenticated: true, user, isLoading: false });
         setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+        afterLogin(user);
         return;
       }
 
@@ -66,6 +74,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
             const user = makeUser(signUpData.user);
             set({ isAuthenticated: true, user, isLoading: false });
             setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+            afterLogin(user);
             return;
           } else {
             // Precisa confirmar email
@@ -85,6 +94,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const user: User = { id: '1', name: 'João Eduardo', email, avatar: 'JE' };
       set({ isAuthenticated: true, user, isLoading: false });
       setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+      afterLogin(user);
       return;
     }
 
@@ -134,9 +144,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
         const user = makeUser(session.user);
         set({ isAuthenticated: true, user });
         setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+        afterLogin(user);
       } else {
         set({ isAuthenticated: false, user: null });
         removeStorage(STORAGE_KEY);
+        usePermissionsStore.getState().reset();
       }
     } catch {
       // Erro de rede — mantém estado do localStorage

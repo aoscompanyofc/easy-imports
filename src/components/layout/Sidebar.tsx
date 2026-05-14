@@ -1,24 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Users,
-  UserPlus,
-  DollarSign,
-  Truck,
-  Megaphone,
-  BarChart3,
-  FileText,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  LucideIcon,
+  LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
+  DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
+  LogOut, ChevronLeft, ChevronRight, LucideIcon,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useAuthStore } from '../../stores/authStore';
+import { usePermissionsStore } from '../../stores/permissionsStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -26,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const menuItems = [
+const ALL_MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: ShoppingCart, label: 'Vendas', path: '/vendas' },
   { icon: Package, label: 'Estoque', path: '/estoque' },
@@ -76,9 +65,14 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
 export const Sidebar: React.FC = () => {
   const { sidebarMode, toggleSidebar } = useAppStore();
   const { logout } = useAuthStore();
+  const { allowedPages } = usePermissionsStore();
   const navigate = useNavigate();
 
   const isCollapsed = sidebarMode === 'collapsed';
+
+  const menuItems = ALL_MENU_ITEMS.filter(
+    (item) => allowedPages.includes(item.path.slice(1))
+  );
 
   const handleLogout = () => {
     logout();
@@ -92,7 +86,6 @@ export const Sidebar: React.FC = () => {
         isCollapsed ? 'w-[80px]' : 'w-[260px]'
       )}
     >
-      {/* Logo Section */}
       <NavLink to="/dashboard" className="h-16 flex items-center px-6 mb-4 group">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 group-hover:shadow-lg group-hover:shadow-primary/20 transition-shadow">
@@ -107,7 +100,6 @@ export const Sidebar: React.FC = () => {
         </div>
       </NavLink>
 
-      {/* Toggle Button */}
       <button
         onClick={toggleSidebar}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 hover:text-primary transition-colors shadow-sm z-10"
@@ -115,7 +107,6 @@ export const Sidebar: React.FC = () => {
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar" aria-label="Navegação principal">
         {menuItems.map((item) => (
           <NavItem
@@ -128,7 +119,6 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Logout */}
       <div className="p-3 mt-auto border-t border-neutral-100">
         <button
           onClick={handleLogout}
@@ -139,7 +129,6 @@ export const Sidebar: React.FC = () => {
         >
           <LogOut size={20} className="flex-shrink-0" />
           {!isCollapsed && <span className="font-medium">Sair do Sistema</span>}
-          
           {isCollapsed && (
             <div className="absolute left-full ml-4 px-2 py-1 bg-danger text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
               Sair

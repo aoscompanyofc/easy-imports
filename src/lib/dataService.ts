@@ -247,6 +247,32 @@ export const dataService = {
     return true;
   },
 
+  // ─── Team Members ─────────────────────────────────────────────────────
+  async getTeamMembers() {
+    const uid = await getUid();
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('owner_id', uid)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+  },
+  async addTeamMember(member: { name: string; email: string; role: string; allowed_pages: string[] }) {
+    const uid = await getUid();
+    const { data, error } = await supabase
+      .from('team_members')
+      .insert([{ ...member, owner_id: uid }])
+      .select();
+    if (error) throw error;
+    return data[0];
+  },
+  async deleteTeamMember(id: string) {
+    const { error } = await supabase.from('team_members').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
   // ─── Documents ───────────────────────────────────────────────────────
   async getDocuments() {
     if (useMock) return mockDataService.getDocuments();

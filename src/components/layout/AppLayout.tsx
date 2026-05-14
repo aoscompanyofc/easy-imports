@@ -6,6 +6,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { usePermissionsStore } from '../../stores/permissionsStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -30,7 +31,12 @@ const menuItems = [
 export const AppLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuthStore();
+  const { allowedPages } = usePermissionsStore();
   const navigate = useNavigate();
+
+  const visibleMenuItems = menuItems.filter(
+    (item) => allowedPages.includes(item.path.slice(1))
+  );
 
   const closeMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(false);
@@ -107,7 +113,7 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}

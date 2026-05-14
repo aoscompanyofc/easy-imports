@@ -1,0 +1,56 @@
+import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
+
+export const ALL_PAGES = [
+  'dashboard', 'vendas', 'estoque', 'clientes', 'leads',
+  'financeiro', 'fornecedores', 'marketing', 'relatorios',
+  'documentacao', 'configuracoes',
+] as const;
+
+export type PageKey = typeof ALL_PAGES[number];
+
+export const DEFAULT_VENDEDOR_PAGES: PageKey[] = [
+  'dashboard', 'vendas', 'estoque', 'clientes', 'leads',
+];
+
+interface PermissionsStore {
+  role: 'admin' | 'vendedor' | null;
+  allowedPages: string[];
+  isAdmin: boolean;
+  loaded: boolean;
+  loadPermissions: (email: string) => Promise<void>;
+  reset: () => void;
+}
+
+export const usePermissionsStore = create<PermissionsStore>((set) => ({
+  role: null,
+  allowedPages: [...ALL_PAGES],
+  isAdmin: true,
+  loaded: false,
+
+  loadPermissions: async (email: string) => {
+    try {
+      const { data } = await supabase
+        .from('team_members')
+        .select('role, allowed_pages')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (data) {
+        set({
+          role: data.role as 'admin' | 'vendedor',
+          allowedPages: data.allowed_pages as string[],
+          isAdmin: data.role === 'admin',
+          loaded: true,
+        });
+      } else {
+        set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+      }
+    } catch {
+      // Table may not exist yet or network error — treat as admin
+      set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+    }
+  },
+
+  reset: () => set({ role: null, allowedPages: [...ALL_PAGES], isAdmin: true, loaded: false }),
+}));

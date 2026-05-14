@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings, User, Bell, Shield, Database, Link, Trash2, Save,
   Key, RefreshCw, Camera, Users, Plus, X, Copy, Check, Loader2,
+  Eye, EyeOff, MessageCircle, Shuffle,
 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
@@ -74,8 +76,23 @@ interface TeamMember {
 const emptyMemberForm = () => ({
   name: '',
   email: '',
+  password: '',
   allowedPages: [...DEFAULT_VENDEDOR_PAGES] as PageKey[],
 });
+
+function generatePassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Temporary Supabase client for creating users without affecting admin session
+function makeTempClient() {
+  return createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export const Configuracoes: React.FC = () => {
   const { user } = useAuthStore();
@@ -123,6 +140,8 @@ export const Configuracoes: React.FC = () => {
   const [memberForm, setMemberForm] = useState(emptyMemberForm());
   const [isSavingMember, setIsSavingMember] = useState(false);
   const [copiedSQL, setCopiedSQL] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
 
   const initials = (profileName || user?.name || 'U')
     .split(' ')
@@ -253,31 +272,47 @@ export const Configuracoes: React.FC = () => {
   };
 
   const handleAddMember = async () => {
-    if (!memberForm.name.trim() || !memberForm.email.trim()) {
-      toast.error('Nome e email são obrigatórios.');
-      return;
-    }
-    if (memberForm.allowedPages.length === 0) {
-      toast.error('Selecione pelo menos uma página.');
-      return;
-    }
+    const name = memberForm.name.trim();
+    const email = memberForm.email.trim().toLowerCase();
+    const password = memberForm.password.trim();
+
+    if (!name || !email) { toast.error('Nome e email são obrigatórios.'); return; }
+    if (!password || password.length < 6) { toast.error('Senha deve ter pelo menos 6 caracteres.'); return; }
+    if (memberForm.allowedPages.length === 0) { toast.error('Selecione pelo menos uma página.'); return; }
+
     try {
       setIsSavingMember(true);
+
+      // 1. Create Supabase auth account using isolated client (doesn't affect admin session)
+      const tempClient = makeTempClient();
+      const { error: signUpError } = await tempClient.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+
+      // Ignore "already registered" — just update permissions below
+      if (signUpError && !signUpError.message?.toLowerCase().includes('already registered')) {
+        throw new Error(signUpError.message);
+      }
+
+      // 2. Save permissions to team_members
       await dataService.addTeamMember({
-        name: memberForm.name.trim(),
-        email: memberForm.email.trim().toLowerCase(),
+        name,
+        email,
         role: 'vendedor',
         allowed_pages: memberForm.allowedPages,
       });
-      toast.success('Membro adicionado! Compartilhe o email e uma senha para o acesso.');
-      setShowAddMember(false);
+
+      // 3. Show credentials screen
+      setCreatedCredentials({ name, email, password });
       setMemberForm(emptyMemberForm());
       loadTeam();
     } catch (error: any) {
       if (error?.code === '23505' || error?.message?.includes('unique')) {
         toast.error('Esse email já está cadastrado na equipe.');
       } else {
-        toast.error('Erro ao adicionar membro: ' + error.message);
+        toast.error('Erro: ' + error.message);
       }
     } finally {
       setIsSavingMember(false);
@@ -575,76 +610,174 @@ export const Configuracoes: React.FC = () => {
       {/* Add Member Modal */}
       <Modal
         isOpen={showAddMember}
-        onClose={() => { setShowAddMember(false); setMemberForm(emptyMemberForm()); }}
-        title="Adicionar Membro da Equipe"
+        onClose={() => { setShowAddMember(false); setMemberForm(emptyMemberForm()); setCreatedCredentials(null); setShowPassword(false); }}
+        title={createdCredentials ? '✅ Acesso criado com sucesso!' : 'Adicionar Colaborador'}
         maxWidth="lg"
       >
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nome Completo"
-              placeholder="Maria Silva"
-              value={memberForm.name}
-              onChange={(e) => setMemberForm((f) => ({ ...f, name: e.target.value }))}
-              autoComplete="off"
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="maria@email.com"
-              value={memberForm.email}
-              onChange={(e) => setMemberForm((f) => ({ ...f, email: e.target.value }))}
-              autoComplete="off"
-            />
-          </div>
+        {createdCredentials ? (
+          /* ── Credentials screen ── */
+          <div className="space-y-5">
+            <p className="text-sm text-neutral-600">
+              A conta de <strong>{createdCredentials.name}</strong> foi criada. Compartilhe as credenciais abaixo:
+            </p>
 
-          <div>
-            <p className="text-sm font-bold text-neutral-700 mb-3">Páginas com Acesso</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {GRANTABLE_PAGES.map((page) => {
-                const checked = memberForm.allowedPages.includes(page);
-                return (
-                  <label
-                    key={page}
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all select-none',
-                      checked
-                        ? 'border-primary bg-primary/10 text-neutral-900 font-semibold'
-                        : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
-                    )}
+            <div className="bg-neutral-900 rounded-2xl p-5 space-y-3 text-white">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-neutral-400 uppercase tracking-wider mb-0.5">Link do sistema</p>
+                  <p className="text-sm font-mono">{window.location.origin}</p>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(window.location.origin); toast.success('Link copiado!'); }}
+                  className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+              <div className="border-t border-neutral-700" />
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-neutral-400 uppercase tracking-wider mb-0.5">Email</p>
+                  <p className="text-sm font-mono">{createdCredentials.email}</p>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(createdCredentials.email); toast.success('Email copiado!'); }}
+                  className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+              <div className="border-t border-neutral-700" />
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-neutral-400 uppercase tracking-wider mb-0.5">Senha</p>
+                  <p className="text-sm font-mono">{createdCredentials.password}</p>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(createdCredentials.password); toast.success('Senha copiada!'); }}
+                  className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  const msg = `Olá ${createdCredentials.name}! 👋\n\nSeu acesso ao Easy Imports foi criado:\n\n🔗 Link: ${window.location.origin}\n📧 Email: ${createdCredentials.email}\n🔑 Senha: ${createdCredentials.password}\n\nGuarde bem sua senha!`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold transition-colors"
+              >
+                <MessageCircle size={18} />
+                Enviar pelo WhatsApp
+              </button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const msg = `Link: ${window.location.origin}\nEmail: ${createdCredentials.email}\nSenha: ${createdCredentials.password}`;
+                  navigator.clipboard.writeText(msg);
+                  toast.success('Credenciais copiadas!');
+                }}
+              >
+                <Copy size={16} />
+              </Button>
+            </div>
+
+            <Button fullWidth onClick={() => { setCreatedCredentials(null); setShowAddMember(false); }}>
+              Fechar
+            </Button>
+          </div>
+        ) : (
+          /* ── Add form ── */
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Nome Completo"
+                placeholder="Ex: João Vendas"
+                value={memberForm.name}
+                onChange={(e) => setMemberForm((f) => ({ ...f, name: e.target.value }))}
+                autoComplete="off"
+              />
+              <Input
+                label="Email"
+                type="email"
+                placeholder="joao@email.com"
+                value={memberForm.email}
+                onChange={(e) => setMemberForm((f) => ({ ...f, email: e.target.value }))}
+                autoComplete="off"
+              />
+            </div>
+
+            {/* Password field */}
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Senha de Acesso</label>
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Mínimo 6 caracteres"
+                    value={memberForm.password}
+                    onChange={(e) => setMemberForm((f) => ({ ...f, password: e.target.value }))}
+                    autoComplete="new-password"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
                   >
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={checked}
-                      onChange={() => handleTogglePage(page)}
-                    />
-                    <div className={cn(
-                      'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                      checked ? 'border-primary bg-primary' : 'border-neutral-300'
-                    )}>
-                      {checked && <Check size={10} className="text-neutral-900" strokeWidth={3} />}
-                    </div>
-                    <span className="text-sm">{PAGE_LABELS[page]}</span>
-                  </label>
-                );
-              })}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMemberForm((f) => ({ ...f, password: generatePassword() }))}
+                  className="px-3 py-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-primary hover:border-primary/30 transition-colors"
+                  title="Gerar senha aleatória"
+                >
+                  <Shuffle size={16} />
+                </button>
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">Você vai compartilhar essa senha com o colaborador.</p>
+            </div>
+
+            {/* Pages access */}
+            <div>
+              <p className="text-sm font-bold text-neutral-700 mb-3">Páginas com Acesso</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {GRANTABLE_PAGES.map((page) => {
+                  const checked = memberForm.allowedPages.includes(page);
+                  return (
+                    <label
+                      key={page}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all select-none',
+                        checked ? 'border-primary bg-primary/10 text-neutral-900 font-semibold' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
+                      )}
+                    >
+                      <input type="checkbox" className="hidden" checked={checked} onChange={() => handleTogglePage(page)} />
+                      <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors', checked ? 'border-primary bg-primary' : 'border-neutral-300')}>
+                        {checked && <Check size={10} className="text-neutral-900" strokeWidth={3} />}
+                      </div>
+                      <span className="text-sm">{PAGE_LABELS[page]}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button variant="secondary" onClick={() => { setShowAddMember(false); setMemberForm(emptyMemberForm()); }}>
+                Cancelar
+              </Button>
+              <Button leftIcon={<Plus size={18} />} loading={isSavingMember} onClick={handleAddMember}>
+                Criar Acesso
+              </Button>
             </div>
           </div>
-
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            <strong>Como dar acesso:</strong> Após adicionar, compartilhe o link do sistema + o email cadastrado + uma senha de sua escolha com o membro. No primeiro acesso, o sistema criará a conta automaticamente.
-          </div>
-
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => { setShowAddMember(false); setMemberForm(emptyMemberForm()); }}>
-              Cancelar
-            </Button>
-            <Button leftIcon={<Plus size={18} />} loading={isSavingMember} onClick={handleAddMember}>
-              Adicionar Membro
-            </Button>
-          </div>
-        </div>
+        )}
       </Modal>
     </div>
   );

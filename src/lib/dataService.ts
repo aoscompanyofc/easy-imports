@@ -9,13 +9,19 @@ const isSupabaseConfigured = () => {
 
 const useMock = !isSupabaseConfigured();
 
+async function getUid(): Promise<string> {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error('Sessão expirada. Faça login novamente.');
+  return user.id;
+}
+
 export const dataService = {
   async clearAllData() {
     if (useMock) return mockDataService.clearAllData();
     return true;
   },
 
-  // Products
+  // Products — colunas: name, category, purchase_price, sale_price, stock_quantity, status, user_id
   async getProducts() {
     if (useMock) return mockDataService.getProducts();
     const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
@@ -24,15 +30,23 @@ export const dataService = {
   },
   async addProduct(product: any) {
     if (useMock) return mockDataService.addProduct(product);
+    const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status } = product;
-    const { data, error } = await supabase.from('products').insert([{ name, category, purchase_price, sale_price, stock_quantity, status }]).select();
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{ name, category, purchase_price, sale_price, stock_quantity, status, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
     const { name, category, purchase_price, sale_price, stock_quantity, status } = updates;
-    const { data, error } = await supabase.from('products').update({ name, category, purchase_price, sale_price, stock_quantity, status }).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('products')
+      .update({ name, category, purchase_price, sale_price, stock_quantity, status })
+      .eq('id', id)
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -43,29 +57,56 @@ export const dataService = {
     return true;
   },
 
-  // Sales
+  // Sales — colunas: customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id
   async getSales() {
     if (useMock) return mockDataService.getSales();
-    const { data, error } = await supabase.from('sales').select('*, customers(name)').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('sales')
+      .select('*, customers(name)')
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
   async addSale(sale: any, items: any[]) {
     if (useMock) return mockDataService.addSale(sale, items);
-    const { data: saleData, error: saleError } = await supabase.from('sales').insert([sale]).select();
+    const uid = await getUid();
+    const { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at } = sale;
+    const { data: saleData, error: saleError } = await supabase
+      .from('sales')
+      .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
+      .select();
     if (saleError) throw saleError;
     const saleId = saleData[0].id;
     for (const item of items) {
-      await supabase.from('sale_items').insert([{ ...item, sale_id: saleId }]);
-      const { data: product } = await supabase.from('products').select('stock_quantity, purchase_price').eq('id', item.product_id).single();
+      await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock_quantity, purchase_price')
+        .eq('id', item.product_id)
+        .single();
       if (product) {
         const newQuantity = product.stock_quantity - item.quantity;
-        await supabase.from('products').update({ stock_quantity: newQuantity, status: newQuantity <= 0 ? 'out_of_stock' : 'available' }).eq('id', item.product_id);
+        await supabase
+          .from('products')
+          .update({ stock_quantity: newQuantity, status: newQuantity <= 0 ? 'out_of_stock' : 'available' })
+          .eq('id', item.product_id);
         if (product.purchase_price > 0) {
-          await this.addTransaction({ description: `Custo Mercadoria #${saleId.slice(0,8)}`, amount: product.purchase_price * item.quantity, type: 'expense', category: 'stock', date: sale.created_at || new Date().toISOString() });
+          await this.addTransaction({
+            description: `Custo Mercadoria #${saleId.slice(0, 8)}`,
+            amount: product.purchase_price * item.quantity,
+            type: 'expense',
+            category: 'stock',
+            date: created_at || new Date().toISOString(),
+          });
         }
       }
-      await this.addTransaction({ description: `Venda #${saleId.slice(0,8)}`, amount: item.unit_price * item.quantity, type: 'income', category: 'sale', date: sale.created_at || new Date().toISOString() });
+      await this.addTransaction({
+        description: `Venda #${saleId.slice(0, 8)}`,
+        amount: item.unit_price * item.quantity,
+        type: 'income',
+        category: 'sale',
+        date: created_at || new Date().toISOString(),
+      });
     }
     return saleData[0];
   },
@@ -76,7 +117,7 @@ export const dataService = {
     return true;
   },
 
-  // Customers
+  // Customers — colunas: name, email, phone, user_id
   async getCustomers() {
     if (useMock) return mockDataService.getCustomers();
     const { data, error } = await supabase.from('customers').select('*').order('name');
@@ -85,7 +126,12 @@ export const dataService = {
   },
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
-    const { data, error } = await supabase.from('customers').insert([customer]).select();
+    const uid = await getUid();
+    const { name, email, phone } = customer;
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([{ name, email, phone, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -96,7 +142,7 @@ export const dataService = {
     return true;
   },
 
-  // Leads
+  // Leads — colunas: name, phone, email, source, notes, status, user_id
   async getLeads() {
     if (useMock) return mockDataService.getLeads();
     const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
@@ -105,7 +151,12 @@ export const dataService = {
   },
   async addLead(lead: any) {
     if (useMock) return mockDataService.addLead(lead);
-    const { data, error } = await supabase.from('leads').insert([lead]).select();
+    const uid = await getUid();
+    const { name, phone, email, source, notes, status } = lead;
+    const { data, error } = await supabase
+      .from('leads')
+      .insert([{ name, phone, email, source, notes, status, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -122,7 +173,7 @@ export const dataService = {
     return true;
   },
 
-  // Transactions
+  // Transactions — colunas: description, amount, type, category, date, user_id
   async getTransactions() {
     if (useMock) return mockDataService.getTransactions();
     const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
@@ -131,7 +182,12 @@ export const dataService = {
   },
   async addTransaction(transaction: any) {
     if (useMock) return mockDataService.addTransaction(transaction);
-    const { data, error } = await supabase.from('transactions').insert([transaction]).select();
+    const uid = await getUid();
+    const { description, amount, type, category, date } = transaction;
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([{ description, amount, type, category, date, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -142,7 +198,7 @@ export const dataService = {
     return true;
   },
 
-  // Suppliers
+  // Suppliers — colunas: name, contact_name, email, phone, category, country, user_id
   async getSuppliers() {
     if (useMock) return mockDataService.getSuppliers();
     const { data, error } = await supabase.from('suppliers').select('*').order('name');
@@ -151,12 +207,17 @@ export const dataService = {
   },
   async addSupplier(supplier: any) {
     if (useMock) return mockDataService.addSupplier(supplier);
-    const { data, error } = await supabase.from('suppliers').insert([supplier]).select();
+    const uid = await getUid();
+    const { name, contact_name, email, phone, category, country } = supplier;
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert([{ name, contact_name, email, phone, category, country, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
 
-  // Campaigns
+  // Campaigns — colunas: name, platform, budget, status, start_date, end_date, user_id
   async getCampaigns() {
     if (useMock) return mockDataService.getCampaigns();
     const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
@@ -165,7 +226,11 @@ export const dataService = {
   },
   async addCampaign(campaign: any) {
     if (useMock) return mockDataService.addCampaign(campaign);
-    const { data, error } = await supabase.from('campaigns').insert([campaign]).select();
+    const uid = await getUid();
+    const { data, error } = await supabase
+      .from('campaigns')
+      .insert([{ ...campaign, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -182,7 +247,7 @@ export const dataService = {
     return true;
   },
 
-  // Documents
+  // Documents — colunas: title, category, file_url, user_id
   async getDocuments() {
     if (useMock) return mockDataService.getDocuments();
     const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
@@ -191,7 +256,12 @@ export const dataService = {
   },
   async addDocument(document: any) {
     if (useMock) return mockDataService.addDocument(document);
-    const { data, error } = await supabase.from('documents').insert([document]).select();
+    const uid = await getUid();
+    const { title, category, file_url } = document;
+    const { data, error } = await supabase
+      .from('documents')
+      .insert([{ title, category, file_url, user_id: uid }])
+      .select();
     if (error) throw error;
     return data[0];
   },
@@ -200,5 +270,5 @@ export const dataService = {
     const { error } = await supabase.from('documents').delete().eq('id', id);
     if (error) throw error;
     return true;
-  }
+  },
 };

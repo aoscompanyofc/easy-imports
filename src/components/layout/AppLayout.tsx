@@ -69,7 +69,7 @@ export const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-neutral-50">
+    <div className="flex min-h-screen bg-neutral-50 overflow-x-hidden">
       {/* Desktop Sidebar */}
       <Sidebar />
 

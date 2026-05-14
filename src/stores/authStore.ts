@@ -21,30 +21,66 @@ const isSupabaseConfigured = () => {
 
 const storedAuth = getStorage<{ isAuthenticated: boolean; user: User | null } | null>(STORAGE_KEY, null);
 
+function makeUser(supabaseUser: any): User {
+  return {
+    id: supabaseUser.id,
+    name: supabaseUser.user_metadata?.name || 'João Eduardo',
+    email: supabaseUser.email!,
+    avatar: supabaseUser.user_metadata?.avatar_url || undefined,
+  };
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: storedAuth?.isAuthenticated || false,
   user: storedAuth?.user || null,
   isLoading: isSupabaseConfigured(),
 
   login: async (email, password) => {
-    // Quando Supabase está configurado, sempre usa autenticação real
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error || !data.user) {
-        throw new Error('Email ou senha inválidos');
+      // 1ª tentativa: fazer login normal
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (!signInError && signInData.user) {
+        const user = makeUser(signInData.user);
+        set({ isAuthenticated: true, user, isLoading: false });
+        setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+        return;
       }
-      const user: User = {
-        id: data.user.id,
-        name: data.user.user_metadata?.name || 'João Eduardo',
-        email: data.user.email!,
-        avatar: data.user.user_metadata?.avatar_url || undefined,
-      };
-      set({ isAuthenticated: true, user, isLoading: false });
-      setStorage(STORAGE_KEY, { isAuthenticated: true, user });
-      return;
+
+      // 2ª tentativa: se usuário não existe, criar automaticamente
+      const isInvalidCredentials =
+        signInError?.message?.toLowerCase().includes('invalid') ||
+        signInError?.message?.toLowerCase().includes('not found') ||
+        signInError?.status === 400;
+
+      if (isInvalidCredentials) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name: 'João Eduardo' } },
+        });
+
+        if (!signUpError && signUpData.user) {
+          if (signUpData.session) {
+            // Conta criada e confirmada automaticamente
+            const user = makeUser(signUpData.user);
+            set({ isAuthenticated: true, user, isLoading: false });
+            setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+            return;
+          } else {
+            // Precisa confirmar email
+            throw new Error(
+              'Conta criada! Confirme seu email antes de entrar.\n' +
+              'Dica: no Supabase Dashboard → Authentication → Settings → desative "Enable email confirmations".'
+            );
+          }
+        }
+      }
+
+      throw new Error('Email ou senha inválidos');
     }
 
-    // Modo mock (Supabase não configurado) — bypass local
+    // Modo mock (Supabase não configurado)
     if (email === 'easyimportsbrstore@gmail.com' && password === '123456') {
       const user: User = { id: '1', name: 'João Eduardo', email, avatar: 'JE' };
       set({ isAuthenticated: true, user, isLoading: false });
@@ -69,11 +105,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     if (error) throw new Error(error.message);
 
     if (data.session) {
-      const user: User = {
-        id: data.user!.id,
-        name: data.user!.user_metadata.name || name,
-        email: data.user!.email!,
-      };
+      const user = makeUser(data.user!);
       set({ isAuthenticated: true, user, isLoading: false });
       setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       return { needsConfirmation: false };
@@ -99,12 +131,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const user: User = {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || 'João Eduardo',
-          email: session.user.email!,
-          avatar: session.user.user_metadata?.avatar_url,
-        };
+        const user = makeUser(session.user);
         set({ isAuthenticated: true, user });
         setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       } else {

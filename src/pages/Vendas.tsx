@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
-  RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus,
+  RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -122,6 +122,8 @@ export const Vendas: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [detailSale, setDetailSale] = useState<any | null>(null);
+  const [deleteSale, setDeleteSale] = useState<any | null>(null);
+  const [isDeletingSale, setIsDeletingSale] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -363,14 +365,43 @@ export const Vendas: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remover esta venda? O estoque não será estornado automaticamente.')) return;
+  const handleDelete = (sale: any) => {
+    setDeleteSale(sale);
+  };
+
+  const handleDeleteWithChoice = async (choice: 'restore' | 'discard') => {
+    if (!deleteSale) return;
+    setIsDeletingSale(true);
     try {
-      await dataService.deleteSale(id);
-      toast.success('Venda removida.');
+      if (choice === 'restore') {
+        const allProds = await dataService.getProducts();
+        const found = allProds.find((p: any) => {
+          if (deleteSale.product_imei && p.imei) return p.imei === deleteSale.product_imei;
+          return p.name === deleteSale.product_name && p.stock_quantity <= 0;
+        });
+        if (found) {
+          await dataService.updateProduct(found.id, {
+            name: found.name,
+            category: found.category,
+            imei: found.imei,
+            purchase_price: found.purchase_price,
+            sale_price: found.sale_price,
+            stock_quantity: 1,
+            status: 'available',
+          });
+          toast.success('Produto devolvido ao estoque!');
+        } else {
+          toast('Produto não localizado automaticamente — ajuste o estoque manualmente se necessário.', { icon: '⚠️', duration: 5000 });
+        }
+      }
+      await dataService.deleteSale(deleteSale.id);
+      toast.success('Venda cancelada e removida.');
+      setDeleteSale(null);
       fetchData();
     } catch (error: any) {
       toast.error('Erro: ' + error.message);
+    } finally {
+      setIsDeletingSale(false);
     }
   };
 
@@ -638,9 +669,9 @@ export const Vendas: React.FC = () => {
                               <Download size={15} />
                             </button>
                             <button
-                              onClick={() => handleDelete(sale.id)}
+                              onClick={() => handleDelete(sale)}
                               className="p-1.5 text-neutral-400 hover:text-danger hover:bg-danger-light rounded-lg transition-colors"
-                              title="Remover"
+                              title="Cancelar venda"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -1043,6 +1074,74 @@ export const Vendas: React.FC = () => {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* ─── CANCELAR VENDA MODAL ─── */}
+      <Modal isOpen={!!deleteSale} onClose={() => !isDeletingSale && setDeleteSale(null)} title="Cancelar Venda" maxWidth="sm">
+        {deleteSale && (
+          <div className="space-y-5">
+            {/* Sale summary */}
+            <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', TYPE_COLORS[deleteSale.sale_type || 'venda'])}>
+                  {TYPE_LABELS[deleteSale.sale_type || 'venda']}
+                </span>
+                <span className="text-xs font-mono text-neutral-500">{deleteSale.sale_number}</span>
+              </div>
+              <p className="font-bold text-neutral-900">{deleteSale.customer_name}</p>
+              <p className="text-sm text-neutral-500 mt-0.5">
+                {deleteSale.product_name}
+                {deleteSale.product_imei ? ` · IMEI ${deleteSale.product_imei}` : ''}
+              </p>
+              <p className="text-lg font-black text-neutral-900 mt-2">{formatCurrency(Number(deleteSale.total_amount))}</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-black text-neutral-700 mb-3">O que fazer com o produto?</p>
+              <div className="space-y-3">
+                {/* Restore to stock */}
+                <button
+                  onClick={() => handleDeleteWithChoice('restore')}
+                  disabled={isDeletingSale}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-green-200 bg-green-50 hover:border-green-400 hover:bg-green-100 transition-all text-left disabled:opacity-50"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                    <RotateCcw size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-neutral-900">Devolver ao estoque</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">O produto volta como disponível para nova venda</p>
+                  </div>
+                </button>
+
+                {/* Discard — just delete the sale */}
+                <button
+                  onClick={() => handleDeleteWithChoice('discard')}
+                  disabled={isDeletingSale}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-neutral-200 hover:border-red-300 hover:bg-red-50 transition-all text-left disabled:opacity-50"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-neutral-200 flex items-center justify-center flex-shrink-0">
+                    <Trash2 size={18} className="text-neutral-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-neutral-900">Só remover a venda</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">Produto não volta ao estoque (descartado, perdido, etc.)</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => setDeleteSale(null)}
+              type="button"
+              disabled={isDeletingSale}
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
       </Modal>
 
       {/* ─── DETAIL / PDF MODAL ─── */}

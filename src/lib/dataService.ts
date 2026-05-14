@@ -9,6 +9,22 @@ const isSupabaseConfigured = () => {
 
 const useMock = !isSupabaseConfigured();
 
+// Schema-cache / missing-column error — same pattern used everywhere
+const isColErr = (e: any) =>
+  e?.code === '42703' ||
+  e?.message?.includes('schema cache') ||
+  e?.message?.includes('Could not find');
+
+// Try each payload in order; move to next on column error, throw on any other error
+async function tryInsert(table: string, payloads: Record<string, any>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabase.from(table).insert([payload]).select();
+    if (!error) return data![0];
+    if (!isColErr(error)) throw error;
+  }
+  throw new Error(`Erro ao inserir em ${table}. Verifique as colunas no Supabase.`);
+}
+
 // Usa getSession() (cache local, sem chamada de rede extra)
 async function getUid(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -35,25 +51,13 @@ export const dataService = {
     const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status,
       imei, supplier_id, product_capacity, product_color, product_condition } = product;
-
-    const isColErr = (e: any) =>
-      e?.code === '42703' || e?.message?.includes('schema cache') || e?.message?.includes('Could not find');
-
     const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
-    const full: any = { ...base };
-    if (imei) full.imei = imei;
-    if (supplier_id) full.supplier_id = supplier_id;
-    if (product_capacity) full.product_capacity = product_capacity;
-    if (product_color) full.product_color = product_color;
-    if (product_condition) full.product_condition = product_condition;
-
-    let res = await supabase.from('products').insert([full]).select();
-    if (isColErr(res.error)) {
-      // Extra columns don't exist yet — fallback to base schema
-      res = await supabase.from('products').insert([base]).select();
-    }
-    if (res.error) throw res.error;
-    return res.data![0];
+    return tryInsert('products', [
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition },
+      { ...base, imei, supplier_id },
+      { ...base, imei },
+      base,
+    ]);
   },
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
@@ -167,14 +171,12 @@ export const dataService = {
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
     const uid = await getUid();
-    // Apenas colunas que existem na tabela customers
     const { name, email, phone } = customer;
-    const { data, error } = await supabase
-      .from('customers')
-      .insert([{ name, email, phone, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    return tryInsert('customers', [
+      { name, email, phone, user_id: uid },
+      { name, phone, user_id: uid },
+      { name, user_id: uid },
+    ]);
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);
@@ -195,12 +197,11 @@ export const dataService = {
     if (useMock) return mockDataService.addLead(lead);
     const uid = await getUid();
     const { name, phone, email, source, notes, status } = lead;
-    const { data, error } = await supabase
-      .from('leads')
-      .insert([{ name, phone, email, source, notes, status, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    return tryInsert('leads', [
+      { name, phone, email, source, notes, status, user_id: uid },
+      { name, phone, email, status, user_id: uid },
+      { name, phone, user_id: uid },
+    ]);
   },
   async updateLead(id: string, updates: any) {
     if (useMock) return mockDataService.updateLead(id, updates);
@@ -228,12 +229,11 @@ export const dataService = {
     if (useMock) return mockDataService.addTransaction(transaction);
     const uid = await getUid();
     const { description, amount, type, category, date } = transaction;
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert([{ description, amount, type, category, date, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    return tryInsert('transactions', [
+      { description, amount, type, category, date, user_id: uid },
+      { description, amount, type, date, user_id: uid },
+      { description, amount, type, user_id: uid },
+    ]);
   },
   async deleteTransaction(id: string) {
     if (useMock) return mockDataService.deleteTransaction(id);
@@ -253,12 +253,12 @@ export const dataService = {
     if (useMock) return mockDataService.addSupplier(supplier);
     const uid = await getUid();
     const { name, contact_name, email, phone, category, country } = supplier;
-    const { data, error } = await supabase
-      .from('suppliers')
-      .insert([{ name, contact_name, email, phone, category, country, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    return tryInsert('suppliers', [
+      { name, contact_name, email, phone, category, country, user_id: uid },
+      { name, contact_name, phone, country, user_id: uid },
+      { name, phone, country, user_id: uid },
+      { name, user_id: uid },
+    ]);
   },
 
   // ─── Campaigns ───────────────────────────────────────────────────────

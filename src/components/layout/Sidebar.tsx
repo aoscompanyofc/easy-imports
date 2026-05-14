@@ -3,11 +3,11 @@ import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
-  LogOut, ChevronLeft, ChevronRight, LucideIcon,
+  ChevronLeft, ChevronRight, LucideIcon,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
-import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
+import { useProfileStore } from '../../stores/profileStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -64,9 +64,8 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
 
 export const Sidebar: React.FC = () => {
   const { sidebarMode, toggleSidebar } = useAppStore();
-  const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
-  const navigate = useNavigate();
+  const { name, cargo, avatar } = useProfileStore();
 
   const isCollapsed = sidebarMode === 'collapsed';
 
@@ -74,10 +73,9 @@ export const Sidebar: React.FC = () => {
     (item) => allowedPages.includes(item.path.slice(1))
   );
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const displayName = name || 'Usuário';
+  const initials = displayName
+    .split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <aside
@@ -86,7 +84,8 @@ export const Sidebar: React.FC = () => {
         isCollapsed ? 'w-[80px]' : 'w-[260px]'
       )}
     >
-      <NavLink to="/dashboard" className="h-16 flex items-center px-6 mb-4 group">
+      {/* Logo */}
+      <NavLink to="/dashboard" className="h-16 flex items-center px-6 mb-4 group flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 group-hover:shadow-lg group-hover:shadow-primary/20 transition-shadow">
             <span className="text-black font-bold">E</span>
@@ -100,6 +99,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </NavLink>
 
+      {/* Toggle */}
       <button
         onClick={toggleSidebar}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 hover:text-primary transition-colors shadow-sm z-10"
@@ -107,7 +107,8 @@ export const Sidebar: React.FC = () => {
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar" aria-label="Navegação principal">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-none" aria-label="Navegação principal">
         {menuItems.map((item) => (
           <NavItem
             key={item.path}
@@ -119,22 +120,32 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div className="p-3 mt-auto border-t border-neutral-100">
-        <button
-          onClick={handleLogout}
-          className={cn(
-            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-danger hover:bg-danger-light transition-all duration-200 group relative',
-            isCollapsed ? 'justify-center' : ''
-          )}
-        >
-          <LogOut size={20} className="flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">Sair do Sistema</span>}
-          {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-danger text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
-              Sair
+      {/* User profile at bottom */}
+      <div className={cn(
+        'p-3 mt-4 border-t border-neutral-100 flex-shrink-0',
+        isCollapsed ? 'flex justify-center' : ''
+      )}>
+        {isCollapsed ? (
+          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 overflow-hidden">
+            {avatar
+              ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+              : <span>{initials}</span>
+            }
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-neutral-50">
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-neutral-900 overflow-hidden flex-shrink-0">
+              {avatar
+                ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                : <span>{initials}</span>
+              }
             </div>
-          )}
-        </button>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-neutral-900 truncate">{displayName}</p>
+              <p className="text-[10px] text-neutral-400 uppercase tracking-tight">{cargo || 'Administrador'}</p>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

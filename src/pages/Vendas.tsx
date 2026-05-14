@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
-  RefreshCw, Eye, Link2, MessageCircle, Copy,
+  RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -129,6 +129,8 @@ export const Vendas: React.FC = () => {
   const [showSQL, setShowSQL] = useState(false);
 
   const [form, setForm] = useState(emptyForm());
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', cpf: '', email: '' });
   const [postSaleData, setPostSaleData] = useState<{
     customerName: string; phone: string; signLink: string;
     saleNumber: string; saleType: string;
@@ -173,6 +175,13 @@ export const Vendas: React.FC = () => {
   const selectedProductData = products.find((p) => p.id === form.selectedProduct);
   const selectedCustomerData = customers.find((c) => c.id === form.selectedCustomer);
 
+  // Auto-fill WhatsApp from new customer phone as user types
+  useEffect(() => {
+    if (showNewCustomer && newCustomer.phone) {
+      setForm((f) => ({ ...f, whatsapp_number: newCustomer.phone }));
+    }
+  }, [newCustomer.phone, showNewCustomer]);
+
   // When a product is selected from stock, pre-fill its details into the form
   useEffect(() => {
     if (!form.selectedProduct || !selectedProductData) return;
@@ -202,7 +211,6 @@ export const Vendas: React.FC = () => {
 
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
-    const customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';
     const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
     const totalAmount = unitPrice * form.quantity;
 
@@ -212,9 +220,27 @@ export const Vendas: React.FC = () => {
 
     try {
       setIsSaving(true);
+
+      // Create new customer on-the-fly if requested
+      let customerId = form.selectedCustomer || null;
+      let customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';
+      let customerPhone = form.customer_phone || selectedCustomerData?.phone;
+
+      if (showNewCustomer && newCustomer.name.trim()) {
+        const created = await dataService.addCustomer({
+          name: newCustomer.name.trim(),
+          phone: newCustomer.phone.trim(),
+          email: newCustomer.email.trim(),
+        });
+        customerId = created.id;
+        customerName = created.name;
+        customerPhone = created.phone || customerPhone;
+        setCustomers((prev) => [created, ...prev]);
+      }
+
       const savedSale = await dataService.addSale(
         {
-          customer_id: form.selectedCustomer || null,
+          customer_id: customerId,
           customer_name: customerName,
           product_name: productName,
           total_amount: totalAmount,
@@ -230,8 +256,8 @@ export const Vendas: React.FC = () => {
           seller_phone: form.seller_phone,
           seller_address: form.seller_address,
           seller_email: form.seller_email,
-          customer_phone: form.customer_phone || selectedCustomerData?.phone,
-          customer_cpf: form.customer_cpf,
+          customer_phone: customerPhone,
+          customer_cpf: newCustomer.cpf || form.customer_cpf,
           product_capacity: form.product_capacity,
           product_color: form.product_color,
           product_condition: form.product_condition,
@@ -290,12 +316,14 @@ export const Vendas: React.FC = () => {
       const signLink = savedSale?.sign_token
         ? `${window.location.origin}/assinar/${savedSale.sign_token}`
         : '';
-      const whatsappPhone = form.whatsapp_number || form.customer_phone || selectedCustomerData?.phone || '';
-      const postName = selectedCustomerData?.name || form.seller_name || 'Cliente';
+      const whatsappPhone = form.whatsapp_number || customerPhone || '';
+      const postName = customerName;
 
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
       setForm(emptyForm());
+      setShowNewCustomer(false);
+      setNewCustomer({ name: '', phone: '', cpf: '', email: '' });
       fetchData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -408,7 +436,7 @@ export const Vendas: React.FC = () => {
           <button onClick={() => setShowSQL(!showSQL)} className="text-xs text-neutral-400 hover:text-neutral-700 underline">
             SQL campos extras
           </button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIsModalOpen(true); }}>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '' }); setIsModalOpen(true); }}>
             Nova Operação
           </Button>
         </div>
@@ -626,22 +654,85 @@ export const Vendas: React.FC = () => {
 
           {/* Dados do Cliente */}
           <div>
-              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Dados do Comprador</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Dados do Comprador</p>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewCustomer((v) => !v); setForm((f) => ({ ...f, selectedCustomer: '' })); }}
+                  className={cn(
+                    'flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors',
+                    showNewCustomer
+                      ? 'bg-primary/10 border-primary/30 text-primary-900'
+                      : 'border-neutral-200 text-neutral-600 hover:border-primary/30 hover:text-primary-900'
+                  )}
+                >
+                  <UserPlus size={13} />
+                  {showNewCustomer ? 'Usar cliente cadastrado' : 'Novo cliente'}
+                </button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Cliente Cadastrado</label>
-                  <select
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                    value={form.selectedCustomer}
-                    onChange={setF('selectedCustomer')}
-                  >
-                    <option value="">Selecione ou preencha abaixo...</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name} {c.phone ? `— ${c.phone}` : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                {!form.selectedCustomer && (
+
+                {/* New customer inline form */}
+                {showNewCustomer ? (
+                  <div className="sm:col-span-2 bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-blue-700 flex items-center gap-1.5">
+                      <UserPlus size={13} /> Novo Cliente — será salvo na sua base
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="Nome Completo *"
+                          placeholder="João da Silva"
+                          value={newCustomer.name}
+                          onChange={(e) => setNewCustomer((c) => ({ ...c, name: e.target.value }))}
+                          autoComplete="off"
+                          required={showNewCustomer}
+                        />
+                      </div>
+                      <Input
+                        label="Telefone / WhatsApp"
+                        type="tel"
+                        placeholder="(11) 99999-9999"
+                        value={newCustomer.phone}
+                        onChange={(e) => setNewCustomer((c) => ({ ...c, phone: e.target.value }))}
+                        autoComplete="off"
+                      />
+                      <Input
+                        label="CPF"
+                        placeholder="000.000.000-00"
+                        value={newCustomer.cpf}
+                        onChange={(e) => setNewCustomer((c) => ({ ...c, cpf: e.target.value }))}
+                        autoComplete="off"
+                      />
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="E-mail"
+                          type="email"
+                          placeholder="joao@email.com"
+                          value={newCustomer.email}
+                          onChange={(e) => setNewCustomer((c) => ({ ...c, email: e.target.value }))}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Cliente Cadastrado</label>
+                    <select
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      value={form.selectedCustomer}
+                      onChange={setF('selectedCustomer')}
+                    >
+                      <option value="">Selecione ou preencha abaixo...</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} {c.phone ? `— ${c.phone}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {!showNewCustomer && !form.selectedCustomer && (
                 <>
                   <Input label="Nome (se não cadastrado)" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" />
                   <Input label="CPF" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />

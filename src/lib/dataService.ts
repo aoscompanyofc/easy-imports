@@ -9,10 +9,11 @@ const isSupabaseConfigured = () => {
 
 const useMock = !isSupabaseConfigured();
 
+// Usa getSession() (cache local, sem chamada de rede extra)
 async function getUid(): Promise<string> {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Sessão expirada. Faça login novamente.');
-  return user.id;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user?.id) return session.user.id;
+  throw new Error('Sessão expirada. Faça logout e login novamente.');
 }
 
 export const dataService = {
@@ -21,10 +22,11 @@ export const dataService = {
     return true;
   },
 
-  // Products — colunas: name, category, purchase_price, sale_price, stock_quantity, status, user_id
+  // ─── Products ────────────────────────────────────────────────────────
   async getProducts() {
     if (useMock) return mockDataService.getProducts();
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('products').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -45,8 +47,7 @@ export const dataService = {
     const { data, error } = await supabase
       .from('products')
       .update({ name, category, purchase_price, sale_price, stock_quantity, status })
-      .eq('id', id)
-      .select();
+      .eq('id', id).select();
     if (error) throw error;
     return data[0];
   },
@@ -57,13 +58,11 @@ export const dataService = {
     return true;
   },
 
-  // Sales — colunas: customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id
+  // ─── Sales ───────────────────────────────────────────────────────────
   async getSales() {
     if (useMock) return mockDataService.getSales();
     const { data, error } = await supabase
-      .from('sales')
-      .select('*, customers(name)')
-      .order('created_at', { ascending: false });
+      .from('sales').select('*, customers(name)').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -80,32 +79,26 @@ export const dataService = {
     for (const item of items) {
       await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
       const { data: product } = await supabase
-        .from('products')
-        .select('stock_quantity, purchase_price')
-        .eq('id', item.product_id)
-        .single();
+        .from('products').select('stock_quantity, purchase_price').eq('id', item.product_id).single();
       if (product) {
-        const newQuantity = product.stock_quantity - item.quantity;
-        await supabase
-          .from('products')
-          .update({ stock_quantity: newQuantity, status: newQuantity <= 0 ? 'out_of_stock' : 'available' })
+        const newQty = product.stock_quantity - item.quantity;
+        await supabase.from('products')
+          .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
           .eq('id', item.product_id);
         if (product.purchase_price > 0) {
           await this.addTransaction({
             description: `Custo Mercadoria #${saleId.slice(0, 8)}`,
             amount: product.purchase_price * item.quantity,
-            type: 'expense',
-            category: 'stock',
-            date: created_at || new Date().toISOString(),
+            type: 'expense', category: 'stock',
+            date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
           });
         }
       }
       await this.addTransaction({
         description: `Venda #${saleId.slice(0, 8)}`,
         amount: item.unit_price * item.quantity,
-        type: 'income',
-        category: 'sale',
-        date: created_at || new Date().toISOString(),
+        type: 'income', category: 'sale',
+        date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       });
     }
     return saleData[0];
@@ -117,7 +110,7 @@ export const dataService = {
     return true;
   },
 
-  // Customers — colunas: name, email, phone, user_id
+  // ─── Customers ───────────────────────────────────────────────────────
   async getCustomers() {
     if (useMock) return mockDataService.getCustomers();
     const { data, error } = await supabase.from('customers').select('*').order('name');
@@ -127,6 +120,7 @@ export const dataService = {
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
     const uid = await getUid();
+    // Apenas colunas que existem na tabela customers
     const { name, email, phone } = customer;
     const { data, error } = await supabase
       .from('customers')
@@ -142,10 +136,11 @@ export const dataService = {
     return true;
   },
 
-  // Leads — colunas: name, phone, email, source, notes, status, user_id
+  // ─── Leads ───────────────────────────────────────────────────────────
   async getLeads() {
     if (useMock) return mockDataService.getLeads();
-    const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('leads').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -162,7 +157,8 @@ export const dataService = {
   },
   async updateLead(id: string, updates: any) {
     if (useMock) return mockDataService.updateLead(id, updates);
-    const { data, error } = await supabase.from('leads').update(updates).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('leads').update(updates).eq('id', id).select();
     if (error) throw error;
     return data[0];
   },
@@ -173,10 +169,11 @@ export const dataService = {
     return true;
   },
 
-  // Transactions — colunas: description, amount, type, category, date, user_id
+  // ─── Transactions ────────────────────────────────────────────────────
   async getTransactions() {
     if (useMock) return mockDataService.getTransactions();
-    const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+    const { data, error } = await supabase
+      .from('transactions').select('*').order('date', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -198,7 +195,7 @@ export const dataService = {
     return true;
   },
 
-  // Suppliers — colunas: name, contact_name, email, phone, category, country, user_id
+  // ─── Suppliers ───────────────────────────────────────────────────────
   async getSuppliers() {
     if (useMock) return mockDataService.getSuppliers();
     const { data, error } = await supabase.from('suppliers').select('*').order('name');
@@ -217,26 +214,29 @@ export const dataService = {
     return data[0];
   },
 
-  // Campaigns — colunas: name, platform, budget, status, start_date, end_date, user_id
+  // ─── Campaigns ───────────────────────────────────────────────────────
   async getCampaigns() {
     if (useMock) return mockDataService.getCampaigns();
-    const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('campaigns').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
   async addCampaign(campaign: any) {
     if (useMock) return mockDataService.addCampaign(campaign);
     const uid = await getUid();
+    const { name, platform, budget, spent, leads_count, status, start_date } = campaign;
     const { data, error } = await supabase
       .from('campaigns')
-      .insert([{ ...campaign, user_id: uid }])
+      .insert([{ name, platform, budget, spent, leads_count, status, start_date, user_id: uid }])
       .select();
     if (error) throw error;
     return data[0];
   },
   async updateCampaign(id: string, updates: any) {
     if (useMock) return mockDataService.updateCampaign(id, updates);
-    const { data, error } = await supabase.from('campaigns').update(updates).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('campaigns').update(updates).eq('id', id).select();
     if (error) throw error;
     return data[0];
   },
@@ -247,10 +247,11 @@ export const dataService = {
     return true;
   },
 
-  // Documents — colunas: title, category, file_url, user_id
+  // ─── Documents ───────────────────────────────────────────────────────
   async getDocuments() {
     if (useMock) return mockDataService.getDocuments();
-    const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('documents').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },

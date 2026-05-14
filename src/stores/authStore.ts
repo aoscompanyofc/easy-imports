@@ -19,39 +19,40 @@ const isSupabaseConfigured = () => {
   return url && url !== 'YOUR_SUPABASE_URL' && url.includes('supabase.co') && key && key !== 'YOUR_SUPABASE_ANON_KEY';
 };
 
-// Read synchronously at module load time to prevent redirect flash on page reload
 const storedAuth = getStorage<{ isAuthenticated: boolean; user: User | null } | null>(STORAGE_KEY, null);
 
 export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: storedAuth?.isAuthenticated || false,
   user: storedAuth?.user || null,
-  // Only async-loading when Supabase needs to validate the session remotely
   isLoading: isSupabaseConfigured(),
 
   login: async (email, password) => {
-    if (email === 'easyimportsbrstore@gmail.com' && password === '123456') {
-      const user: User = { id: '1', name: 'João Eduardo', email, avatar: 'JE' };
-      set({ isAuthenticated: true, user });
+    // Quando Supabase está configurado, sempre usa autenticação real
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.user) {
+        throw new Error('Email ou senha inválidos');
+      }
+      const user: User = {
+        id: data.user.id,
+        name: data.user.user_metadata?.name || 'João Eduardo',
+        email: data.user.email!,
+        avatar: data.user.user_metadata?.avatar_url || undefined,
+      };
+      set({ isAuthenticated: true, user, isLoading: false });
       setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       return;
     }
 
-    if (!isSupabaseConfigured()) {
-      throw new Error('Email ou senha inválidos');
+    // Modo mock (Supabase não configurado) — bypass local
+    if (email === 'easyimportsbrstore@gmail.com' && password === '123456') {
+      const user: User = { id: '1', name: 'João Eduardo', email, avatar: 'JE' };
+      set({ isAuthenticated: true, user, isLoading: false });
+      setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+      return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('Email ou senha inválidos');
-
-    const user: User = {
-      id: data.user.id,
-      name: data.user.user_metadata.name || data.user.email?.split('@')[0],
-      email: data.user.email!,
-      avatar: data.user.user_metadata.avatar_url,
-    };
-
-    set({ isAuthenticated: true, user });
-    setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+    throw new Error('Email ou senha inválidos');
   },
 
   signup: async (email, password, name) => {
@@ -73,7 +74,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         name: data.user!.user_metadata.name || name,
         email: data.user!.email!,
       };
-      set({ isAuthenticated: true, user });
+      set({ isAuthenticated: true, user, isLoading: false });
       setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       return { needsConfirmation: false };
     }
@@ -91,29 +92,27 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   checkAuth: async () => {
     if (!isSupabaseConfigured()) {
-      // Already initialized synchronously from localStorage above
       set({ isLoading: false });
       return;
     }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session?.user) {
         const user: User = {
           id: session.user.id,
-          name: session.user.user_metadata.name || session.user.email?.split('@')[0],
+          name: session.user.user_metadata?.name || 'João Eduardo',
           email: session.user.email!,
-          avatar: session.user.user_metadata.avatar_url,
+          avatar: session.user.user_metadata?.avatar_url,
         };
         set({ isAuthenticated: true, user });
         setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       } else {
-        // Supabase session expired — clear stale localStorage auth
         set({ isAuthenticated: false, user: null });
         removeStorage(STORAGE_KEY);
       }
     } catch {
-      // Network error — keep whatever was loaded from localStorage
+      // Erro de rede — mantém estado do localStorage
     } finally {
       set({ isLoading: false });
     }

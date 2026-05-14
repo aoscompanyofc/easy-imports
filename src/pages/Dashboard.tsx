@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { RevenueChart } from '../components/dashboard/RevenueChart';
 import { ChannelChart } from '../components/dashboard/ChannelChart';
@@ -7,10 +7,11 @@ import { AlertsList } from '../components/dashboard/AlertsList';
 import { RecentSales } from '../components/dashboard/RecentSales';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, ShoppingCart, Package, DollarSign, UserPlus, ChevronDown, Calendar } from 'lucide-react';
+import { Plus, ShoppingCart, Package, DollarSign, UserPlus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
-import { format, subDays } from 'date-fns';
+import { format, getDaysInMonth, startOfMonth, addMonths, subMonths, isSameMonth, isToday } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -18,15 +19,20 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Build real chart data from transactions
-function buildChartData(transactions: any[], days = 30) {
+function buildMonthChartData(transactions: any[], monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const daysInMonth = getDaysInMonth(monthDate);
+  const today = new Date();
+
   const result: { date: string; value: number }[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const day = subDays(new Date(), i);
-    const label = format(day, 'dd/MM');
-    const dayStr = format(day, 'yyyy-MM-dd');
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    if (d > today) break;
+    const dayStr = format(d, 'yyyy-MM-dd');
+    const label = format(d, 'dd/MM');
     const income = transactions
-      .filter(t => t.type === 'income' && t.date?.startsWith(dayStr))
+      .filter(t => t.type === 'income' && (t.date || t.created_at)?.slice(0, 10) === dayStr)
       .reduce((acc, t) => acc + Number(t.amount || 0), 0);
     result.push({ date: label, value: income });
   }
@@ -35,10 +41,10 @@ function buildChartData(transactions: any[], days = 30) {
 
 const CHANNEL_COLORS = ['#FFC107', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F59E0B'];
 
-function buildTopProducts(sales: any[]): { id: string; name: string; salesCount: number }[] {
+function buildTopProducts(sales: any[]) {
   const counts: Record<string, number> = {};
   for (const s of sales) {
-    const name = s.product_name || 'Produto';
+    const name = s.product_name || s.products?.name || 'Produto';
     counts[name] = (counts[name] || 0) + 1;
   }
   return Object.entries(counts)
@@ -47,7 +53,7 @@ function buildTopProducts(sales: any[]): { id: string; name: string; salesCount:
     .slice(0, 5);
 }
 
-function buildChannelData(sales: any[]): { name: string; value: number; color: string }[] {
+function buildChannelData(sales: any[]) {
   const counts: Record<string, number> = {};
   for (const s of sales) {
     const method = s.payment_method || 'Outros';
@@ -60,6 +66,10 @@ function buildChannelData(sales: any[]): { name: string; value: number; color: s
 
 export const Dashboard: React.FC = () => {
   const [isFABOpen, setIsFABOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [allSales, setAllSales] = useState<any[]>([]);
+
   const [stats, setStats] = useState({ revenue: 0, salesCount: 0, profit: 0, cash: 0, margin: 0 });
   const [chartData, setChartData] = useState<{ date: string; value: number }[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
@@ -68,37 +78,54 @@ export const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        const [sales, products, transactions] = await Promise.all([
-          dataService.getSales(),
-          dataService.getProducts(),
-          dataService.getTransactions()
-        ]);
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [sales, products, transactions] = await Promise.all([
+        dataService.getSales(),
+        dataService.getProducts(),
+        dataService.getTransactions(),
+      ]);
 
-        const totalRevenue = sales?.reduce((acc, s) => acc + Number(s.total_amount || 0), 0) || 0;
-        const totalIncome = transactions?.filter(t => t.type === 'income').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
-        const totalExpense = transactions?.filter(t => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
-        const netProfit = totalIncome - totalExpense;
-        const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+      setAllTransactions(transactions || []);
+      setAllSales(sales || []);
 
-        const dataExists = (sales?.length || 0) > 0 || (products?.length || 0) > 0 || (transactions?.length || 0) > 0;
-        setHasData(dataExists);
-        setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: netProfit, cash: totalIncome - totalExpense, margin });
-        setChartData(buildChartData(transactions || []));
-        setRecentSales(sales || []);
-        setTopProducts(buildTopProducts(sales || []));
-        setChannelData(buildChannelData(sales || []));
-      } catch (error) {
-        console.error('Dashboard error:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDashboardData();
+      const totalRevenue = sales?.reduce((acc, s) => acc + Number(s.total_amount || 0), 0) || 0;
+      const totalIncome = transactions?.filter(t => t.type === 'income').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
+      const totalExpense = transactions?.filter(t => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
+      const netProfit = totalIncome - totalExpense;
+      const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      const dataExists = (sales?.length || 0) > 0 || (products?.length || 0) > 0 || (transactions?.length || 0) > 0;
+      setHasData(dataExists);
+      setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: netProfit, cash: totalIncome - totalExpense, margin });
+      setRecentSales((sales || []).slice(0, 10));
+      setTopProducts(buildTopProducts(sales || []));
+      setChannelData(buildChannelData(sales || []));
+    } catch (error) {
+      console.error('Dashboard error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    setChartData(buildMonthChartData(allTransactions, selectedMonth));
+  }, [allTransactions, selectedMonth]);
+
+  const monthLabel = format(selectedMonth, 'MMMM yyyy', { locale: ptBR });
+  const isCurrentMonth = isSameMonth(selectedMonth, new Date());
+
+  const monthRevenue = allTransactions
+    .filter(t => {
+      const d = (t.date || t.created_at)?.slice(0, 7);
+      return t.type === 'income' && d === format(selectedMonth, 'yyyy-MM');
+    })
+    .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
   return (
     <div className="space-y-8 pb-10">
@@ -115,10 +142,25 @@ export const Dashboard: React.FC = () => {
             <Calendar size={16} />
             <span>Hoje, {new Date().toLocaleDateString('pt-BR')}</span>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-lg text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors shadow-sm">
-            <span>Este mês</span>
-            <ChevronDown size={16} />
-          </button>
+          {/* Seletor de mês */}
+          <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+            <button
+              className="p-2 hover:bg-neutral-50 transition-colors text-neutral-500 hover:text-neutral-900"
+              onClick={() => setSelectedMonth(m => subMonths(m, 1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="px-3 text-sm font-semibold text-neutral-700 capitalize min-w-[130px] text-center">
+              {monthLabel}
+            </span>
+            <button
+              className={cn('p-2 transition-colors', isCurrentMonth ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-neutral-50 text-neutral-500 hover:text-neutral-900')}
+              onClick={() => !isCurrentMonth && setSelectedMonth(m => addMonths(m, 1))}
+              disabled={isCurrentMonth}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -153,7 +195,11 @@ export const Dashboard: React.FC = () => {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
             <div className="lg:col-span-2">
-              <RevenueChart data={chartData} />
+              <RevenueChart
+                data={chartData}
+                title={`Faturamento — ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}`}
+                subtitle={isCurrentMonth ? 'Vendas brutas por dia (mês atual)' : 'Vendas brutas por dia'}
+              />
             </div>
             <div>
               {channelData.length > 0 ? (

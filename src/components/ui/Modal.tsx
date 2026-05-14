@@ -27,11 +27,14 @@ export const Modal: React.FC<ModalProps> = ({
       if (e.key === 'Escape') onClose();
     };
     if (isOpen) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       window.addEventListener('keydown', handleEsc);
     }
     return () => {
       document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
       window.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, onClose]);
@@ -48,19 +51,20 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div 
-        className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[2px] animate-in fade-in duration-300"
+      <div
+        className="absolute inset-0 bg-neutral-900/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      <div 
+      <div
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300 overflow-hidden',
-          maxWidths[maxWidth]
+          'relative w-full bg-white rounded-2xl shadow-2xl flex flex-col',
+          maxWidths[maxWidth],
+          'max-h-[calc(100vh-2rem)]'
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-            {title ? <h3 className="text-lg font-bold text-neutral-900">{title}</h3> : <div />}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 flex-shrink-0">
+            <h3 className="text-lg font-bold text-neutral-900">{title}</h3>
             <button
               onClick={onClose}
               className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-all"
@@ -69,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({
             </button>
           </div>
         )}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
       </div>

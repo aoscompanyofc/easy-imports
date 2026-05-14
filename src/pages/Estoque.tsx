@@ -19,7 +19,7 @@ const emptyForm = {
   purchase_price: '',
   sale_price: '',
   stock_quantity: '1',
-  status: 'available'
+  status: 'available',
 };
 
 export const Estoque: React.FC = () => {
@@ -28,13 +28,15 @@ export const Estoque: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('Todas');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const [formData, setFormData] = useState(emptyForm);
-  const [editFormData, setEditFormData] = useState(emptyForm);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState(emptyForm);
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -52,52 +54,52 @@ export const Estoque: React.FC = () => {
     fetchProducts();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setIsSaving(true);
+      setIsSavingAdd(true);
       await dataService.addProduct({
-        ...formData,
-        purchase_price: Number(formData.purchase_price),
-        sale_price: Number(formData.sale_price),
-        stock_quantity: Number(formData.stock_quantity)
+        ...addForm,
+        purchase_price: Number(addForm.purchase_price),
+        sale_price: Number(addForm.sale_price),
+        stock_quantity: Number(addForm.stock_quantity),
       });
       toast.success('Produto adicionado ao estoque!');
-      setIsModalOpen(false);
-      setFormData(emptyForm);
+      setIsAddModalOpen(false);
+      setAddForm(emptyForm);
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
     } finally {
-      setIsSaving(false);
+      setIsSavingAdd(false);
     }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProduct) return;
+    if (!editingId) return;
     try {
-      setIsSaving(true);
-      await dataService.updateProduct(editingProduct.id, {
-        ...editFormData,
-        purchase_price: Number(editFormData.purchase_price),
-        sale_price: Number(editFormData.sale_price),
-        stock_quantity: Number(editFormData.stock_quantity)
+      setIsSavingEdit(true);
+      await dataService.updateProduct(editingId, {
+        ...editForm,
+        purchase_price: Number(editForm.purchase_price),
+        sale_price: Number(editForm.sale_price),
+        stock_quantity: Number(editForm.stock_quantity),
       });
       toast.success('Produto atualizado!');
       setIsEditModalOpen(false);
-      setEditingProduct(null);
+      setEditingId(null);
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
     } finally {
-      setIsSaving(false);
+      setIsSavingEdit(false);
     }
   };
 
   const handleOpenEdit = (product: any) => {
-    setEditingProduct(product);
-    setEditFormData({
+    setEditingId(product.id);
+    setEditForm({
       name: product.name || '',
       category: product.category || 'iPhone',
       sku: product.sku || '',
@@ -105,7 +107,7 @@ export const Estoque: React.FC = () => {
       purchase_price: String(product.purchase_price || ''),
       sale_price: String(product.sale_price || ''),
       stock_quantity: String(product.stock_quantity || '1'),
-      status: product.status || 'available'
+      status: product.status || 'available',
     });
     setIsEditModalOpen(true);
   };
@@ -131,82 +133,53 @@ export const Estoque: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const profit = (Number(formData.sale_price) || 0) - (Number(formData.purchase_price) || 0);
-  const marginPercent = Number(formData.sale_price) > 0 ? (profit / Number(formData.sale_price)) * 100 : 0;
+  const addProfit = (Number(addForm.sale_price) || 0) - (Number(addForm.purchase_price) || 0);
+  const addMargin = Number(addForm.sale_price) > 0 ? (addProfit / Number(addForm.sale_price)) * 100 : 0;
 
-  const editProfit = (Number(editFormData.sale_price) || 0) - (Number(editFormData.purchase_price) || 0);
-  const editMarginPercent = Number(editFormData.sale_price) > 0 ? (editProfit / Number(editFormData.sale_price)) * 100 : 0;
+  const editProfit = (Number(editForm.sale_price) || 0) - (Number(editForm.purchase_price) || 0);
+  const editMargin = Number(editForm.sale_price) > 0 ? (editProfit / Number(editForm.sale_price)) * 100 : 0;
 
   const hasActiveFilters = filterCategory !== 'Todas' || searchTerm;
 
   const columns = [
-    { header: 'Produto', accessor: (p: any) => (
-      <div className="flex flex-col">
-        <span className="font-bold text-neutral-900">{p.name}</span>
-        <span className="text-xs text-neutral-400">{p.sku || 'Sem SKU'}</span>
-      </div>
-    )},
-    { header: 'IMEI/Serial', accessor: (p: any) => (
-      <span className="font-mono text-xs">{p.imei || '-'}</span>
-    )},
-    { header: 'Venda', accessor: (p: any) => (
-      <span className="font-bold text-primary-700">{formatCurrency(p.sale_price)}</span>
-    )},
-    { header: 'Qtd', accessor: (p: any) => (
-      <div className="flex items-center gap-2">
-        <span className={p.stock_quantity <= 2 ? 'text-danger font-bold' : ''}>
-          {p.stock_quantity}
-        </span>
-        {p.stock_quantity <= 2 && <Badge variant="danger" size="sm">Baixo</Badge>}
-      </div>
-    )},
-    { header: 'Ações', accessor: (p: any) => (
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(p)}><Edit2 size={14} /></Button>
-        <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(p.id)}><Trash2 size={14} /></Button>
-      </div>
-    )},
+    {
+      header: 'Produto', accessor: (p: any) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-neutral-900">{p.name}</span>
+          <span className="text-xs text-neutral-400">{p.category}</span>
+        </div>
+      )
+    },
+    { header: 'IMEI/Serial', accessor: (p: any) => <span className="font-mono text-xs">{p.imei || '-'}</span> },
+    { header: 'Custo', accessor: (p: any) => <span className="text-sm text-neutral-500">{formatCurrency(p.purchase_price)}</span> },
+    { header: 'Venda', accessor: (p: any) => <span className="font-bold text-primary-700">{formatCurrency(p.sale_price)}</span> },
+    {
+      header: 'Qtd', accessor: (p: any) => (
+        <div className="flex items-center gap-2">
+          <span className={p.stock_quantity <= 2 ? 'text-danger font-bold' : ''}>{p.stock_quantity}</span>
+          {p.stock_quantity <= 2 && <Badge variant="danger" size="sm">Baixo</Badge>}
+        </div>
+      )
+    },
+    {
+      header: 'Ações', accessor: (p: any) => (
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(p)}><Edit2 size={14} /></Button>
+          <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(p.id)}><Trash2 size={14} /></Button>
+        </div>
+      )
+    },
   ];
 
-  const ProductForm = ({ data, setData, onSubmit, submitLabel }: { data: typeof emptyForm; setData: (d: typeof emptyForm) => void; onSubmit: (e: React.FormEvent) => void; submitLabel: string }) => {
-    const p = (Number(data.sale_price) || 0) - (Number(data.purchase_price) || 0);
-    const m = Number(data.sale_price) > 0 ? (p / Number(data.sale_price)) * 100 : 0;
-    return (
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <Input label="Nome do Produto" placeholder="Ex: iPhone 15 Pro Max 256GB" required autoComplete="off" value={data.name} onChange={e => setData({...data, name: e.target.value})} />
-          </div>
-          <Input label="SKU / Código" placeholder="IP15PM-256" value={data.sku} onChange={e => setData({...data, sku: e.target.value})} />
-          <Input label="IMEI / Serial" placeholder="Opcional" value={data.imei} onChange={e => setData({...data, imei: e.target.value})} />
-          <Input label="Preço de Custo (R$)" type="number" step="0.01" required value={data.purchase_price} onChange={e => setData({...data, purchase_price: e.target.value})} />
-          <Input label="Preço de Venda (R$)" type="number" step="0.01" required value={data.sale_price} onChange={e => setData({...data, sale_price: e.target.value})} />
-          <Input label="Quantidade em Estoque" type="number" required value={data.stock_quantity} onChange={e => setData({...data, stock_quantity: e.target.value})} />
-          <div>
-            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
-            <select className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all" value={data.category} onChange={e => setData({...data, category: e.target.value})}>
-              {CATEGORIES.filter(c => c !== 'Todas').map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        {(data.purchase_price && data.sale_price) && (
-          <div className="p-4 bg-primary-50 rounded-xl border border-primary-100 mt-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-neutral-600">Projeção de Margem:</span>
-              <div className="text-right">
-                <p className="text-lg font-bold text-primary-900">{formatCurrency(p)} de lucro</p>
-                <p className="text-xs font-bold text-success">{m.toFixed(1)}% de margem</p>
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="flex gap-3 mt-6">
-          <Button variant="secondary" fullWidth onClick={() => { setIsModalOpen(false); setIsEditModalOpen(false); }} type="button">Cancelar</Button>
-          <Button fullWidth loading={isSaving} type="submit">{submitLabel}</Button>
-        </div>
-      </form>
-    );
-  };
+  const categorySelectJSX = (value: string, onChange: (v: string) => void) => (
+    <select
+      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    >
+      {CATEGORIES.filter(c => c !== 'Todas').map(c => <option key={c} value={c}>{c}</option>)}
+    </select>
+  );
 
   return (
     <div className="space-y-6">
@@ -215,7 +188,7 @@ export const Estoque: React.FC = () => {
           <h2 className="text-2xl font-bold text-neutral-900">Estoque</h2>
           <p className="text-neutral-500">Controle de produtos e equipamentos</p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => setIsModalOpen(true)}>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyForm); setIsAddModalOpen(true); }}>
           Nova Compra / Aparelho
         </Button>
       </div>
@@ -223,10 +196,11 @@ export const Estoque: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, SKU ou IMEI..."
+            placeholder="Buscar por nome, categoria ou IMEI..."
             leftIcon={<Search size={20} />}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
+            autoComplete="off"
           />
         </div>
         <div className="relative">
@@ -272,12 +246,154 @@ export const Estoque: React.FC = () => {
         emptyMessage="Nenhum produto cadastrado no estoque."
       />
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Compra de Aparelho" maxWidth="lg">
-        <ProductForm data={formData} setData={setFormData} onSubmit={handleSave} submitLabel="Salvar Compra no Estoque" />
+      {/* MODAL ADICIONAR */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Registrar Compra de Aparelho" maxWidth="lg">
+        <form onSubmit={handleAdd} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nome do Produto"
+                placeholder="Ex: iPhone 15 Pro Max 256GB"
+                required
+                autoComplete="off"
+                value={addForm.name}
+                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <Input
+              label="SKU / Código"
+              placeholder="IP15PM-256"
+              autoComplete="off"
+              value={addForm.sku}
+              onChange={e => setAddForm(f => ({ ...f, sku: e.target.value }))}
+            />
+            <Input
+              label="IMEI / Serial"
+              placeholder="Opcional"
+              autoComplete="off"
+              value={addForm.imei}
+              onChange={e => setAddForm(f => ({ ...f, imei: e.target.value }))}
+            />
+            <Input
+              label="Preço de Custo (R$)"
+              type="number"
+              step="0.01"
+              required
+              value={addForm.purchase_price}
+              onChange={e => setAddForm(f => ({ ...f, purchase_price: e.target.value }))}
+            />
+            <Input
+              label="Preço de Venda (R$)"
+              type="number"
+              step="0.01"
+              required
+              value={addForm.sale_price}
+              onChange={e => setAddForm(f => ({ ...f, sale_price: e.target.value }))}
+            />
+            <Input
+              label="Quantidade em Estoque"
+              type="number"
+              min="1"
+              required
+              value={addForm.stock_quantity}
+              onChange={e => setAddForm(f => ({ ...f, stock_quantity: e.target.value }))}
+            />
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
+              {categorySelectJSX(addForm.category, v => setAddForm(f => ({ ...f, category: v })))}
+            </div>
+          </div>
+          {addForm.purchase_price && addForm.sale_price && (
+            <div className="p-4 bg-primary-50 rounded-xl border border-primary-100">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-neutral-600">Projeção de Margem:</span>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary-900">{formatCurrency(addProfit)} de lucro</p>
+                  <p className="text-xs font-bold text-success">{addMargin.toFixed(1)}% de margem</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => setIsAddModalOpen(false)} type="button">Cancelar</Button>
+            <Button fullWidth loading={isSavingAdd} type="submit">Salvar Compra no Estoque</Button>
+          </div>
+        </form>
       </Modal>
 
+      {/* MODAL EDITAR */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Produto" maxWidth="lg">
-        <ProductForm data={editFormData} setData={setEditFormData} onSubmit={handleEditSave} submitLabel="Salvar Alterações" />
+        <form onSubmit={handleEditSave} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nome do Produto"
+                placeholder="Ex: iPhone 15 Pro Max 256GB"
+                required
+                autoComplete="off"
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <Input
+              label="SKU / Código"
+              placeholder="IP15PM-256"
+              autoComplete="off"
+              value={editForm.sku}
+              onChange={e => setEditForm(f => ({ ...f, sku: e.target.value }))}
+            />
+            <Input
+              label="IMEI / Serial"
+              placeholder="Opcional"
+              autoComplete="off"
+              value={editForm.imei}
+              onChange={e => setEditForm(f => ({ ...f, imei: e.target.value }))}
+            />
+            <Input
+              label="Preço de Custo (R$)"
+              type="number"
+              step="0.01"
+              required
+              value={editForm.purchase_price}
+              onChange={e => setEditForm(f => ({ ...f, purchase_price: e.target.value }))}
+            />
+            <Input
+              label="Preço de Venda (R$)"
+              type="number"
+              step="0.01"
+              required
+              value={editForm.sale_price}
+              onChange={e => setEditForm(f => ({ ...f, sale_price: e.target.value }))}
+            />
+            <Input
+              label="Quantidade em Estoque"
+              type="number"
+              min="1"
+              required
+              value={editForm.stock_quantity}
+              onChange={e => setEditForm(f => ({ ...f, stock_quantity: e.target.value }))}
+            />
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
+              {categorySelectJSX(editForm.category, v => setEditForm(f => ({ ...f, category: v })))}
+            </div>
+          </div>
+          {editForm.purchase_price && editForm.sale_price && (
+            <div className="p-4 bg-primary-50 rounded-xl border border-primary-100">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-neutral-600">Projeção de Margem:</span>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary-900">{formatCurrency(editProfit)} de lucro</p>
+                  <p className="text-xs font-bold text-success">{editMargin.toFixed(1)}% de margem</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(false)} type="button">Cancelar</Button>
+            <Button fullWidth loading={isSavingEdit} type="submit">Salvar Alterações</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

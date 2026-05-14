@@ -78,7 +78,7 @@ const emptyMemberForm = () => ({
 
 export const Configuracoes: React.FC = () => {
   const { user } = useAuthStore();
-  const { name, cargo, avatar, telefone, setName, setCargo, setAvatar, setTelefone } = useProfileStore();
+  const { name, cargo, avatar, telefone, cnpj, setName, setCargo, setAvatar, setTelefone, setCnpj } = useProfileStore();
   const { isAdmin } = usePermissionsStore();
 
   const TABS = [
@@ -100,11 +100,13 @@ export const Configuracoes: React.FC = () => {
   const [profileName, setProfileName] = useState(name);
   const [profileCargo, setProfileCargo] = useState(cargo);
   const [profileTelefone, setProfileTelefone] = useState(telefone);
+  const [profileCnpj, setProfileCnpj] = useState(cnpj);
 
   // Sync local state when store changes externally
   useEffect(() => { setProfileName(name); }, [name]);
   useEffect(() => { setProfileCargo(cargo); }, [cargo]);
   useEffect(() => { setProfileTelefone(telefone); }, [telefone]);
+  useEffect(() => { setProfileCnpj(cnpj); }, [cnpj]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -149,11 +151,13 @@ export const Configuracoes: React.FC = () => {
   const handleSaveProfile = async () => {
     try {
       setIsSavingProfile(true);
+      // Each setter syncs to Supabase automatically via profileStore
       setName(profileName.trim() || user?.name || '');
       setCargo(profileCargo.trim() || 'Administrador');
       setTelefone(profileTelefone.trim());
-      await new Promise((res) => setTimeout(res, 300));
-      toast.success('Perfil salvo com sucesso!');
+      setCnpj(profileCnpj.trim());
+      await new Promise((res) => setTimeout(res, 400));
+      toast.success('Perfil salvo e sincronizado!');
     } catch (error: any) {
       toast.error('Erro ao salvar perfil: ' + error.message);
     } finally {
@@ -347,6 +351,13 @@ export const Configuracoes: React.FC = () => {
                 placeholder="(11) 99999-9999"
                 value={profileTelefone}
                 onChange={(e) => setProfileTelefone(e.target.value)}
+                autoComplete="off"
+              />
+              <Input
+                label="CNPJ da Empresa"
+                placeholder="00.000.000/0001-00"
+                value={profileCnpj}
+                onChange={(e) => setProfileCnpj(e.target.value)}
                 autoComplete="off"
               />
             </div>

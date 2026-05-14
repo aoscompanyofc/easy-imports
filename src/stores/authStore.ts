@@ -33,7 +33,7 @@ function makeUser(supabaseUser: any): User {
 }
 
 function afterLogin(user: User) {
-  useProfileStore.getState().hydrate(user.name);
+  useProfileStore.getState().hydrate(user.id, user.name);
   usePermissionsStore.getState().loadPermissions(user.email);
 }
 

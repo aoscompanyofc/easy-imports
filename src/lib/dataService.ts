@@ -317,6 +317,24 @@ export const dataService = {
     return true;
   },
 
+  // ─── User Profile (synced across devices) ────────────────────────────
+  async getProfile() {
+    if (useMock) return null;
+    const uid = await getUid();
+    const { data } = await supabase
+      .from('user_profiles').select('*').eq('id', uid).maybeSingle();
+    return data;
+  },
+  async upsertProfile(profile: { name?: string; cargo?: string; telefone?: string; avatar?: string; cnpj?: string }) {
+    if (useMock) return;
+    const uid = await getUid();
+    const { error } = await supabase.from('user_profiles').upsert(
+      { id: uid, ...profile, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    );
+    if (error && !error.message?.includes('does not exist') && error.code !== '42P01') throw error;
+  },
+
   // ─── Documents ───────────────────────────────────────────────────────
   async getDocuments() {
     if (useMock) return mockDataService.getDocuments();

@@ -53,6 +53,26 @@ export const Documentacao: React.FC = () => {
     }
   };
 
+  const handleDeleteDocument = async (id: string, title: string) => {
+    if (confirm(`Deseja remover o documento "${title}"?`)) {
+      try {
+        await dataService.deleteDocument(id);
+        toast.success('Documento removido!');
+        fetchDocuments();
+      } catch (error: any) {
+        toast.error('Erro ao remover: ' + error.message);
+      }
+    }
+  };
+
+  const handleDownload = (doc: any) => {
+    if (doc.file_url && doc.file_url !== 'https://placeholder.com/doc.pdf') {
+      window.open(doc.file_url, '_blank');
+    } else {
+      toast('Nenhum arquivo anexado a este documento.', { icon: 'ℹ️' });
+    }
+  };
+
   const columns = [
     { header: 'Documento', accessor: (d: any) => (
       <div className="flex items-center gap-3">
@@ -66,10 +86,10 @@ export const Documentacao: React.FC = () => {
       </div>
     )},
     { header: 'Data de Upload', accessor: (d: any) => formatDate(d.created_at) },
-    { header: 'Ações', accessor: () => (
+    { header: 'Ações', accessor: (d: any) => (
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" iconOnly><Download size={14} /></Button>
-        <Button variant="danger" size="sm" iconOnly><Trash2 size={14} /></Button>
+        <Button variant="secondary" size="sm" iconOnly onClick={() => handleDownload(d)}><Download size={14} /></Button>
+        <Button variant="danger" size="sm" iconOnly onClick={() => handleDeleteDocument(d.id, d.title)}><Trash2 size={14} /></Button>
       </div>
     )},
   ];

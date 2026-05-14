@@ -192,5 +192,11 @@ export const dataService = {
     const { data, error } = await supabase.from('documents').insert([document]).select();
     if (error) throw error;
     return data[0];
+  },
+  async deleteDocument(id: string) {
+    if (useMock) return mockDataService.deleteDocument(id);
+    const { error } = await supabase.from('documents').delete().eq('id', id);
+    if (error) throw error;
+    return true;
   }
 };

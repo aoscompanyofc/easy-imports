@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingCart, Plus, Search, Calendar, User, Package, CheckCircle2, DollarSign, Trash2, Paperclip } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Calendar, User, Package, CheckCircle2, DollarSign, Trash2, Paperclip, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -16,14 +16,19 @@ export const Vendas: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // Sale Form State
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('Pix');
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 16)); // datetime-local format
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 16));
 
   const fetchData = async () => {
     try {
@@ -111,6 +116,15 @@ export const Vendas: React.FC = () => {
   const saleProfit = saleTotal - saleCost;
   const saleMargin = saleTotal > 0 ? (saleProfit / saleTotal) * 100 : 0;
 
+  const hasActiveFilters = searchTerm || dateFrom || dateTo;
+
+  const filteredSales = sales.filter(s => {
+    const matchesSearch = !searchTerm || s.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || s.id?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFrom = !dateFrom || new Date(s.created_at) >= new Date(dateFrom);
+    const matchesTo = !dateTo || new Date(s.created_at) <= new Date(dateTo + 'T23:59:59');
+    return matchesSearch && matchesFrom && matchesTo;
+  });
+
   const columns = [
     { header: 'ID', accessor: (s: any) => <span className="text-xs font-mono text-neutral-400">#{s.id?.slice(0, 8)}</span> },
     { header: 'Cliente', accessor: (s: any) => <span className="font-bold">{s.customers?.name || 'Cliente Avulso'}</span> },
@@ -139,12 +153,53 @@ export const Vendas: React.FC = () => {
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">
-          <Input placeholder="Buscar venda por cliente ou ID..." leftIcon={<Search size={20} />} />
+          <Input
+            placeholder="Buscar venda por cliente ou ID..."
+            leftIcon={<Search size={20} />}
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
         </div>
-        <Button variant="secondary" leftIcon={<Calendar size={20} />}>Filtrar Período</Button>
+        <Button
+          variant={dateFrom || dateTo ? 'primary' : 'secondary'}
+          leftIcon={<Calendar size={20} />}
+          onClick={() => setIsPeriodModalOpen(true)}
+        >
+          {dateFrom || dateTo ? 'Período ativo' : 'Filtrar Período'}
+        </Button>
+        {hasActiveFilters && (
+          <Button variant="secondary" iconOnly onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); }}>
+            <X size={20} />
+          </Button>
+        )}
       </div>
 
-      <Table columns={columns} data={sales} isLoading={isLoading} emptyMessage="Nenhuma venda registrada ainda." />
+      {hasActiveFilters && (
+        <p className="text-sm text-neutral-500">
+          Mostrando {filteredSales.length} de {sales.length} vendas
+        </p>
+      )}
+
+      <Table columns={columns} data={filteredSales} isLoading={isLoading} emptyMessage="Nenhuma venda registrada ainda." />
+
+      <Modal
+        isOpen={isPeriodModalOpen}
+        onClose={() => setIsPeriodModalOpen(false)}
+        title="Filtrar por Período"
+      >
+        <div className="space-y-4">
+          <Input label="Data inicial" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <Input label="Data final" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => { setDateFrom(''); setDateTo(''); setIsPeriodModalOpen(false); }}>
+              Limpar
+            </Button>
+            <Button fullWidth onClick={() => { setIsPeriodModalOpen(false); toast.success('Período aplicado!'); }}>
+              Aplicar Filtro
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nova Venda" maxWidth="lg">
         <form onSubmit={handleCreateSale} className="space-y-5">

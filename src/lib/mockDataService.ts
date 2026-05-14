@@ -193,6 +193,11 @@ export const mockDataService = {
   async getDocuments() {
     return getCollection('documents');
   },
+  async deleteDocument(id: string) {
+    const data = getCollection('documents');
+    saveCollection('documents', data.filter((d: any) => d.id !== id));
+    return true;
+  },
   async addDocument(document: any) {
     const data = getCollection('documents');
     const newDoc = { ...document, id: crypto.randomUUID(), created_at: new Date().toISOString() };

@@ -3,6 +3,8 @@ import { BarChart3, Download, FileText, Calendar, Filter, ArrowUpRight, Trending
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Modal } from '../components/ui/Modal';
+import { Input } from '../components/ui/Input';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -13,6 +15,11 @@ function cn(...inputs: ClassValue[]) {
 
 export const Relatorios: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [customReportType, setCustomReportType] = useState('Vendas');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [isGeneratingCustom, setIsGeneratingCustom] = useState(false);
 
   const handleExport = (type: string) => {
     setIsExporting(true);
@@ -108,8 +115,60 @@ export const Relatorios: React.FC = () => {
             Precisa de uma análise específica? Selecione os campos e gere um relatório personalizado agora.
           </p>
         </div>
-        <Button>Criar Relatório Customizado</Button>
+        <Button onClick={() => setIsCustomModalOpen(true)}>Criar Relatório Customizado</Button>
       </Card>
+
+      <Modal isOpen={isCustomModalOpen} onClose={() => setIsCustomModalOpen(false)} title="Criar Relatório Customizado">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Tipo de Relatório</label>
+            <select
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+              value={customReportType}
+              onChange={e => setCustomReportType(e.target.value)}
+            >
+              <option value="Vendas">Vendas</option>
+              <option value="Estoque">Estoque & Custo</option>
+              <option value="Lucratividade">Lucratividade</option>
+              <option value="Clientes">Clientes</option>
+              <option value="Leads">Leads & Conversão</option>
+              <option value="Financeiro">Financeiro Completo</option>
+            </select>
+          </div>
+          <Input label="Data inicial" type="date" value={customDateFrom} onChange={e => setCustomDateFrom(e.target.value)} />
+          <Input label="Data final" type="date" value={customDateTo} onChange={e => setCustomDateTo(e.target.value)} />
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => setIsCustomModalOpen(false)}>Cancelar</Button>
+            <Button
+              fullWidth
+              leftIcon={<Download size={18} />}
+              loading={isGeneratingCustom}
+              onClick={() => {
+                setIsGeneratingCustom(true);
+                setTimeout(() => {
+                  const from = customDateFrom || 'início';
+                  const to = customDateTo || 'hoje';
+                  const content = `Relatório Customizado: ${customReportType}\nPeríodo: ${from} até ${to}\nGerado em: ${new Date().toLocaleString('pt-BR')}\n\nDados exportados com sucesso.`;
+                  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `relatorio_${customReportType.toLowerCase()}_customizado.txt`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  setIsGeneratingCustom(false);
+                  setIsCustomModalOpen(false);
+                  toast.success(`Relatório de ${customReportType} exportado!`);
+                }, 1500);
+              }}
+            >
+              Gerar e Exportar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

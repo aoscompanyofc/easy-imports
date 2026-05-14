@@ -95,7 +95,7 @@ export const Sidebar: React.FC = () => {
       {/* Toggle button — rendered outside aside overflow so it peeks out */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-[28px] w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 hover:text-primary transition-colors shadow-sm z-20"
+        className="absolute -right-3 top-[28px] w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 hover:text-primary transition-colors shadow-sm z-[40]"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>

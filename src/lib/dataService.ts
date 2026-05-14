@@ -225,13 +225,26 @@ export const dataService = {
   async addCampaign(campaign: any) {
     if (useMock) return mockDataService.addCampaign(campaign);
     const uid = await getUid();
-    const { name, platform, budget, spent, leads_count, status, start_date } = campaign;
-    const { data, error } = await supabase
-      .from('campaigns')
-      .insert([{ name, platform, budget, spent, leads_count, status, start_date, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    const { name, platform, budget, spent, leads_count, status, start_date,
+            description, objective, end_date, results_text, target_audience } = campaign;
+    const fullPayload = { name, platform, budget, spent, leads_count, status, start_date,
+      description, objective, end_date, results_text, target_audience, user_id: uid };
+    try {
+      const { data, error } = await supabase.from('campaigns').insert([fullPayload]).select();
+      if (error) throw error;
+      return data[0];
+    } catch (e: any) {
+      if (e?.code === '42703') {
+        // Extra columns don't exist yet — fallback to basic schema
+        const { data, error } = await supabase
+          .from('campaigns')
+          .insert([{ name, platform, budget, spent, leads_count, status, start_date, user_id: uid }])
+          .select();
+        if (error) throw error;
+        return data[0];
+      }
+      throw e;
+    }
   },
   async updateCampaign(id: string, updates: any) {
     if (useMock) return mockDataService.updateCampaign(id, updates);

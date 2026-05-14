@@ -71,9 +71,7 @@ export const Login: React.FC = () => {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
         <div className="w-full max-w-[440px] text-center animate-in fade-in zoom-in duration-500">
           <div className="flex items-center justify-center mb-6">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <img src="/favicon.png" alt="Five Akon" className="w-8 h-8 object-contain" />
-            </div>
+            <img src="/favicon.png" alt="Five Akon" className="w-12 h-12 object-contain" />
           </div>
           <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-xl shadow-neutral-900/5">
             <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
@@ -100,9 +98,7 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-[440px] animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <img src="/favicon.png" alt="Five Akon" className="w-8 h-8 object-contain" />
-            </div>
+            <img src="/favicon.png" alt="Five Akon" className="w-12 h-12 object-contain" />
             <h1 className="text-4xl font-bold tracking-tight">
               <span>Easy</span>
               <span className="text-primary">Imports</span>

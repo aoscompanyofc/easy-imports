@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-neutral-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-neutral-900 font-semibold px-4 py-2 rounded-lg transition-all duration-200 hover:bg-primary-600 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  
+  .card {
+    @apply bg-white border border-neutral-200 rounded-lg shadow-card transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400;
+  }
+}
+
+.recharts-responsive-container {
+  @apply !h-[320px];
+}

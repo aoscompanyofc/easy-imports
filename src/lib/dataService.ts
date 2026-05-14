@@ -260,6 +260,12 @@ export const dataService = {
       { name, user_id: uid },
     ]);
   },
+  async deleteSupplier(id: string) {
+    if (useMock) return true;
+    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  },
 
   // ─── Campaigns ───────────────────────────────────────────────────────
   async getCampaigns() {

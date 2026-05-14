@@ -122,6 +122,28 @@ export const Fornecedores: React.FC = () => {
     setIsPurchaseModalOpen(true);
   };
 
+  const handleDeleteSupplier = async (id: string, name: string) => {
+    if (!confirm(`Remover o fornecedor "${name}"? Os aparelhos já importados permanecerão no estoque.`)) return;
+    try {
+      await dataService.deleteSupplier(id);
+      toast.success('Fornecedor removido.');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao remover: ' + error.message);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string, name: string) => {
+    if (!confirm(`Remover "${name}" do estoque? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await dataService.deleteProduct(id);
+      toast.success('Aparelho removido do estoque.');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao remover: ' + error.message);
+    }
+  };
+
   // Group products by supplier
   const bySupplier: Record<string, any[]> = products.reduce((acc, p) => {
     const key = p.supplier_id;
@@ -198,13 +220,22 @@ export const Fornecedores: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => openPurchaseForSupplier(s.id)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary-900 text-sm font-bold transition-colors flex-shrink-0"
-                  >
-                    <Package size={16} />
-                    Registrar Compra
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => openPurchaseForSupplier(s.id)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary-900 text-sm font-bold transition-colors"
+                    >
+                      <Package size={16} />
+                      Registrar Compra
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSupplier(s.id, s.name)}
+                      className="p-2 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 border border-neutral-200 transition-colors"
+                      title="Remover fornecedor"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -250,7 +281,7 @@ export const Fornecedores: React.FC = () => {
                   </div>
                   <div className="divide-y divide-neutral-50">
                     {items.map(p => (
-                      <div key={p.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                      <div key={p.id} className="flex items-center gap-3 px-5 py-3 text-sm group">
                         <div className={['w-2 h-2 rounded-full flex-shrink-0', p.stock_quantity > 0 ? 'bg-green-400' : 'bg-neutral-300'].join(' ')} />
                         <span className="flex-1 font-medium text-neutral-800 truncate">{p.name}</span>
                         {p.imei && <span className="text-xs text-neutral-400 font-mono hidden md:block">IMEI: {p.imei}</span>}
@@ -258,6 +289,13 @@ export const Fornecedores: React.FC = () => {
                         <span className={['px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0', p.stock_quantity > 0 ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'].join(' ')}>
                           {p.stock_quantity > 0 ? 'Em estoque' : 'Vendido'}
                         </span>
+                        <button
+                          onClick={() => handleDeleteProduct(p.id, p.name)}
+                          className="p-1.5 rounded-lg text-neutral-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                          title="Remover do estoque"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>

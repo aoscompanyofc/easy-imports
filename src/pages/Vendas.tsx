@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  ShoppingCart, Plus, Search, Calendar, Package, CheckCircle2,
+  ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
-  RefreshCw, Eye,
+  RefreshCw, Eye, Link2,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
+import { useProfileStore } from '../stores/profileStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -61,10 +62,11 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_imei TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_accessories TEXT;`;
 
 function getCompanyInfo(): CompanyInfo {
+  const store = useProfileStore.getState();
   return {
-    name: localStorage.getItem('user_name') || 'Easy Imports',
-    cnpj: localStorage.getItem('company_cnpj') || '[CNPJ NÃO INFORMADO]',
-    phone: localStorage.getItem('user_telefone') || '[TELEFONE NÃO INFORMADO]',
+    name: store.name || localStorage.getItem('user_name') || 'Easy Imports',
+    cnpj: store.cnpj || localStorage.getItem('company_cnpj') || '[CNPJ NÃO INFORMADO]',
+    phone: store.telefone || localStorage.getItem('user_telefone') || '[TELEFONE NÃO INFORMADO]',
     email: 'easyimportsbrstore@gmail.com',
   };
 }
@@ -91,10 +93,12 @@ const emptyForm = () => ({
   sale_price_manual: '',
   // Pagamento
   payment_method: 'PIX',
+  installments: 1,
   sale_date: new Date().toISOString().slice(0, 16),
 });
 
 export const Vendas: React.FC = () => {
+  const { signature: adminSignature } = useProfileStore();
   const [sales, setSales] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -167,13 +171,14 @@ export const Vendas: React.FC = () => {
 
     try {
       setIsSaving(true);
-      await dataService.addSale(
+      const savedSale = await dataService.addSale(
         {
           customer_id: form.selectedCustomer || null,
           customer_name: form.sale_type === 'compra' ? form.seller_name : customerName,
           product_name: productName,
           total_amount: totalAmount,
           payment_method: form.payment_method,
+          installments: form.installments,
           status: 'completed',
           created_at: new Date(form.sale_date).toISOString(),
           sale_number: saleNumber,
@@ -197,17 +202,17 @@ export const Vendas: React.FC = () => {
           : []
       );
 
-      // Generate PDF immediately with form data (don't wait for refetch)
+      // Generate PDF immediately with form data
       const pdfData: SalePDFData = {
         sale_number: saleNumber,
         sale_type: form.sale_type,
         created_at: new Date(form.sale_date).toISOString(),
-        seller_name: form.sale_type === 'compra' ? form.seller_name : (localStorage.getItem('user_name') || 'Easy Imports'),
-        seller_cpf: form.sale_type === 'compra' ? form.seller_cpf : (localStorage.getItem('company_cnpj') || ''),
+        seller_name: form.sale_type === 'compra' ? form.seller_name : getCompanyInfo().name,
+        seller_cpf: form.sale_type === 'compra' ? form.seller_cpf : getCompanyInfo().cnpj,
         seller_rg: form.sale_type === 'compra' ? form.seller_rg : '',
-        seller_phone: form.sale_type === 'compra' ? form.seller_phone : (localStorage.getItem('user_telefone') || ''),
+        seller_phone: form.sale_type === 'compra' ? form.seller_phone : getCompanyInfo().phone,
         seller_address: form.sale_type === 'compra' ? form.seller_address : '',
-        seller_email: form.sale_type === 'compra' ? form.seller_email : 'easyimportsbrstore@gmail.com',
+        seller_email: form.sale_type === 'compra' ? form.seller_email : getCompanyInfo().email,
         customer_name: customerName,
         customer_phone: form.customer_phone || selectedCustomerData?.phone || '',
         customer_cpf: form.customer_cpf,
@@ -219,8 +224,16 @@ export const Vendas: React.FC = () => {
         product_accessories: form.product_accessories,
         total_amount: totalAmount,
         payment_method: form.payment_method,
+        installments: form.installments,
+        signature_admin: adminSignature || undefined,
       };
       generatePDF(pdfData, getCompanyInfo());
+
+      // Copy signing link to clipboard automatically if sale has sign_token
+      if (savedSale?.sign_token) {
+        const link = `${window.location.origin}/assinar/${savedSale.sign_token}`;
+        try { await navigator.clipboard.writeText(link); } catch {}
+      }
 
       toast.success(`✅ ${TYPE_LABELS[form.sale_type]} ${saleNumber} registrada!`);
       setIsModalOpen(false);
@@ -266,8 +279,18 @@ export const Vendas: React.FC = () => {
       product_accessories: sale.product_accessories,
       total_amount: Number(sale.total_amount),
       payment_method: sale.payment_method,
+      installments: sale.installments || 1,
+      signature_admin: adminSignature || undefined,
+      signature_client: sale.signature_client || undefined,
     };
     generatePDF(pdfData, getCompanyInfo());
+  };
+
+  const handleCopySignLink = async (sale: any) => {
+    if (!sale.sign_token) { toast.error('Esta venda não tem token de assinatura. Registre novamente.'); return; }
+    const link = `${window.location.origin}/assinar/${sale.sign_token}`;
+    await navigator.clipboard.writeText(link);
+    toast.success('Link de assinatura copiado!');
   };
 
   // Filters
@@ -646,11 +669,30 @@ export const Vendas: React.FC = () => {
                 <select
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                   value={form.payment_method}
-                  onChange={setF('payment_method')}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((f: any) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 }));
+                  }}
                 >
                   {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
+              {form.payment_method === 'Cartão de Crédito' && (
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
+                  <select
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    value={form.installments}
+                    onChange={(e) => setForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
+                  >
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
+                      const total = Number(form.sale_price_manual) || (selectedProductData ? selectedProductData.sale_price * form.quantity : 0);
+                      const label = n === 1 ? '1x (à vista)' : `${n}x de ${total > 0 ? formatCurrency(total / n) : '—'}`;
+                      return <option key={n} value={n}>{label}</option>;
+                    })}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data e Hora</label>
                 <input
@@ -697,7 +739,9 @@ export const Vendas: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
                 ['Número', detailSale.sale_number],
-                ['Pagamento', detailSale.payment_method],
+                ['Pagamento', detailSale.installments > 1
+                  ? `Cartão de Crédito — ${detailSale.installments}x de ${formatCurrency(detailSale.total_amount / detailSale.installments)}`
+                  : detailSale.payment_method],
                 ['Produto', detailSale.product_name],
                 ['IMEI', detailSale.product_imei],
                 ['Capacidade', detailSale.product_capacity],
@@ -718,9 +762,24 @@ export const Vendas: React.FC = () => {
               ))}
             </div>
 
-            <Button fullWidth leftIcon={<Download size={18} />} onClick={() => handleGeneratePDF(detailSale)}>
-              Gerar e Baixar PDF
-            </Button>
+            {/* Signature status */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold',
+                detailSale.signature_client ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
+                {detailSale.signature_client ? <CheckCircle2 size={13} /> : <Package size={13} />}
+                {detailSale.signature_client ? 'Cliente assinou' : 'Aguardando assinatura do cliente'}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button fullWidth leftIcon={<Link2 size={18} />} variant="secondary"
+                onClick={() => handleCopySignLink(detailSale)}>
+                Copiar Link para Cliente Assinar
+              </Button>
+              <Button fullWidth leftIcon={<Download size={18} />} onClick={() => handleGeneratePDF(detailSale)}>
+                Gerar PDF
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

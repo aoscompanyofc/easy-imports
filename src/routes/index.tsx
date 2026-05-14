@@ -14,11 +14,14 @@ import { Marketing } from '../pages/Marketing';
 import { Relatorios } from '../pages/Relatorios';
 import { Documentacao } from '../pages/Documentacao';
 import { Configuracoes } from '../pages/Configuracoes';
+import { Assinar } from '../pages/Assinar';
 
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Public signing page — no auth required */}
+      <Route path="/assinar/:token" element={<Assinar />} />
       
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />

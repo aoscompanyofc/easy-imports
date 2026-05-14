@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { useAuthStore } from '../stores/authStore';
 import { useProfileStore } from '../stores/profileStore';
+import { SignaturePad } from '../components/ui/SignaturePad';
 import { usePermissionsStore, ALL_PAGES, DEFAULT_VENDEDOR_PAGES, PageKey } from '../stores/permissionsStore';
 import { dataService } from '../lib/dataService';
 import { supabase } from '../lib/supabase';
@@ -78,7 +79,7 @@ const emptyMemberForm = () => ({
 
 export const Configuracoes: React.FC = () => {
   const { user } = useAuthStore();
-  const { name, cargo, avatar, telefone, cnpj, setName, setCargo, setAvatar, setTelefone, setCnpj } = useProfileStore();
+  const { name, cargo, avatar, telefone, cnpj, signature, setName, setCargo, setAvatar, setTelefone, setCnpj, setSignature } = useProfileStore();
   const { isAdmin } = usePermissionsStore();
 
   const TABS = [
@@ -361,6 +362,19 @@ export const Configuracoes: React.FC = () => {
                 autoComplete="off"
               />
             </div>
+
+            {/* Signature section */}
+            <div className="pt-2">
+              <p className="text-sm font-bold text-neutral-700 mb-1">Sua Assinatura</p>
+              <p className="text-xs text-neutral-400 mb-3">Desenhe sua assinatura abaixo. Ela será inserida automaticamente em todos os documentos PDF gerados.</p>
+              <SignaturePad
+                value={signature}
+                onChange={(sig) => { setSignature(sig); }}
+                height={130}
+                placeholder="Desenhe sua assinatura aqui"
+              />
+            </div>
+
             <div className="flex justify-end">
               <Button leftIcon={<Save size={18} />} loading={isSavingProfile} onClick={handleSaveProfile}>
                 Salvar Alterações

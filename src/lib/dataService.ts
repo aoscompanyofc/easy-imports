@@ -71,14 +71,15 @@ export const dataService = {
     const uid = await getUid();
     const {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type,
+      sale_number, sale_type, installments,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
     } = sale;
+    const sign_token = crypto.randomUUID();
     const fullPayload = {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type,
+      sale_number, sale_type, installments: installments || 1, sign_token,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf,
       product_capacity, product_color, product_condition, product_imei, product_accessories,

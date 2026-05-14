@@ -7,11 +7,13 @@ interface ProfileStore {
   avatar: string;
   telefone: string;
   cnpj: string;
+  signature: string;
   setName: (name: string) => void;
   setCargo: (cargo: string) => void;
   setAvatar: (avatar: string) => void;
   setTelefone: (telefone: string) => void;
   setCnpj: (cnpj: string) => void;
+  setSignature: (sig: string) => void;
   /** Called after login: loads profile from Supabase and hydrates store + localStorage */
   hydrate: (userId: string, supabaseName: string) => Promise<void>;
 }
@@ -44,6 +46,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   avatar: localStorage.getItem('user_avatar') || '',
   telefone: localStorage.getItem('user_telefone') || '',
   cnpj: localStorage.getItem('company_cnpj') || '',
+  signature: localStorage.getItem('user_signature') || '',
 
   setName: (name) => {
     localStorage.setItem('user_name', name);
@@ -70,6 +73,11 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ cnpj });
     getCurrentUid().then((uid) => { if (uid) syncToSupabase(uid, { cnpj }); });
   },
+  setSignature: (signature) => {
+    localStorage.setItem('user_signature', signature);
+    set({ signature });
+    getCurrentUid().then((uid) => { if (uid) syncToSupabase(uid, { signature }); });
+  },
 
   hydrate: async (userId: string, supabaseName: string) => {
     try {
@@ -83,14 +91,16 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         const avatar = data.avatar || '';
         const telefone = data.telefone || '';
         const cnpj = data.cnpj || '';
+        const signature = data.signature || '';
 
         localStorage.setItem('user_name', name);
         localStorage.setItem('user_cargo', cargo);
         localStorage.setItem('user_avatar', avatar);
         localStorage.setItem('user_telefone', telefone);
         localStorage.setItem('company_cnpj', cnpj);
+        localStorage.setItem('user_signature', signature);
 
-        set({ name, cargo, avatar, telefone, cnpj });
+        set({ name, cargo, avatar, telefone, cnpj, signature });
       } else {
         // No remote profile yet — push local data to Supabase
         const name = localStorage.getItem('user_name') || supabaseName || '';
@@ -98,14 +108,15 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         const avatar = localStorage.getItem('user_avatar') || '';
         const telefone = localStorage.getItem('user_telefone') || '';
         const cnpj = localStorage.getItem('company_cnpj') || '';
+        const signature = localStorage.getItem('user_signature') || '';
 
         if (name) {
-          set({ name, cargo, avatar, telefone, cnpj });
-          await syncToSupabase(userId, { name, cargo, avatar, telefone, cnpj });
+          set({ name, cargo, avatar, telefone, cnpj, signature });
+          await syncToSupabase(userId, { name, cargo, avatar, telefone, cnpj, signature });
         } else if (supabaseName) {
           localStorage.setItem('user_name', supabaseName);
-          set({ name: supabaseName, cargo, avatar, telefone, cnpj });
-          await syncToSupabase(userId, { name: supabaseName, cargo, avatar, telefone, cnpj });
+          set({ name: supabaseName, cargo, avatar, telefone, cnpj, signature });
+          await syncToSupabase(userId, { name: supabaseName, cargo, avatar, telefone, cnpj, signature });
         }
       }
     } catch {

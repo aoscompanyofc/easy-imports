@@ -30,6 +30,10 @@ export interface SalePDFData {
   // Financeiro
   total_amount?: number;
   payment_method?: string;
+  installments?: number;
+  // Assinaturas (base64 PNG)
+  signature_admin?: string;
+  signature_client?: string;
 }
 
 const fmt = (v?: string | null) => v || '______________________________';
@@ -136,6 +140,26 @@ function field(label: string, value?: string, full = false) {
     </div>`;
 }
 
+function fmtInstallments(payment_method?: string, installments?: number, total?: number) {
+  if (payment_method === 'Cartão de Crédito' && installments && installments > 1) {
+    const parcel = (total ?? 0) / installments;
+    return `Cartão de Crédito — ${installments}x de ${fmtVal(parcel)}`;
+  }
+  return payment_method || '______________________________';
+}
+
+function sigBlock(label: string, sub: string, signatureDataUrl?: string) {
+  const img = signatureDataUrl
+    ? `<img src="${signatureDataUrl}" style="max-height:56px;max-width:180px;margin-bottom:4px;display:block;margin-left:auto;margin-right:auto;" alt="assinatura" />`
+    : `<div style="height:56px;"></div>`;
+  return `
+    <div class="sig-block">
+      ${img}
+      <div class="sig-line">${label}</div>
+      <div class="sig-sub">${sub}</div>
+    </div>`;
+}
+
 function openWindow(html: string, title: string) {
   const w = window.open('', '_blank', 'width=860,height=960');
   if (!w) { alert('Permita pop-ups para gerar o PDF.'); return; }
@@ -215,7 +239,7 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
     <div class="section-body">
       <div class="field-row">
         ${field('Valor Pago', fmtVal(sale.total_amount))}
-        ${field('Forma de Pagamento', sale.payment_method)}
+        ${field('Forma de Pagamento', fmtInstallments(sale.payment_method, sale.installments, sale.total_amount))}
         ${field('Data do Pagamento', dateStr)}
       </div>
     </div>
@@ -235,15 +259,8 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 
   <div class="sig-area">
-    <div class="sig-block">
-      <div class="sig-line">Vendedor</div>
-      <div class="sig-sub">${fmt(sale.seller_name)}</div>
-      <div class="sig-sub">CPF: ${fmt(sale.seller_cpf)}</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-line">${company.name}</div>
-      <div class="sig-sub">CNPJ: ${company.cnpj}</div>
-    </div>
+    ${sigBlock('Vendedor', `${fmt(sale.seller_name)} — CPF: ${fmt(sale.seller_cpf)}`, sale.signature_client)}
+    ${sigBlock(company.name, `CNPJ: ${company.cnpj}`, sale.signature_admin)}
   </div>
 
   <div class="footer">
@@ -317,7 +334,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     <div class="section-body">
       <div class="field-row">
         ${field('Valor Total', fmtVal(sale.total_amount))}
-        ${field('Forma de Pagamento', sale.payment_method)}
+        ${field('Pagamento', fmtInstallments(sale.payment_method, sale.installments, sale.total_amount))}
         ${field('Data', dateStr)}
       </div>
     </div>
@@ -337,14 +354,8 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 
   <div class="sig-area">
-    <div class="sig-block">
-      <div class="sig-line">Comprador</div>
-      <div class="sig-sub">${fmt(sale.customer_name)}</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-line">${company.name}</div>
-      <div class="sig-sub">CNPJ: ${company.cnpj}</div>
-    </div>
+    ${sigBlock('Comprador', fmt(sale.customer_name), sale.signature_client)}
+    ${sigBlock(company.name, `CNPJ: ${company.cnpj}`, sale.signature_admin)}
   </div>
 
   <div class="footer">
@@ -435,7 +446,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       </div>
       <div class="field-row">
         ${field('Diferença Paga')}
-        ${field('Forma de Pagamento', sale.payment_method)}
+        ${field('Pagamento', fmtInstallments(sale.payment_method, sale.installments, sale.total_amount))}
         ${field('Data', dateStr)}
       </div>
     </div>
@@ -454,14 +465,8 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 
   <div class="sig-area">
-    <div class="sig-block">
-      <div class="sig-line">Cliente</div>
-      <div class="sig-sub">${fmt(sale.customer_name || sale.seller_name)}</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-line">${company.name}</div>
-      <div class="sig-sub">CNPJ: ${company.cnpj}</div>
-    </div>
+    ${sigBlock('Cliente', fmt(sale.customer_name || sale.seller_name), sale.signature_client)}
+    ${sigBlock(company.name, `CNPJ: ${company.cnpj}`, sale.signature_admin)}
   </div>
 
   <div class="footer">

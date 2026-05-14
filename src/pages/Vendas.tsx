@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
+import { isConnected as gcIsConnected, createCalendarEvent } from '../lib/googleCalendar';
 import { useProfileStore } from '../stores/profileStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -312,10 +313,40 @@ export const Vendas: React.FC = () => {
       };
       generatePDF(pdfData, getCompanyInfo());
 
-      // Build WhatsApp post-sale data
+      // Google Calendar event (fire-and-forget — don't block sale flow)
       const signLink = savedSale?.sign_token
         ? `${window.location.origin}/assinar/${savedSale.sign_token}`
         : '';
+      if (gcIsConnected()) {
+        const typeLabel = form.sale_type === 'troca' ? 'Troca' : 'Venda';
+        const desc = [
+          `Cliente: ${customerName}`,
+          form.customer_phone || customerPhone ? `Telefone: ${form.customer_phone || customerPhone}` : '',
+          `Produto: ${productName || '—'}`,
+          form.product_imei ? `IMEI: ${form.product_imei}` : '',
+          `Valor: ${formatCurrency(totalAmount)}`,
+          form.installments > 1 ? `Parcelamento: ${form.installments}x de ${formatCurrency(totalAmount / form.installments)}` : '',
+          `Pagamento: ${form.payment_method}`,
+          signLink ? `Link de assinatura: ${signLink}` : '',
+        ].filter(Boolean).join('\n');
+
+        createCalendarEvent({
+          title: `${typeLabel} ${saleNumber} — ${customerName}`,
+          description: desc,
+          startISO: new Date(form.sale_date).toISOString(),
+          durationMinutes: 30,
+        }).then(() => {
+          toast.success('Evento criado no Google Agenda!', { icon: '📅', duration: 3000 });
+        }).catch((e: any) => {
+          if (e.message === 'not_connected') {
+            toast('Google Agenda desconectado. Reconecte em Configurações → Integrações.', { icon: '📅' });
+          } else {
+            console.warn('Google Calendar error:', e.message);
+          }
+        });
+      }
+
+      // Build WhatsApp post-sale data
       const whatsappPhone = form.whatsapp_number || customerPhone || '';
       const postName = customerName;
 

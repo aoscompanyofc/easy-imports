@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings, User, Bell, Shield, Database, Link, Trash2, Save,
   Key, RefreshCw, Camera, Users, Plus, X, Copy, Check, Loader2,
-  Eye, EyeOff, MessageCircle, Shuffle,
+  Eye, EyeOff, MessageCircle, Shuffle, Calendar, Unlink,
 } from 'lucide-react';
+import {
+  getClientId, setClientId, isConnected, connect, disconnect,
+} from '../lib/googleCalendar';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -130,6 +133,11 @@ export const Configuracoes: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // ─── Google Calendar state ────────────────────────────────────────────
+  const [gcClientId, setGcClientId] = useState(getClientId());
+  const [gcConnected, setGcConnected] = useState(isConnected());
+  const [isConnectingGC, setIsConnectingGC] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -563,6 +571,99 @@ export const Configuracoes: React.FC = () => {
                 <li>No primeiro acesso, ele cria a conta com o email cadastrado aqui.</li>
                 <li>O sistema detecta automaticamente o perfil e restringe o acesso.</li>
               </ol>
+            </Card>
+          </div>
+        );
+
+      case 'integrations':
+        return (
+          <div className="space-y-6">
+            {/* Google Calendar */}
+            <Card>
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Calendar size={24} className="text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-neutral-900">Google Agenda</h3>
+                  <p className="text-sm text-neutral-500">Cria um evento automático no seu Google Calendar a cada venda registrada.</p>
+                </div>
+                <span className={[
+                  'px-3 py-1 rounded-full text-xs font-bold flex-shrink-0',
+                  gcConnected ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500',
+                ].join(' ')}>
+                  {gcConnected ? '● Conectado' : '○ Desconectado'}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Client ID do Google</label>
+                  <input
+                    type="text"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400"
+                    placeholder="000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+                    value={gcClientId}
+                    onChange={(e) => setGcClientId(e.target.value)}
+                    disabled={gcConnected}
+                  />
+                  <p className="text-xs text-neutral-400 mt-1.5">
+                    Crie em{' '}
+                    <span className="font-mono text-blue-600">console.cloud.google.com</span>
+                    {' '}→ APIs e Serviços → Credenciais → Criar credencial → ID do cliente OAuth 2.0 → tipo <strong>Aplicativo da Web</strong>.
+                    Adicione <code className="bg-neutral-100 px-1 rounded">{window.location.origin}</code> em "Origens JavaScript autorizadas".
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  {gcConnected ? (
+                    <Button
+                      variant="secondary"
+                      leftIcon={<Unlink size={16} />}
+                      onClick={async () => {
+                        await disconnect();
+                        setGcConnected(false);
+                        toast.success('Google Agenda desconectado.');
+                      }}
+                    >
+                      Desconectar
+                    </Button>
+                  ) : (
+                    <Button
+                      leftIcon={<Calendar size={16} />}
+                      loading={isConnectingGC}
+                      disabled={!gcClientId.trim()}
+                      onClick={async () => {
+                        if (!gcClientId.trim()) { toast.error('Informe o Client ID primeiro.'); return; }
+                        setIsConnectingGC(true);
+                        try {
+                          setClientId(gcClientId.trim());
+                          await connect(gcClientId.trim());
+                          setGcConnected(true);
+                          toast.success('Google Agenda conectado com sucesso!');
+                        } catch (e: any) {
+                          toast.error('Erro ao conectar: ' + e.message);
+                        } finally {
+                          setIsConnectingGC(false);
+                        }
+                      }}
+                    >
+                      Conectar ao Google Agenda
+                    </Button>
+                  )}
+                </div>
+
+                {/* How it works */}
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2 text-sm text-blue-800">
+                  <p className="font-bold text-blue-900">Como funciona</p>
+                  <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                    <li>Conecte com sua conta Google clicando no botão acima.</li>
+                    <li>A cada venda ou troca registrada, um evento é criado automaticamente no seu Google Calendar.</li>
+                    <li>O evento contém: cliente, produto, IMEI, valor, forma de pagamento e link de assinatura.</li>
+                    <li>O token expira em 1h — reconecte quando necessário (ou mantenha a aba aberta).</li>
+                  </ol>
+                </div>
+              </div>
             </Card>
           </div>
         );

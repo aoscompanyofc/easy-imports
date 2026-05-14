@@ -69,11 +69,37 @@ export const dataService = {
   async addSale(sale: any, items: any[]) {
     if (useMock) return mockDataService.addSale(sale, items);
     const uid = await getUid();
-    const { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at } = sale;
-    const { data: saleData, error: saleError } = await supabase
-      .from('sales')
-      .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
-      .select();
+    const {
+      customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
+      sale_number, sale_type,
+      seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
+      customer_phone, customer_cpf,
+      product_capacity, product_color, product_condition, product_imei, product_accessories,
+    } = sale;
+    const fullPayload = {
+      customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
+      sale_number, sale_type,
+      seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
+      customer_phone, customer_cpf,
+      product_capacity, product_color, product_condition, product_imei, product_accessories,
+      user_id: uid,
+    };
+    let saleData: any[], saleError: any;
+    try {
+      const res = await supabase.from('sales').insert([fullPayload]).select();
+      saleData = res.data || [];
+      saleError = res.error;
+      if (saleError?.code === '42703') {
+        // Fallback to basic schema if extra columns don't exist yet
+        const res2 = await supabase.from('sales')
+          .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
+          .select();
+        saleData = res2.data || [];
+        saleError = res2.error;
+      }
+    } catch (e) {
+      throw e;
+    }
     if (saleError) throw saleError;
     const saleId = saleData[0].id;
     for (const item of items) {

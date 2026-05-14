@@ -4,17 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
+import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
-
-const CATEGORIES = ['iPhone', 'iPad', 'MacBook', 'Watch', 'AirPods', 'Samsung', 'Xiaomi', 'Games', 'Outro'];
-const CONDITIONS = ['Novo', 'Seminovo', 'Usado — Bom Estado', 'Usado — Com Marcas', 'Para Retirada de Peças'];
-
-const emptyDevice = () => ({
-  name: '', category: 'iPhone', imei: '',
-  purchase_price: '', capacity: '', color: '', condition: 'Novo',
-});
 
 const emptySupplierForm = () => ({
   name: '', contact_name: '', email: '', phone: '', category: 'Eletrônicos', country: 'Paraguai',
@@ -35,8 +28,8 @@ export const Fornecedores: React.FC = () => {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [purchaseSupplier, setPurchaseSupplier] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
-  const [deviceForm, setDeviceForm] = useState(emptyDevice());
-  const [deviceList, setDeviceList] = useState<any[]>([]);
+  const [deviceForm, setDeviceForm] = useState<DeviceFormData>(emptyDeviceForm());
+  const [deviceList, setDeviceList] = useState<DeviceFormData[]>([]);
   const [isSavingPurchase, setIsSavingPurchase] = useState(false);
 
   const fetchData = async () => {
@@ -74,10 +67,10 @@ export const Fornecedores: React.FC = () => {
   };
 
   const handleAddDevice = () => {
-    if (!deviceForm.name.trim()) { toast.error('Informe o modelo do aparelho.'); return; }
+    if (!deviceForm.model.trim()) { toast.error('Selecione ou informe o modelo do aparelho.'); return; }
     if (!deviceForm.purchase_price) { toast.error('Informe o preço de custo.'); return; }
     setDeviceList(prev => [...prev, { ...deviceForm }]);
-    setDeviceForm(emptyDevice());
+    setDeviceForm(emptyDeviceForm());
   };
 
   const handleConfirmPurchase = async () => {
@@ -86,18 +79,19 @@ export const Fornecedores: React.FC = () => {
     try {
       setIsSavingPurchase(true);
       for (const device of deviceList) {
+        const batteryNote = device.battery_health ? ` · Bateria: ${device.battery_health}` : '';
         await dataService.addProduct({
-          name: device.name,
+          name: deviceFormToProductName(device) || device.model,
           category: device.category,
           imei: device.imei,
           purchase_price: Number(device.purchase_price),
-          sale_price: 0,
+          sale_price: Number(device.sale_price) || 0,
           stock_quantity: 1,
           status: 'available',
           supplier_id: purchaseSupplier,
           product_capacity: device.capacity,
           product_color: device.color,
-          product_condition: device.condition,
+          product_condition: device.condition + batteryNote,
         });
       }
       const n = deviceList.length;
@@ -105,7 +99,7 @@ export const Fornecedores: React.FC = () => {
       setIsPurchaseModalOpen(false);
       setPurchaseSupplier('');
       setDeviceList([]);
-      setDeviceForm(emptyDevice());
+      setDeviceForm(emptyDeviceForm());
       setActiveTab('purchases');
       fetchData();
     } catch (error: any) {
@@ -118,7 +112,7 @@ export const Fornecedores: React.FC = () => {
   const openPurchaseForSupplier = (supplierId: string) => {
     setPurchaseSupplier(supplierId);
     setDeviceList([]);
-    setDeviceForm(emptyDevice());
+    setDeviceForm(emptyDeviceForm());
     setIsPurchaseModalOpen(true);
   };
 
@@ -333,7 +327,7 @@ export const Fornecedores: React.FC = () => {
       {/* ─── MODAL: Nova Compra ─── */}
       <Modal
         isOpen={isPurchaseModalOpen}
-        onClose={() => { setIsPurchaseModalOpen(false); setDeviceList([]); setDeviceForm(emptyDevice()); }}
+        onClose={() => { setIsPurchaseModalOpen(false); setDeviceList([]); setDeviceForm(emptyDeviceForm()); }}
         title="Registrar Compra"
         maxWidth="2xl"
       >
@@ -373,34 +367,7 @@ export const Fornecedores: React.FC = () => {
           {/* Add device sub-form */}
           <div className="bg-neutral-50 rounded-2xl p-4 space-y-4 border border-neutral-200">
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Adicionar Aparelho</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <Input label="Modelo *" placeholder="Ex: iPhone 15 Pro Max 256GB Titânio" value={deviceForm.name}
-                  onChange={e => setDeviceForm(f => ({ ...f, name: e.target.value }))} autoComplete="off" />
-              </div>
-              <Input label="IMEI / Serial" placeholder="352XXXXXXXXXXXX" value={deviceForm.imei}
-                onChange={e => setDeviceForm(f => ({ ...f, imei: e.target.value }))} autoComplete="off" />
-              <div>
-                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
-                <select className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-                  value={deviceForm.category} onChange={e => setDeviceForm(f => ({ ...f, category: e.target.value }))}>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <Input label="Preço de Custo (R$) *" type="number" step="0.01" min="0" placeholder="0,00"
-                value={deviceForm.purchase_price} onChange={e => setDeviceForm(f => ({ ...f, purchase_price: e.target.value }))} />
-              <Input label="Capacidade" placeholder="Ex: 256GB" value={deviceForm.capacity}
-                onChange={e => setDeviceForm(f => ({ ...f, capacity: e.target.value }))} autoComplete="off" />
-              <Input label="Cor" placeholder="Ex: Titânio Natural" value={deviceForm.color}
-                onChange={e => setDeviceForm(f => ({ ...f, color: e.target.value }))} autoComplete="off" />
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado de Conservação</label>
-                <select className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-                  value={deviceForm.condition} onChange={e => setDeviceForm(f => ({ ...f, condition: e.target.value }))}>
-                  {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
+            <DeviceForm value={deviceForm} onChange={setDeviceForm} salePriceLabel="Preço de Venda (R$) — opcional" />
             <Button type="button" variant="secondary" size="sm" leftIcon={<Plus size={16} />} onClick={handleAddDevice}>
               Adicionar Aparelho à Compra
             </Button>
@@ -414,7 +381,7 @@ export const Fornecedores: React.FC = () => {
                 <div key={i} className="flex items-center gap-3 bg-white border border-neutral-200 rounded-xl px-4 py-3">
                   <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-neutral-900 text-sm truncate">{d.name}</p>
+                    <p className="font-bold text-neutral-900 text-sm truncate">{deviceFormToProductName(d) || d.model}</p>
                     <p className="text-xs text-neutral-400">{d.imei ? `IMEI: ${d.imei} · ` : ''}{formatCurrency(Number(d.purchase_price))}</p>
                   </div>
                   <button type="button" onClick={() => setDeviceList(prev => prev.filter((_, idx) => idx !== i))}
@@ -434,7 +401,7 @@ export const Fornecedores: React.FC = () => {
 
           <div className="flex gap-3 pt-1">
             <Button variant="secondary" fullWidth type="button"
-              onClick={() => { setIsPurchaseModalOpen(false); setDeviceList([]); setDeviceForm(emptyDevice()); }}>
+              onClick={() => { setIsPurchaseModalOpen(false); setDeviceList([]); setDeviceForm(emptyDeviceForm()); }}>
               Cancelar
             </Button>
             <Button fullWidth loading={isSavingPurchase} type="button"

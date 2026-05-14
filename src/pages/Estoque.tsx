@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['Todas', 'iPhone', 'iPad', 'MacBook', 'Watch', 'AirPods', 'Samsung', 'Xiaomi', 'Games', 'Outro'];
-
-const emptyForm = {
-  name: '',
-  category: 'iPhone',
-  imei: '',
-  purchase_price: '',
-  sale_price: '',
-};
+const FILTER_CATEGORIES = ['Todas', 'iPhone', 'iPad', 'MacBook', 'Watch', 'AirPods', 'Smartphones', 'Games', 'Outro'];
 
 export const Estoque: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -26,11 +18,11 @@ export const Estoque: React.FC = () => {
   const [showSold, setShowSold] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addForm, setAddForm] = useState(emptyForm);
+  const [addForm, setAddForm] = useState<DeviceFormData>(emptyDeviceForm());
   const [isSavingAdd, setIsSavingAdd] = useState(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editForm, setEditForm] = useState(emptyForm);
+  const [editForm, setEditForm] = useState<DeviceFormData>(emptyDeviceForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -50,18 +42,26 @@ export const Estoque: React.FC = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    const name = deviceFormToProductName(addForm);
+    if (!name && !addForm.model) { toast.error('Selecione ou informe o modelo.'); return; }
     try {
       setIsSavingAdd(true);
+      const batteryNote = addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '';
       await dataService.addProduct({
-        ...addForm,
+        name: name || addForm.model,
+        category: addForm.category,
+        imei: addForm.imei,
         purchase_price: Number(addForm.purchase_price),
-        sale_price: Number(addForm.sale_price),
-        stock_quantity: 1,  // sempre 1 — cada produto é único
+        sale_price: Number(addForm.sale_price) || 0,
+        stock_quantity: 1,
         status: 'available',
+        product_capacity: addForm.capacity,
+        product_color: addForm.color,
+        product_condition: addForm.condition + batteryNote,
       });
-      toast.success('Produto adicionado ao estoque!');
+      toast.success('Aparelho adicionado ao estoque!');
       setIsAddModalOpen(false);
-      setAddForm(emptyForm);
+      setAddForm(emptyDeviceForm());
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -75,10 +75,16 @@ export const Estoque: React.FC = () => {
     if (!editingId) return;
     try {
       setIsSavingEdit(true);
+      const batteryNote = editForm.battery_health ? ` · Bateria: ${editForm.battery_health}` : '';
       await dataService.updateProduct(editingId, {
-        ...editForm,
+        name: deviceFormToProductName(editForm) || editForm.model,
+        category: editForm.category,
+        imei: editForm.imei,
         purchase_price: Number(editForm.purchase_price),
-        sale_price: Number(editForm.sale_price),
+        sale_price: Number(editForm.sale_price) || 0,
+        product_capacity: editForm.capacity,
+        product_color: editForm.color,
+        product_condition: editForm.condition + batteryNote,
       });
       toast.success('Produto atualizado!');
       setIsEditModalOpen(false);
@@ -94,8 +100,12 @@ export const Estoque: React.FC = () => {
   const handleOpenEdit = (product: any) => {
     setEditingId(product.id);
     setEditForm({
-      name: product.name || '',
       category: product.category || 'iPhone',
+      model: product.name || '',
+      capacity: product.product_capacity || '',
+      color: product.product_color || '',
+      condition: (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, ''),
+      battery_health: (product.product_condition || '').match(/Bateria: (.+)/)?.[1] || '',
       imei: product.imei || '',
       purchase_price: String(product.purchase_price || ''),
       sale_price: String(product.sale_price || ''),
@@ -128,21 +138,6 @@ export const Estoque: React.FC = () => {
 
   const available = applyFilters(products.filter(p => p.stock_quantity > 0));
   const sold = applyFilters(products.filter(p => p.stock_quantity <= 0));
-
-  const addProfit = (Number(addForm.sale_price) || 0) - (Number(addForm.purchase_price) || 0);
-  const addMargin = Number(addForm.sale_price) > 0 ? (addProfit / Number(addForm.sale_price)) * 100 : 0;
-  const editProfit = (Number(editForm.sale_price) || 0) - (Number(editForm.purchase_price) || 0);
-  const editMargin = Number(editForm.sale_price) > 0 ? (editProfit / Number(editForm.sale_price)) * 100 : 0;
-
-  const categorySelect = (value: string, onChange: (v: string) => void) => (
-    <select
-      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-    >
-      {CATEGORIES.filter(c => c !== 'Todas').map(c => <option key={c} value={c}>{c}</option>)}
-    </select>
-  );
 
   const ProductCard = ({ p, isSoldView = false }: { p: any; isSoldView?: boolean }) => {
     const profit = p.sale_price - p.purchase_price;
@@ -226,7 +221,7 @@ export const Estoque: React.FC = () => {
             <span className="text-neutral-400">{sold.length} vendido{sold.length !== 1 ? 's' : ''}</span>
           </p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyForm); setIsAddModalOpen(true); }}>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setIsAddModalOpen(true); }}>
           Adicionar Aparelho
         </Button>
       </div>
@@ -253,7 +248,7 @@ export const Estoque: React.FC = () => {
           </Button>
           {isCategoryOpen && (
             <div className="absolute right-0 top-full mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
-              {CATEGORIES.map(cat => (
+              {FILTER_CATEGORIES.map(cat => (
                 <button
                   key={cat}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-neutral-50 ${filterCategory === cat ? 'font-bold text-primary' : 'text-neutral-700'}`}
@@ -320,64 +315,8 @@ export const Estoque: React.FC = () => {
       {/* MODAL ADICIONAR */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Adicionar Aparelho ao Estoque" maxWidth="lg">
         <form onSubmit={handleAdd} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="Nome do Produto"
-                placeholder="Ex: iPhone 15 Pro Max 256GB Titânio"
-                required
-                autoComplete="off"
-                value={addForm.name}
-                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <Input
-              label="IMEI / Serial"
-              placeholder="Opcional mas recomendado"
-              autoComplete="off"
-              value={addForm.imei}
-              onChange={e => setAddForm(f => ({ ...f, imei: e.target.value }))}
-            />
-            <div>
-              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
-              {categorySelect(addForm.category, v => setAddForm(f => ({ ...f, category: v })))}
-            </div>
-            <Input
-              label="Preço de Custo (R$)"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              placeholder="0,00"
-              value={addForm.purchase_price}
-              onChange={e => setAddForm(f => ({ ...f, purchase_price: e.target.value }))}
-            />
-            <Input
-              label="Preço de Venda (R$) — opcional"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Definir na hora da venda"
-              value={addForm.sale_price}
-              onChange={e => setAddForm(f => ({ ...f, sale_price: e.target.value }))}
-            />
-          </div>
-
-          {addForm.purchase_price && addForm.sale_price && (
-            <div className="p-4 bg-primary-50 rounded-xl border border-primary-100 flex items-center justify-between">
-              <span className="text-sm font-medium text-neutral-600">Margem de lucro:</span>
-              <div className="text-right">
-                <p className="text-lg font-bold text-primary-900">{formatCurrency(addProfit)}</p>
-                <p className="text-xs font-bold text-green-600">{addMargin.toFixed(1)}% de margem</p>
-              </div>
-            </div>
-          )}
-
-          <p className="text-xs text-neutral-400 bg-neutral-50 rounded-lg px-3 py-2">
-            Cada aparelho é cadastrado como uma unidade única. Ao ser vendido, sai automaticamente do estoque.
-          </p>
-
-          <div className="flex gap-3">
+          <DeviceForm value={addForm} onChange={setAddForm} />
+          <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setIsAddModalOpen(false)} type="button">Cancelar</Button>
             <Button fullWidth loading={isSavingAdd} type="submit">Salvar no Estoque</Button>
           </div>
@@ -385,59 +324,10 @@ export const Estoque: React.FC = () => {
       </Modal>
 
       {/* MODAL EDITAR */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Produto" maxWidth="lg">
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Aparelho" maxWidth="lg">
         <form onSubmit={handleEditSave} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="Nome do Produto"
-                required
-                autoComplete="off"
-                value={editForm.name}
-                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <Input
-              label="IMEI / Serial"
-              autoComplete="off"
-              value={editForm.imei}
-              onChange={e => setEditForm(f => ({ ...f, imei: e.target.value }))}
-            />
-            <div>
-              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
-              {categorySelect(editForm.category, v => setEditForm(f => ({ ...f, category: v })))}
-            </div>
-            <Input
-              label="Preço de Custo (R$)"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={editForm.purchase_price}
-              onChange={e => setEditForm(f => ({ ...f, purchase_price: e.target.value }))}
-            />
-            <Input
-              label="Preço de Venda (R$) — opcional"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Definir na hora da venda"
-              value={editForm.sale_price}
-              onChange={e => setEditForm(f => ({ ...f, sale_price: e.target.value }))}
-            />
-          </div>
-
-          {editForm.purchase_price && editForm.sale_price && (
-            <div className="p-4 bg-primary-50 rounded-xl border border-primary-100 flex items-center justify-between">
-              <span className="text-sm font-medium text-neutral-600">Margem de lucro:</span>
-              <div className="text-right">
-                <p className="text-lg font-bold text-primary-900">{formatCurrency(editProfit)}</p>
-                <p className="text-xs font-bold text-green-600">{editMargin.toFixed(1)}% de margem</p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-3">
+          <DeviceForm value={editForm} onChange={setEditForm} />
+          <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(false)} type="button">Cancelar</Button>
             <Button fullWidth loading={isSavingEdit} type="submit">Salvar Alterações</Button>
           </div>

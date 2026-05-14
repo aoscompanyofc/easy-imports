@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 interface AuthStore extends AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -51,6 +52,33 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     set({ isAuthenticated: true, user });
     setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+  },
+
+  signup: async (email, password, name) => {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Cadastro não disponível no modo demo. Configure o Supabase para criar contas.');
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
+
+    if (error) throw new Error(error.message);
+
+    if (data.session) {
+      const user: User = {
+        id: data.user!.id,
+        name: data.user!.user_metadata.name || name,
+        email: data.user!.email!,
+      };
+      set({ isAuthenticated: true, user });
+      setStorage(STORAGE_KEY, { isAuthenticated: true, user });
+      return { needsConfirmation: false };
+    }
+
+    return { needsConfirmation: true };
   },
 
   logout: async () => {

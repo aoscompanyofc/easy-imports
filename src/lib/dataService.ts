@@ -25,6 +25,16 @@ async function tryInsert(table: string, payloads: Record<string, any>[]) {
   throw new Error(`Erro ao inserir em ${table}. Verifique as colunas no Supabase.`);
 }
 
+// Same pattern for update operations
+async function tryUpdate(table: string, id: string, payloads: Record<string, any>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabase.from(table).update(payload).eq('id', id).select();
+    if (!error) return data![0];
+    if (!isColErr(error)) throw error;
+  }
+  throw new Error(`Erro ao atualizar em ${table}. Verifique as colunas no Supabase.`);
+}
+
 // Usa getSession() (cache local, sem chamada de rede extra)
 async function getUid(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -57,9 +67,11 @@ export const dataService = {
     if (useMock) return mockDataService.addProduct(product);
     const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status,
-      imei, supplier_id, product_capacity, product_color, product_condition, product_warranty } = product;
+      imei, supplier_id, product_capacity, product_color, product_condition,
+      product_warranty, product_origin, entry_date } = product;
     const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
     return tryInsert('products', [
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date },
       { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty },
       { ...base, imei, supplier_id, product_capacity, product_color, product_condition },
       { ...base, imei, supplier_id },
@@ -70,18 +82,17 @@ export const dataService = {
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
     const { name, category, purchase_price, sale_price, stock_quantity, status,
-      imei, product_capacity, product_color, product_condition, product_warranty, supplier_id } = updates;
-    const payload: any = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
-    if (imei !== undefined) payload.imei = imei;
-    if (product_capacity !== undefined) payload.product_capacity = product_capacity;
-    if (product_color !== undefined) payload.product_color = product_color;
-    if (product_condition !== undefined) payload.product_condition = product_condition;
-    if (product_warranty !== undefined) payload.product_warranty = product_warranty;
-    if (supplier_id !== undefined) payload.supplier_id = supplier_id;
-    const { data, error } = await supabase
-      .from('products').update(payload).eq('id', id).select();
-    if (error) throw error;
-    return data[0];
+      imei, product_capacity, product_color, product_condition,
+      product_warranty, product_origin, entry_date, supplier_id } = updates;
+    const base: any = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
+    if (imei !== undefined) base.imei = imei;
+    if (supplier_id !== undefined) base.supplier_id = supplier_id;
+    return tryUpdate('products', id, [
+      { ...base, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date },
+      { ...base, product_capacity, product_color, product_condition, product_warranty },
+      { ...base, product_capacity, product_color, product_condition },
+      { ...base },
+    ]);
   },
   async deleteProduct(id: string) {
     if (useMock) return mockDataService.deleteProduct(id);
@@ -194,6 +205,21 @@ export const dataService = {
       { name, email, phone, user_id: uid },
       { name, phone, user_id: uid },
       { name, user_id: uid },
+    ]);
+  },
+  async updateCustomer(id: string, updates: any) {
+    if (useMock) return updates;
+    const { name, email, phone, cpf, city, notes } = updates;
+    const payload: any = { name };
+    if (email !== undefined) payload.email = email;
+    if (phone !== undefined) payload.phone = phone;
+    if (cpf !== undefined) payload.cpf = cpf;
+    if (city !== undefined) payload.city = city;
+    if (notes !== undefined) payload.notes = notes;
+    return tryUpdate('customers', id, [
+      payload,
+      { name, email, phone },
+      { name },
     ]);
   },
   async deleteCustomer(id: string) {

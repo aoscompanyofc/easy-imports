@@ -3,7 +3,7 @@ import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCirc
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
-import { formatCurrency } from '../lib/formatters';
+import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 
@@ -59,6 +59,8 @@ export const Estoque: React.FC = () => {
         product_color: addForm.color,
         product_condition: addForm.condition + batteryNote,
         product_warranty: addForm.warranty || 'Sem garantia',
+        product_origin: addForm.origin || '',
+        entry_date: addForm.entry_date || new Date().toISOString().split('T')[0],
       });
       toast.success('Aparelho adicionado ao estoque!');
       setIsAddModalOpen(false);
@@ -87,6 +89,8 @@ export const Estoque: React.FC = () => {
         product_color: editForm.color,
         product_condition: editForm.condition + batteryNote,
         product_warranty: editForm.warranty || 'Sem garantia',
+        product_origin: editForm.origin || '',
+        entry_date: editForm.entry_date || new Date().toISOString().split('T')[0],
       });
       toast.success('Produto atualizado!');
       setIsEditModalOpen(false);
@@ -109,6 +113,8 @@ export const Estoque: React.FC = () => {
       condition: (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, ''),
       battery_health: (product.product_condition || '').match(/Bateria: (.+)/)?.[1] || '',
       warranty: product.product_warranty || 'Sem garantia',
+      origin: product.product_origin || '',
+      entry_date: product.entry_date || new Date().toISOString().split('T')[0],
       imei: product.imei || '',
       purchase_price: String(product.purchase_price || ''),
       sale_price: String(product.sale_price || ''),
@@ -174,11 +180,23 @@ export const Estoque: React.FC = () => {
             )}
           </div>
           {p.imei && <p className="text-xs text-neutral-400 font-mono mt-0.5">IMEI: {p.imei}</p>}
-          {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
-            <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
-              Garantia: {p.product_warranty}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
+                Garantia: {p.product_warranty}
+              </span>
+            )}
+            {p.product_origin && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                Origem: {p.product_origin}
+              </span>
+            )}
+            {p.entry_date && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 font-medium">
+                Entrada: {formatDate(p.entry_date)}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-neutral-400">
             <span>Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
             <span>Venda: <strong className="text-primary-700">{formatCurrency(p.sale_price)}</strong></span>

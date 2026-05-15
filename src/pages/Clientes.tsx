@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Plus, Search, Phone, Mail, Trash2, User2 } from 'lucide-react';
+import { Users, Plus, Search, Phone, Mail, Trash2, User2, Edit2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -9,21 +9,23 @@ import { formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 
+const emptyForm = () => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '' });
+
 export const Clientes: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    cpf: '',
-    city: '',
-    notes: ''
-  });
+  // Add
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState(emptyForm());
+
+  // Edit
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm());
 
   const fetchCustomers = async () => {
     try {
@@ -37,23 +39,53 @@ export const Clientes: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  useEffect(() => { fetchCustomers(); }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) { toast.error('Informe o nome do cliente.'); return; }
     try {
       setIsSaving(true);
       await dataService.addCustomer(formData);
       toast.success('Cliente cadastrado com sucesso!');
-      setIsModalOpen(false);
-      setFormData({ name: '', email: '', phone: '', cpf: '', city: '', notes: '' });
+      setIsAddOpen(false);
+      setFormData(emptyForm());
       fetchCustomers();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenEdit = (customer: any) => {
+    setEditingId(customer.id);
+    setEditForm({
+      name: customer.name || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      cpf: customer.cpf || '',
+      city: customer.city || '',
+      notes: customer.notes || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    if (!editForm.name.trim()) { toast.error('O nome não pode ficar vazio.'); return; }
+    try {
+      setIsEditSaving(true);
+      await dataService.updateCustomer(editingId, editForm);
+      toast.success('Cliente atualizado!');
+      setIsEditOpen(false);
+      setEditingId(null);
+      fetchCustomers();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message);
+    } finally {
+      setIsEditSaving(false);
     }
   };
 
@@ -72,7 +104,8 @@ export const Clientes: React.FC = () => {
   const filteredCustomers = customers.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.phone?.includes(searchTerm) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.cpf?.includes(searchTerm)
   );
 
   const columns = [
@@ -102,11 +135,70 @@ export const Clientes: React.FC = () => {
     { header: 'Cadastro', accessor: (c: any) => formatDate(c.created_at) },
     { header: 'Status', accessor: () => <Badge variant="success">Ativo</Badge> },
     { header: 'Ações', accessor: (c: any) => (
-      <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(c.id, c.name)}>
-        <Trash2 size={14} />
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(c)} title="Editar cliente">
+          <Edit2 size={14} />
+        </Button>
+        <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(c.id, c.name)} title="Remover cliente">
+          <Trash2 size={14} />
+        </Button>
+      </div>
     )},
   ];
+
+  const CustomerForm = ({ data, onChange }: { data: typeof formData; onChange: (d: typeof formData) => void }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="md:col-span-2">
+        <Input
+          label="Nome Completo *"
+          placeholder="Ex: Ricardo Santos"
+          required
+          value={data.name}
+          onChange={(e) => onChange({ ...data, name: e.target.value })}
+          autoComplete="off"
+        />
+      </div>
+      <Input
+        label="WhatsApp"
+        placeholder="(11) 99999-9999"
+        value={data.phone}
+        onChange={(e) => onChange({ ...data, phone: e.target.value })}
+        autoComplete="off"
+      />
+      <Input
+        label="Email"
+        type="email"
+        placeholder="cliente@email.com"
+        value={data.email}
+        onChange={(e) => onChange({ ...data, email: e.target.value })}
+        autoComplete="off"
+      />
+      <Input
+        label="CPF"
+        placeholder="000.000.000-00"
+        value={data.cpf}
+        onChange={(e) => onChange({ ...data, cpf: e.target.value })}
+        autoComplete="off"
+      />
+      <Input
+        label="Cidade"
+        placeholder="Ex: São Paulo"
+        value={data.city}
+        onChange={(e) => onChange({ ...data, city: e.target.value })}
+        autoComplete="off"
+      />
+      <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
+        <textarea
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
+          rows={3}
+          placeholder="Informações adicionais sobre o cliente..."
+          value={data.notes}
+          onChange={(e) => onChange({ ...data, notes: e.target.value })}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -115,7 +207,7 @@ export const Clientes: React.FC = () => {
           <h2 className="text-2xl font-bold text-neutral-900">Clientes</h2>
           <p className="text-neutral-500">Base de clientes e histórico de compras</p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => setIsModalOpen(true)}>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setFormData(emptyForm()); setIsAddOpen(true); }}>
           Novo Cliente
         </Button>
       </div>
@@ -123,7 +215,7 @@ export const Clientes: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, telefone ou email..."
+            placeholder="Buscar por nome, telefone, email ou CPF..."
             leftIcon={<Search size={20} />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -138,58 +230,24 @@ export const Clientes: React.FC = () => {
         emptyMessage="Nenhum cliente cadastrado ainda."
       />
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Cadastrar Novo Cliente" maxWidth="lg">
+      {/* Modal Adicionar */}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Cadastrar Novo Cliente" maxWidth="lg">
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="Nome Completo"
-                placeholder="Ex: Ricardo Santos"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <Input
-              label="WhatsApp"
-              placeholder="(11) 99999-9999"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="cliente@email.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-            <Input
-              label="CPF"
-              placeholder="000.000.000-00"
-              value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-            />
-            <Input
-              label="Cidade"
-              placeholder="Ex: São Paulo"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            />
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
-              <textarea
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
-                rows={3}
-                placeholder="Informações adicionais sobre o cliente..."
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              />
-            </div>
-          </div>
-
+          <CustomerForm data={formData} onChange={setFormData} />
           <div className="flex gap-3 mt-6">
-            <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>
+            <Button variant="secondary" fullWidth onClick={() => setIsAddOpen(false)} type="button">Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit">Salvar Cliente</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Editar */}
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Editar Cliente" maxWidth="lg">
+        <form onSubmit={handleEditSave} className="space-y-4">
+          <CustomerForm data={editForm} onChange={setEditForm} />
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => setIsEditOpen(false)} type="button">Cancelar</Button>
+            <Button fullWidth loading={isEditSaving} type="submit">Salvar Alterações</Button>
           </div>
         </form>
       </Modal>

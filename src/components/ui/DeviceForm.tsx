@@ -14,6 +14,8 @@ export interface DeviceFormData {
   condition: string;
   battery_health: string;
   warranty: string;
+  origin: string;
+  entry_date: string;
   imei: string;
   purchase_price: string;
   sale_price?: string;
@@ -28,6 +30,8 @@ export function emptyDeviceForm(): DeviceFormData {
     condition: 'Seminovo — Excelente',
     battery_health: '',
     warranty: 'Sem garantia',
+    origin: '',
+    entry_date: new Date().toISOString().split('T')[0],
     imei: '',
     purchase_price: '',
     sale_price: '',
@@ -225,6 +229,26 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
             {WARRANTY_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* Row 5: Origin + Entry Date */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-bold text-neutral-700 mb-1.5">Origem do Aparelho</label>
+          <input
+            className={S}
+            placeholder="Ex: João Silva, Fornecedor ABC..."
+            value={value.origin || ''}
+            onChange={(e) => onChange({ ...value, origin: e.target.value })}
+            autoComplete="off"
+          />
+        </div>
+        <Input
+          label="Data de Entrada"
+          type="date"
+          value={value.entry_date || new Date().toISOString().split('T')[0]}
+          onChange={set('entry_date')}
+        />
       </div>
 
       {/* IMEI */}

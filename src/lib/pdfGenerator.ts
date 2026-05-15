@@ -32,43 +32,47 @@ export interface SalePDFData {
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-const fmt = (v?: string | null) => v?.trim() || '______________________________';
+const fmt  = (v?: string | null) => v?.trim() || '';
 const fmtMoney = (v?: number) =>
   (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (iso?: string) =>
   iso ? new Date(iso).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 const fmtPayment = (method?: string, parcelas?: number, total?: number) => {
-  if (method === 'Cartão de Crédito' && parcelas && parcelas > 1) {
-    const p = (total ?? 0) / parcelas;
-    return `Cartão de Crédito — ${parcelas}× de ${fmtMoney(p)}`;
-  }
+  if (method === 'Cartão de Crédito' && parcelas && parcelas > 1)
+    return `Cartão de Crédito — ${parcelas}× de ${fmtMoney((total ?? 0) / parcelas)}`;
   return fmt(method);
 };
 
-// ─── Logo SVG inline (Easy Imports) ──────────────────────────────────────────
+// ─── Logo SVG inline ──────────────────────────────────────────────────────────
 const LOGO = `
-<svg width="148" height="44" viewBox="0 0 148 44" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0"  y="0"  width="9"  height="33" fill="#F5C200"/>
-  <rect x="12" y="0"  width="13" height="10" fill="#F5C200"/>
-  <rect x="12" y="12" width="10" height="9"  fill="#F5C200"/>
-  <rect x="12" y="23" width="13" height="10" fill="#F5C200"/>
-  <text x="29" y="33" font-family="Arial Black,Impact,sans-serif" font-size="34" font-weight="900" fill="#111111">ASY</text>
-  <text x="1"  y="43" font-family="Arial,Helvetica,sans-serif"   font-size="7"  font-weight="700" fill="#111111" letter-spacing="4.6">IMPORTS</text>
+<svg width="170" height="52" viewBox="0 0 170 52" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0"  y="0"  width="11" height="40" fill="#F5C200"/>
+  <rect x="15" y="0"  width="15" height="12" fill="#F5C200"/>
+  <rect x="15" y="14" width="11" height="11" fill="#F5C200"/>
+  <rect x="15" y="28" width="15" height="12" fill="#F5C200"/>
+  <text x="35" y="40" font-family="Arial Black,Impact,sans-serif" font-size="41" font-weight="900" fill="#111">ASY</text>
+  <text x="1"  y="51" font-family="Arial,Helvetica,sans-serif" font-size="8.5" font-weight="700" fill="#111" letter-spacing="5.2">IMPORTS</text>
 </svg>`;
 
-// ─── CSS base compartilhado ───────────────────────────────────────────────────
+// ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
 @page { size: A4 portrait; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 210mm;
+  height: 297mm;
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 7.2pt;
+  font-size: 9pt;
   color: #111;
   background: #fff;
-  padding: 13mm 15mm 10mm;
-  width: 210mm;
-  min-height: 297mm;
-  line-height: 1.4;
+  padding: 12mm 14mm 10mm;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.45;
 }
 
 /* HEADER */
@@ -76,117 +80,195 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 2px solid #111;
-  padding-bottom: 7px;
-  margin-bottom: 10px;
+  border-bottom: 2.5px solid #111;
+  padding-bottom: 9px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
 }
 .hdr-right { text-align: right; }
 .hdr-right h1 {
-  font-size: 11pt;
+  font-size: 13.5pt;
   font-weight: 900;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   line-height: 1.1;
+  color: #111;
 }
-.hdr-right p { font-size: 6pt; color: #888; margin-top: 2px; }
-.hdr-meta { margin-top: 3px; font-size: 6pt; color: #555; }
-.hdr-meta strong { color: #111; }
+.hdr-right .sub { font-size: 7.5pt; color: #777; margin-top: 3px; }
+.hdr-right .meta { font-size: 8pt; color: #444; margin-top: 4px; }
+.hdr-right .meta strong { color: #111; }
 
-/* SECTION */
-.sec { margin-bottom: 8px; }
+/* SECTIONS — flex-grow to fill page */
+.sections {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.sec { display: flex; flex-direction: column; }
 .sec-t {
   background: #111;
   color: #F5C200;
-  font-size: 5.8pt;
+  font-size: 7pt;
   font-weight: 700;
-  letter-spacing: 1.6px;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
-  padding: 3px 9px;
-  margin-bottom: 5px;
+  padding: 4px 11px;
+  margin-bottom: 8px;
 }
-.sec-b { padding: 0 2px; }
+.sec-b { padding: 0 3px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
 
 /* FIELDS */
-.row { display: flex; gap: 10px; margin-bottom: 4px; }
-.row:last-child { margin-bottom: 0; }
+.row { display: flex; gap: 12px; }
 .f  { flex: 1; display: flex; flex-direction: column; }
 .f2 { flex: 2; }
 .f3 { flex: 3; }
 .f4 { flex: 4; }
+
 .f label {
-  font-size: 5.2pt;
+  font-size: 6.5pt;
   font-weight: 700;
   color: #888;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 2px;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
 }
-.ul { border-bottom: 0.7px solid #aaa; min-height: 13px; padding-bottom: 1px; font-size: 7pt; }
+.ul {
+  border-bottom: 1px solid #bbb;
+  min-height: 18px;
+  padding-bottom: 2px;
+  font-size: 9pt;
+  color: #111;
+  font-weight: 600;
+}
 
 /* CHECKBOXES */
-.ck-row { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
-.ck-lbl { font-size: 5.5pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
-.ck { display: flex; align-items: center; gap: 3px; font-size: 6.5pt; color: #333; }
-.ck-box { width: 9px; height: 9px; border: 0.7px solid #555; display: inline-block; flex-shrink: 0; }
+.ck-row { display: flex; align-items: center; gap: 14px; padding-top: 2px; }
+.ck-lbl { font-size: 7pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
+.ck { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #333; }
+.ck-box {
+  width: 11px; height: 11px;
+  border: 1px solid #666;
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+.ck-box.filled {
+  background: #F5C200;
+  border-color: #d4a800;
+  text-align: center;
+  line-height: 11px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #111;
+}
 
-/* SPLIT — dois aparelhos lado a lado */
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.split-box { border: 0.7px solid #ddd; border-radius: 2px; }
+/* SPLIT (dois aparelhos lado a lado) */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.split-box { border: 1px solid #e0e0e0; border-radius: 3px; overflow: hidden; }
 .split-t {
   background: #111;
   color: #F5C200;
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
-  padding: 2.5px 8px;
+  padding: 4px 10px;
 }
-.split-b { padding: 6px 8px; }
+.split-b { padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; }
 
-/* GUARANTEE */
-.g-grid { display: grid; grid-template-columns: 52% 48%; gap: 8px; }
-.g-txt { font-size: 6.2pt; line-height: 1.6; color: #333; }
-.g-nc-t { font-size: 6pt; font-weight: 700; color: #333; margin-bottom: 3px; }
-.g-nc { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 4px; }
-.nci { display: flex; align-items: center; gap: 4px; font-size: 6pt; color: #555; }
-.nci::before { content:''; width:5px; height:5px; background:#cc2200; border-radius:50%; flex-shrink:0; display:inline-block; }
-
-/* DECLARATION */
-.decl {
-  border-left: 2.5px solid #F5C200;
-  background: #fffdf0;
-  padding: 5px 9px;
-  font-size: 6.2pt;
-  line-height: 1.65;
-  color: #333;
-  font-style: italic;
-  margin-bottom: 9px;
+/* GARANTIA */
+.g-grid { display: grid; grid-template-columns: 54% 46%; gap: 12px; }
+.g-txt { font-size: 8.5pt; line-height: 1.65; color: #333; }
+.g-nc-t { font-size: 7.5pt; font-weight: 700; color: #222; margin-bottom: 6px; }
+.g-nc { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; }
+.nci { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #555; }
+.nci::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: #cc2200;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
-/* SIGNATURES */
-.sig-div { border-top: 2px solid #111; margin-bottom: 7px; }
-.sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.sig-role { font-size: 5.5pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 20px; }
-.sig-line { border-bottom: 0.7px solid #111; margin-bottom: 4px; }
-.sig-sub { display: flex; justify-content: space-between; font-size: 6pt; color: #666; }
-.sig-img { max-height: 50px; max-width: 180px; display: block; margin: 0 auto 4px; }
+/* ACERTO FINANCEIRO (troca) */
+.fin-cb-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+/* ASSINATURAS */
+.sig-area {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 2px solid #111;
+  flex-shrink: 0;
+}
+.sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.sig-role {
+  font-size: 7pt;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  margin-bottom: 30px;
+}
+.sig-line { border-bottom: 1px solid #111; margin-bottom: 5px; }
+.sig-sub { font-size: 7.5pt; color: #555; }
+.sig-img { max-height: 55px; max-width: 190px; display: block; margin: 0 auto 5px; }
 
 /* FOOTER */
-.ftr { border-top: 0.7px solid #ddd; margin-top: 8px; padding-top: 4px; text-align: center; font-size: 5pt; color: #aaa; letter-spacing: 0.3px; }
+.ftr {
+  border-top: 1px solid #e0e0e0;
+  margin-top: 10px;
+  padding-top: 5px;
+  text-align: center;
+  font-size: 6pt;
+  color: #bbb;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
 `;
 
-// ─── campo preenchido ou linha em branco ─────────────────────────────────────
+// ─── helpers de renderização ──────────────────────────────────────────────────
 function field(label: string, value?: string, flex = 'f') {
-  const val = value?.trim() ? `<span style="color:#111;font-weight:600;">${value}</span>` : '';
+  const val = value?.trim()
+    ? `<span style="color:#111;font-weight:600;">${value}</span>`
+    : '';
   return `<div class="f ${flex}"><label>${label}</label><div class="ul">${val}</div></div>`;
 }
 
-function fieldSplit(label: string, value?: string) {
-  const val = value?.trim() ? `<span style="color:#111;font-weight:600;">${value}</span>` : '';
-  return `<div class="f"><label>${label}</label><div class="ul">${val}</div></div>`;
+function checkbox(label: string, checked = false) {
+  const box = checked
+    ? `<span class="ck-box filled">✓</span>`
+    : `<span class="ck-box"></span>`;
+  return `<span class="ck">${box} ${label}</span>`;
+}
+
+function sigBlock(role: string, sub: string, img?: string) {
+  const imgTag = img
+    ? `<img class="sig-img" src="${img}" alt="assinatura"/>`
+    : `<div style="height:55px;"></div>`;
+  return `
+    <div>
+      <div class="sig-role">${role}</div>
+      ${imgTag}
+      <div class="sig-line"></div>
+      <div class="sig-sub">${sub}</div>
+    </div>`;
+}
+
+const WARRANTY_EXCLUSIONS = [
+  'Quedas e impactos','Mau uso',
+  'Tela quebrada','Oxidação',
+  'Danos por água','Danos por terceiros',
+  'Violação técnica','Atualizações indevidas',
+];
+
+function warrantyGrid() {
+  return `<div class="g-nc">${WARRANTY_EXCLUSIONS.map(i => `<div class="nci">${i}</div>`).join('')}</div>`;
 }
 
 function openAndPrint(html: string, title: string) {
-  const w = window.open('', '_blank', 'width=900,height=1000');
+  const w = window.open('', '_blank', 'width=920,height=1060');
   if (!w) { alert('Permita pop-ups no navegador para gerar o documento.'); return; }
   w.document.write(html);
   w.document.close();
@@ -194,55 +276,32 @@ function openAndPrint(html: string, title: string) {
   setTimeout(() => w.print(), 700);
 }
 
-function page(title: string, subtitle: string, number: string, date: string, body: string) {
+function page(title: string, number: string, date: string, body: string) {
   return `<!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="UTF-8"><title>${title} ${number}</title>
 <style>${CSS}</style></head><body>
+
 <div class="hdr">
   <div>${LOGO}</div>
   <div class="hdr-right">
     <h1>${title}</h1>
-    <p>${subtitle}</p>
-    <div class="hdr-meta">Nº <strong>${number}</strong> &nbsp;·&nbsp; Data: <strong>${date}</strong></div>
+    <div class="sub">Documento oficial — Válido somente com ambas as assinaturas</div>
+    <div class="meta">Nº <strong>${number}</strong> &nbsp;·&nbsp; Emitido em: <strong>${date}</strong></div>
   </div>
 </div>
+
+<div class="sections">
 ${body}
-<div class="ftr">Easy Imports &nbsp;·&nbsp; Documento válido somente com assinaturas de ambas as partes &nbsp;·&nbsp; Não aceito com rasuras</div>
+</div>
+
+<div class="ftr">Easy Imports &nbsp;·&nbsp; Não aceito com rasuras ou alterações &nbsp;·&nbsp; Garantia de 90 dias conforme art. 26 do CDC</div>
 </body></html>`;
 }
-
-function sigArea(roleA: string, subA: string, roleB: string, subB: string, imgA?: string, imgB?: string) {
-  const imgTagA = imgA ? `<img class="sig-img" src="${imgA}" alt="assinatura"/>` : `<div style="height:48px;"></div>`;
-  const imgTagB = imgB ? `<img class="sig-img" src="${imgB}" alt="assinatura"/>` : `<div style="height:48px;"></div>`;
-  return `
-<div class="sig-div"></div>
-<div class="sigs">
-  <div>
-    <div class="sig-role">${roleA}</div>
-    ${imgTagA}
-    <div class="sig-line"></div>
-    <div class="sig-sub"><span>${subA}</span></div>
-  </div>
-  <div>
-    <div class="sig-role">${roleB}</div>
-    ${imgTagB}
-    <div class="sig-line"></div>
-    <div class="sig-sub"><span>${subB}</span></div>
-  </div>
-</div>`;
-}
-
-const WARRANTY_ITEMS = ['Quedas e impactos','Mau uso','Tela quebrada','Oxidação','Danos por água','Danos por terceiros','Violação técnica','Atualizações indevidas'];
-const warrantyGrid = () => `<div class="g-nc">${WARRANTY_ITEMS.map(i => `<div class="nci">${i}</div>`).join('')}</div>`;
 
 // ─── CONTRATO DE VENDA ────────────────────────────────────────────────────────
 export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   const date = fmtDate(sale.created_at);
-  const cond = sale.product_condition || '';
-  const condChecks = ['Novo (lacrado)', 'Seminovo — Excelente', 'Seminovo — Bom estado', 'Usado'].map(c => {
-    const checked = cond.toLowerCase().includes(c.split(' ')[0].toLowerCase()) ? '&#x2713;' : '';
-    return `<span class="ck"><span class="ck-box" style="${checked ? 'background:#F5C200;color:#111;font-weight:900;text-align:center;line-height:9px;font-size:8px;' : ''}">${checked}</span> ${c}</span>`;
-  }).join('');
+  const cond  = (sale.product_condition || '').toLowerCase();
 
   const body = `
 <div class="sec">
@@ -252,6 +311,10 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${field('Nome Completo', sale.customer_name, 'f4')}
       ${field('CPF', sale.customer_cpf, 'f2')}
       ${field('Telefone / WhatsApp', sale.customer_phone, 'f2')}
+    </div>
+    <div class="row">
+      ${field('Endereço', undefined, 'f4')}
+      ${field('Cidade / Estado', undefined, 'f2')}
     </div>
   </div>
 </div>
@@ -270,7 +333,10 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
     <div class="ck-row">
       <span class="ck-lbl">Estado:</span>
-      ${condChecks}
+      ${checkbox('Novo (lacrado)', cond.includes('novo'))}
+      ${checkbox('Seminovo — Excelente', cond.includes('excelente'))}
+      ${checkbox('Seminovo — Bom estado', cond.includes('bom'))}
+      ${checkbox('Usado', cond.includes('usado'))}
     </div>
   </div>
 </div>
@@ -291,8 +357,12 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-b">
     <div class="g-grid">
       <div class="g-txt">
-        A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong> para defeitos técnicos de funcionamento do aparelho, a contar desta data, conforme art. 26 do Código de Defesa do Consumidor (CDC).<br><br>
-        Válida apenas para defeitos internos. O cliente deve procurar a Easy Imports antes de qualquer intervenção de terceiros.
+        A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong>
+        para defeitos técnicos de funcionamento do aparelho, a contar desta data,
+        conforme art. 26 do Código de Defesa do Consumidor (CDC).<br><br>
+        A garantia é válida apenas para defeitos internos de fabricação. O cliente deve
+        procurar a Easy Imports antes de qualquer intervenção de terceiros.
+        Após abertura ou violação por terceiros, a garantia é automaticamente cancelada.
       </div>
       <div>
         <div class="g-nc-t">A garantia NÃO cobre:</div>
@@ -302,25 +372,19 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>
 
-<div class="decl">
-  Declaro que recebi o aparelho descrito neste contrato em perfeito estado de funcionamento, que conferi o IMEI e todas as informações aqui registradas, e que estou ciente e de acordo com todas as condições, incluindo o prazo e as limitações da garantia oferecida pela Easy Imports.
-</div>
+<div class="sig-area">
+  <div class="sigs">
+    ${sigBlock('Assinatura do Cliente', `Nome: ${fmt(sale.customer_name) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(sale.customer_cpf) || '___________________'}`, sale.signature_client)}
+    ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
+  </div>
+</div>`;
 
-${sigArea(
-  'Assinatura do Cliente',
-  `Nome: ${fmt(sale.customer_name)} &nbsp;&nbsp; CPF: ${fmt(sale.customer_cpf)}`,
-  'Easy Imports — Responsável',
-  `Data: ${date}`,
-  sale.signature_client,
-  sale.signature_admin
-)}`;
-
-  openAndPrint(page('CONTRATO DE COMPRA E VENDA', 'Documento oficial — Easy Imports', sale.sale_number, date, body), `Venda ${sale.sale_number}`);
+  openAndPrint(page('CONTRATO DE COMPRA E VENDA', sale.sale_number, date, body), `Venda ${sale.sale_number}`);
 }
 
 // ─── TERMO DE TROCA ───────────────────────────────────────────────────────────
 export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
-  const date = fmtDate(sale.created_at);
+  const date       = fmtDate(sale.created_at);
   const clientName = sale.customer_name || sale.seller_name || '';
   const clientCpf  = sale.customer_cpf  || sale.seller_cpf  || '';
   const clientPhone = sale.customer_phone || sale.seller_phone || '';
@@ -334,50 +398,56 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${field('CPF', clientCpf, 'f2')}
       ${field('Telefone / WhatsApp', clientPhone, 'f2')}
     </div>
+    <div class="row">
+      ${field('Endereço', undefined, 'f4')}
+      ${field('Cidade / Estado', undefined, 'f2')}
+    </div>
   </div>
 </div>
 
-<div class="split">
-  <div class="split-box">
-    <div class="split-t">Aparelho Entregue pelo Cliente</div>
-    <div class="split-b">
-      <div class="row">
-        ${fieldSplit('Modelo')}
-        ${fieldSplit('Cor')}
-      </div>
-      <div class="row">
-        ${fieldSplit('Capacidade')}
-        ${fieldSplit('IMEI / Serial')}
-      </div>
-      <div class="row">${fieldSplit('Observações / Defeitos Declarados')}</div>
-      <div class="ck-row" style="margin-top:4px;">
-        <span class="ck-lbl">Estado:</span>
-        <span class="ck"><span class="ck-box"></span> Excelente</span>
-        <span class="ck"><span class="ck-box"></span> Bom estado</span>
-        <span class="ck"><span class="ck-box"></span> Com defeito</span>
+<div class="sec">
+  <div class="split">
+    <div class="split-box">
+      <div class="split-t">Aparelho Entregue pelo Cliente</div>
+      <div class="split-b">
+        <div class="row">
+          ${field('Modelo', undefined, 'f2')}
+          ${field('Cor')}
+        </div>
+        <div class="row">
+          ${field('Capacidade')}
+          ${field('IMEI / Serial', undefined, 'f2')}
+        </div>
+        <div class="row">${field('Observações / Defeitos Declarados')}</div>
+        <div class="ck-row">
+          <span class="ck-lbl">Estado:</span>
+          ${checkbox('Excelente')}
+          ${checkbox('Bom estado')}
+          ${checkbox('Com defeito')}
+        </div>
       </div>
     </div>
-  </div>
-  <div class="split-box">
-    <div class="split-t">Aparelho Recebido da Easy Imports</div>
-    <div class="split-b">
-      <div class="row">
-        ${fieldSplit('Modelo')}
-        ${fieldSplit('Cor')}
-      </div>
-      <div class="row">
-        ${fieldSplit('Capacidade')}
-        ${fieldSplit('IMEI / Serial')}
-      </div>
-      <div class="row">
-        ${fieldSplit('Garantia')}
-        ${fieldSplit('Acessórios Inclusos')}
-      </div>
-      <div class="ck-row" style="margin-top:4px;">
-        <span class="ck-lbl">Estado:</span>
-        <span class="ck"><span class="ck-box"></span> Novo</span>
-        <span class="ck"><span class="ck-box"></span> Seminovo — Excelente</span>
-        <span class="ck"><span class="ck-box"></span> Bom estado</span>
+    <div class="split-box">
+      <div class="split-t">Aparelho Recebido da Easy Imports</div>
+      <div class="split-b">
+        <div class="row">
+          ${field('Modelo', sale.product_name, 'f2')}
+          ${field('Cor', sale.product_color)}
+        </div>
+        <div class="row">
+          ${field('Capacidade', sale.product_capacity)}
+          ${field('IMEI / Serial', sale.product_imei, 'f2')}
+        </div>
+        <div class="row">
+          ${field('Garantia', '90 dias por lei (CDC)')}
+          ${field('Acessórios Inclusos', sale.product_accessories)}
+        </div>
+        <div class="ck-row">
+          <span class="ck-lbl">Estado:</span>
+          ${checkbox('Novo (lacrado)')}
+          ${checkbox('Seminovo — Excelente')}
+          ${checkbox('Bom estado')}
+        </div>
       </div>
     </div>
   </div>
@@ -386,14 +456,14 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
 <div class="sec">
   <div class="sec-t">Acerto Financeiro</div>
   <div class="sec-b">
-    <div class="ck-row" style="margin-bottom:4px;">
+    <div class="fin-cb-row" style="margin-bottom:8px;">
       <span class="ck-lbl">Diferença paga por:</span>
-      <span class="ck"><span class="ck-box"></span> Cliente pagou diferença</span>
-      <span class="ck"><span class="ck-box"></span> Easy Imports pagou diferença</span>
-      <span class="ck"><span class="ck-box"></span> Troca direta (sem diferença)</span>
+      ${checkbox('Cliente pagou diferença')}
+      ${checkbox('Easy Imports pagou diferença')}
+      ${checkbox('Troca direta (sem diferença)')}
     </div>
     <div class="row">
-      ${field('Valor da Diferença (R$)', sale.total_amount && sale.total_amount > 0 ? fmtMoney(sale.total_amount) : '', 'f2')}
+      ${field('Valor da Diferença (R$)', sale.total_amount && sale.total_amount > 0 ? fmtMoney(sale.total_amount) : undefined, 'f2')}
       ${field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, sale.total_amount), 'f3')}
       ${field('Data da Troca', date)}
     </div>
@@ -406,8 +476,9 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
     <div class="g-grid">
       <div class="g-txt">
         O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
-        A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google), peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados.
-        <br><br>O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong> para defeitos técnicos, conforme art. 26 do CDC.
+        A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
+        peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados do aparelho entregue.<br><br>
+        O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong>, conforme art. 26 do CDC.
       </div>
       <div>
         <div class="g-nc-t">A garantia NÃO cobre:</div>
@@ -417,23 +488,17 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>
 
-<div class="decl">
-  Declaro que li e compreendi os termos deste documento, que conferi os dados de ambos os aparelhos incluindo os IMEIs, e que aceito as condições da troca e da garantia. Declaro ainda que o aparelho entregue é de minha propriedade e não possui restrições de uso.
-</div>
+<div class="sig-area">
+  <div class="sigs">
+    ${sigBlock('Assinatura do Cliente', `Nome: ${fmt(clientName) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(clientCpf) || '___________________'}`, sale.signature_client)}
+    ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
+  </div>
+</div>`;
 
-${sigArea(
-  'Assinatura do Cliente',
-  `Nome: ${fmt(clientName)} &nbsp;&nbsp; CPF: ${fmt(clientCpf)}`,
-  'Easy Imports — Responsável',
-  `Data: ${date}`,
-  sale.signature_client,
-  sale.signature_admin
-)}`;
-
-  openAndPrint(page('TERMO DE TROCA', 'Documento oficial — Easy Imports', sale.sale_number, date, body), `Troca ${sale.sale_number}`);
+  openAndPrint(page('TERMO DE TROCA', sale.sale_number, date, body), `Troca ${sale.sale_number}`);
 }
 
-// ─── DOCUMENTO DE COMPRA (Easy Imports compra de terceiro) ───────────────────
+// ─── DOCUMENTO DE COMPRA ──────────────────────────────────────────────────────
 export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
   const date = fmtDate(sale.created_at);
 
@@ -494,20 +559,27 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>
 
-<div class="decl">
-  O vendedor declara, sob responsabilidade civil e criminal, ser o legítimo proprietário do produto acima descrito, garantindo que o mesmo <strong>não é produto de furto, roubo ou receptação</strong>, não possui bloqueios ativos (iCloud, Google, operadora) e está livre de qualquer restrição legal ou financeira. Em caso de irregularidade constatada posteriormente, o vendedor compromete-se a restituir integralmente o valor pago no prazo de 48 horas.
+<div class="sec">
+  <div class="sec-t">Declaração do Vendedor</div>
+  <div class="sec-b">
+    <div class="g-txt" style="font-size:8.5pt;line-height:1.7;color:#333;padding:4px 0;">
+      O vendedor declara, sob responsabilidade civil e criminal, ser o legítimo proprietário do produto acima descrito,
+      garantindo que o mesmo <strong>não é produto de furto, roubo ou receptação</strong>, não possui bloqueios ativos
+      (iCloud, Google, operadora) e está livre de qualquer restrição legal ou financeira.
+      Em caso de irregularidade constatada posteriormente, o vendedor compromete-se a restituir integralmente
+      o valor pago no prazo de <strong>48 horas</strong>.
+    </div>
+  </div>
 </div>
 
-${sigArea(
-  'Vendedor',
-  `Nome: ${fmt(sale.seller_name)} &nbsp;&nbsp; CPF: ${fmt(sale.seller_cpf)}`,
-  'Easy Imports — Responsável',
-  `Data: ${date}`,
-  sale.signature_client,
-  sale.signature_admin
-)}`;
+<div class="sig-area">
+  <div class="sigs">
+    ${sigBlock('Vendedor', `Nome: ${fmt(sale.seller_name) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(sale.seller_cpf) || '___________________'}`, sale.signature_client)}
+    ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
+  </div>
+</div>`;
 
-  openAndPrint(page('DOCUMENTO DE COMPRA', 'Easy Imports — Compra de produto usado', sale.sale_number, date, body), `Compra ${sale.sale_number}`);
+  openAndPrint(page('DOCUMENTO DE COMPRA', sale.sale_number, date, body), `Compra ${sale.sale_number}`);
 }
 
 // ─── dispatcher ───────────────────────────────────────────────────────────────

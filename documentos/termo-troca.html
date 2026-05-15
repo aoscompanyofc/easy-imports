@@ -4,370 +4,247 @@
   <meta charset="UTF-8">
   <title>Termo de Troca — Easy Imports</title>
   <style>
-    @page { size: A4; margin: 0; }
+    @page { size: A4 portrait; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { width: 210mm; height: 297mm; }
 
     body {
       font-family: Arial, 'Helvetica Neue', sans-serif;
+      font-size: 9pt;
+      color: #111;
       background: #fff;
-      width: 210mm;
-      min-height: 297mm;
-      padding: 13mm 15mm 10mm;
-      font-size: 7.2pt;
-      color: #111;
-      line-height: 1.35;
-    }
-
-    /* ── HEADER ── */
-    .header {
+      padding: 12mm 14mm 10mm;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 2px solid #111;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
+      flex-direction: column;
+      line-height: 1.45;
     }
-    .logo svg { height: 42px; }
-    .header-right { text-align: right; }
-    .header-right h1 {
-      font-size: 11pt;
-      font-weight: 900;
-      letter-spacing: 0.5px;
-      color: #111;
-      line-height: 1.1;
-    }
-    .header-right p { font-size: 6pt; color: #888; margin-top: 2px; letter-spacing: 0.3px; }
 
-    /* ── SECTION ── */
-    .section { margin-bottom: 7px; }
-    .sec-title {
-      background: #111;
-      color: #F5C200;
-      font-size: 6pt;
-      font-weight: 700;
-      letter-spacing: 1.8px;
-      text-transform: uppercase;
-      padding: 3px 9px;
-      margin-bottom: 6px;
+    /* HEADER */
+    .hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 2.5px solid #111; padding-bottom: 9px; margin-bottom: 14px; flex-shrink: 0;
     }
-    .sec-body { padding: 0 2px; }
+    .hdr-right { text-align: right; }
+    .hdr-right h1 { font-size: 13.5pt; font-weight: 900; letter-spacing: 0.5px; line-height: 1.1; }
+    .hdr-right .sub { font-size: 7.5pt; color: #777; margin-top: 3px; }
 
-    /* ── FIELDS ── */
-    .row { display: flex; gap: 10px; margin-bottom: 5px; }
-    .row:last-child { margin-bottom: 0; }
-    .f { flex: 1; display: flex; flex-direction: column; }
-    .f2 { flex: 2; }
-    .f3 { flex: 3; }
-    .f4 { flex: 4; }
+    /* SECTIONS */
+    .sections { flex: 1; display: flex; flex-direction: column; gap: 11px; }
+
+    .sec { display: flex; flex-direction: column; }
+    .sec-t {
+      background: #111; color: #F5C200;
+      font-size: 7pt; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+      padding: 4px 11px; margin-bottom: 8px;
+    }
+    .sec-b { padding: 0 3px; display: flex; flex-direction: column; gap: 9px; }
+
+    /* FIELDS */
+    .row { display: flex; gap: 12px; }
+    .f  { flex: 1; display: flex; flex-direction: column; }
+    .f2 { flex: 2; } .f3 { flex: 3; } .f4 { flex: 4; }
     .f label {
-      font-size: 5.5pt;
-      font-weight: 700;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 2px;
+      font-size: 6.5pt; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;
     }
-    .ul { border-bottom: 0.75px solid #aaa; height: 13px; }
+    .ul { border-bottom: 1px solid #bbb; min-height: 19px; padding-bottom: 2px; }
 
-    /* ── CHECKBOXES ── */
-    .check-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-top: 5px;
+    /* CHECKBOXES */
+    .ck-row { display: flex; align-items: center; gap: 12px; padding-top: 2px; }
+    .ck-lbl { font-size: 7pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
+    .ck { display: flex; align-items: center; gap: 5px; font-size: 8.5pt; color: #333; }
+    .ck-box { width: 11px; height: 11px; border: 1px solid #666; display: inline-block; flex-shrink: 0; border-radius: 2px; }
+
+    /* DOIS APARELHOS */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .split-box { border: 1px solid #e0e0e0; border-radius: 3px; overflow: hidden; }
+    .split-t {
+      background: #111; color: #F5C200;
+      font-size: 6.5pt; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+      padding: 4px 10px;
     }
-    .ck-lbl { font-size: 6pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-    .ck {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 6.5pt;
-      color: #333;
-    }
-    .ck-box {
-      width: 9px; height: 9px;
-      border: 0.75px solid #555;
-      display: inline-block;
-      flex-shrink: 0;
+    .split-b { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+    .sf { flex: 1; display: flex; flex-direction: column; }
+    .sf label {
+      font-size: 6.5pt; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px;
     }
 
-    /* ── TWO APARELHOS SIDE BY SIDE ── */
-    .aparelhos-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .aparelho-box {
-      border: 0.75px solid #ddd;
-      border-radius: 3px;
-      padding: 6px 8px;
-    }
-    .aparelho-label {
-      font-size: 5.5pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #F5C200;
-      background: #111;
-      padding: 2px 6px;
-      margin: -6px -8px 6px;
-      border-radius: 2px 2px 0 0;
-    }
-    .ab-row { display: flex; gap: 8px; margin-bottom: 4px; }
-    .ab-row:last-child { margin-bottom: 0; }
-    .ab-f { flex: 1; display: flex; flex-direction: column; }
-    .ab-f.f2 { flex: 2; }
-    .ab-f label {
-      font-size: 5.5pt;
-      font-weight: 700;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 2px;
-    }
-    .ab-ul { border-bottom: 0.75px solid #aaa; height: 12px; }
-    .ab-check {
-      display: flex;
-      gap: 8px;
-      margin-top: 4px;
-      flex-wrap: wrap;
-    }
-
-    /* ── ACERTO FINANCEIRO ── */
-    .fin-grid {
-      display: grid;
-      grid-template-columns: auto auto 1fr 1fr;
-      align-items: center;
-      gap: 8px;
-    }
-    .fin-cb {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 6.5pt;
-      color: #333;
-    }
-
-    /* ── CONDITIONS ── */
-    .cond-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .cond-text { font-size: 6.2pt; line-height: 1.6; color: #333; }
-    .nc-title { font-size: 6pt; font-weight: 700; color: #333; margin-bottom: 3px; }
-    .nc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 4px; }
-    .nci {
-      display: flex; align-items: center; gap: 4px;
-      font-size: 6pt; color: #555;
-    }
+    /* GARANTIA */
+    .g-grid { display: grid; grid-template-columns: 54% 46%; gap: 12px; }
+    .g-txt { font-size: 8.5pt; line-height: 1.7; color: #333; }
+    .g-nc-t { font-size: 7.5pt; font-weight: 700; color: #222; margin-bottom: 6px; }
+    .g-nc { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; }
+    .nci { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #555; }
     .nci::before {
-      content: '';
-      width: 5px; height: 5px;
-      background: #cc2200;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: inline-block;
+      content: ''; width: 6px; height: 6px; background: #cc2200;
+      border-radius: 50%; flex-shrink: 0; display: inline-block;
     }
 
-    /* ── DECLARATION ── */
-    .declaration {
-      border-left: 2.5px solid #F5C200;
-      background: #fffdf0;
-      padding: 5px 9px;
-      font-size: 6.2pt;
-      line-height: 1.65;
-      color: #333;
-      font-style: italic;
-      margin-bottom: 9px;
-    }
+    /* ASSINATURAS */
+    .sig-area { margin-top: auto; padding-top: 12px; border-top: 2px solid #111; flex-shrink: 0; }
+    .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .sig-role { font-size: 7pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 32px; }
+    .sig-line { border-bottom: 1px solid #111; margin-bottom: 5px; }
+    .sig-sub { font-size: 7.5pt; color: #555; }
 
-    /* ── SIGNATURES ── */
-    .sig-divider { border-top: 2px solid #111; margin-bottom: 8px; }
-    .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .sig-role {
-      font-size: 5.5pt;
-      font-weight: 700;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 22px;
-    }
-    .sig-line { border-bottom: 0.75px solid #111; margin-bottom: 4px; }
-    .sig-sub { display: flex; justify-content: space-between; font-size: 6pt; color: #666; }
-
-    /* ── FOOTER ── */
-    .footer {
-      border-top: 0.75px solid #ddd;
-      margin-top: 9px;
-      padding-top: 5px;
-      text-align: center;
-      font-size: 5pt;
-      color: #aaa;
-      letter-spacing: 0.3px;
+    /* FOOTER */
+    .ftr {
+      border-top: 1px solid #e0e0e0; margin-top: 10px; padding-top: 5px;
+      text-align: center; font-size: 6pt; color: #bbb; letter-spacing: 0.3px; flex-shrink: 0;
     }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <div class="header">
-    <div class="logo">
-      <svg viewBox="0 0 215 56" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0"  y="0"  width="11" height="44" fill="#F5C200"/>
-        <rect x="15" y="0"  width="18" height="13" fill="#F5C200"/>
-        <rect x="15" y="16" width="13" height="12" fill="#F5C200"/>
-        <rect x="15" y="31" width="18" height="13" fill="#F5C200"/>
-        <text x="38" y="43" font-family="Arial Black, Impact, sans-serif" font-size="44" font-weight="900" fill="#111111">ASY</text>
-        <text x="1" y="54" font-family="Arial, Helvetica, sans-serif" font-size="9.5" font-weight="700" fill="#111111" letter-spacing="5.5">IMPORTS</text>
+  <div class="hdr">
+    <div>
+      <svg width="170" height="52" viewBox="0 0 170 52" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0"  y="0"  width="11" height="40" fill="#F5C200"/>
+        <rect x="15" y="0"  width="15" height="12" fill="#F5C200"/>
+        <rect x="15" y="14" width="11" height="11" fill="#F5C200"/>
+        <rect x="15" y="28" width="15" height="12" fill="#F5C200"/>
+        <text x="35" y="40" font-family="Arial Black,Impact,sans-serif" font-size="41" font-weight="900" fill="#111">ASY</text>
+        <text x="1"  y="51" font-family="Arial,Helvetica,sans-serif" font-size="8.5" font-weight="700" fill="#111" letter-spacing="5.2">IMPORTS</text>
       </svg>
     </div>
-    <div class="header-right">
+    <div class="hdr-right">
       <h1>TERMO DE TROCA</h1>
-      <p>Documento oficial — Válido somente com ambas as assinaturas</p>
+      <div class="sub">Documento oficial — Válido somente com ambas as assinaturas</div>
     </div>
   </div>
 
-  <!-- DADOS DO CLIENTE -->
-  <div class="section">
-    <div class="sec-title">Dados do Cliente</div>
-    <div class="sec-body">
-      <div class="row">
-        <div class="f f4"><label>Nome Completo</label><div class="ul"></div></div>
-        <div class="f f2"><label>CPF</label><div class="ul"></div></div>
-        <div class="f f2"><label>Telefone / WhatsApp</label><div class="ul"></div></div>
-      </div>
-      <div class="row">
-        <div class="f f4"><label>Endereço</label><div class="ul"></div></div>
-        <div class="f f2"><label>Cidade / Estado</label><div class="ul"></div></div>
-      </div>
-    </div>
-  </div>
+  <div class="sections">
 
-  <!-- APARELHOS LADO A LADO -->
-  <div class="section">
-    <div class="aparelhos-grid">
-
-      <!-- ENTREGUE PELO CLIENTE -->
-      <div class="aparelho-box">
-        <div class="aparelho-label">Aparelho Entregue pelo Cliente</div>
-        <div class="ab-row">
-          <div class="ab-f f2"><label>Modelo</label><div class="ab-ul"></div></div>
-          <div class="ab-f"><label>Cor</label><div class="ab-ul"></div></div>
+    <div class="sec">
+      <div class="sec-t">Dados do Cliente</div>
+      <div class="sec-b">
+        <div class="row">
+          <div class="f f4"><label>Nome Completo</label><div class="ul"></div></div>
+          <div class="f f2"><label>CPF</label><div class="ul"></div></div>
+          <div class="f f2"><label>Telefone / WhatsApp</label><div class="ul"></div></div>
         </div>
-        <div class="ab-row">
-          <div class="ab-f"><label>Capacidade</label><div class="ab-ul"></div></div>
-          <div class="ab-f f2"><label>IMEI / Serial</label><div class="ab-ul"></div></div>
+        <div class="row">
+          <div class="f f4"><label>Endereço</label><div class="ul"></div></div>
+          <div class="f f2"><label>Cidade / Estado</label><div class="ul"></div></div>
         </div>
-        <div class="ab-row">
-          <div class="ab-f"><label>Observações / Defeitos Declarados</label><div class="ab-ul"></div></div>
-        </div>
-        <div class="ab-check">
-          <span class="ck-lbl" style="font-size:5.5pt;">Estado:</span>
-          <span class="ck"><span class="ck-box"></span> Excelente</span>
-          <span class="ck"><span class="ck-box"></span> Bom estado</span>
-          <span class="ck"><span class="ck-box"></span> Com defeito</span>
-        </div>
-      </div>
-
-      <!-- RECEBIDO DA EASY IMPORTS -->
-      <div class="aparelho-box">
-        <div class="aparelho-label">Aparelho Recebido da Easy Imports</div>
-        <div class="ab-row">
-          <div class="ab-f f2"><label>Modelo</label><div class="ab-ul"></div></div>
-          <div class="ab-f"><label>Cor</label><div class="ab-ul"></div></div>
-        </div>
-        <div class="ab-row">
-          <div class="ab-f"><label>Capacidade</label><div class="ab-ul"></div></div>
-          <div class="ab-f f2"><label>IMEI / Serial</label><div class="ab-ul"></div></div>
-        </div>
-        <div class="ab-row">
-          <div class="ab-f"><label>Garantia</label><div class="ab-ul"></div></div>
-          <div class="ab-f"><label>Acessórios Inclusos</label><div class="ab-ul"></div></div>
-        </div>
-        <div class="ab-check">
-          <span class="ck-lbl" style="font-size:5.5pt;">Estado:</span>
-          <span class="ck"><span class="ck-box"></span> Novo (lacrado)</span>
-          <span class="ck"><span class="ck-box"></span> Seminovo — Excelente</span>
-          <span class="ck"><span class="ck-box"></span> Bom estado</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ACERTO FINANCEIRO -->
-  <div class="section">
-    <div class="sec-title">Acerto Financeiro</div>
-    <div class="sec-body">
-      <div class="row" style="align-items: center;">
-        <span class="ck-lbl" style="white-space:nowrap;">Diferença paga por:</span>
-        <span class="ck" style="margin-left:6px;"><span class="ck-box"></span> Cliente pagou diferença</span>
-        <span class="ck"><span class="ck-box"></span> Easy Imports pagou diferença</span>
-        <span class="ck"><span class="ck-box"></span> Sem diferença (troca direta)</span>
-      </div>
-      <div class="row" style="margin-top:4px;">
-        <div class="f f2"><label>Valor da Diferença (R$)</label><div class="ul"></div></div>
-        <div class="f f3"><label>Forma de Pagamento</label><div class="ul"></div></div>
-        <div class="f f2"><label>Data da Troca</label><div class="ul"></div></div>
       </div>
     </div>
-  </div>
 
-  <!-- CONDIÇÕES E GARANTIA -->
-  <div class="section">
-    <div class="sec-title">Condições da Troca e Garantia</div>
-    <div class="sec-body">
-      <div class="cond-grid">
-        <div class="cond-text">
-          O cliente declara que o aparelho entregue está nas condições descritas neste documento e que não há omissão de defeitos ou problemas conhecidos.<br><br>
-          A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros, contas vinculadas (iCloud, Google), peças substituídas anteriormente, defeitos ocultos não informados no ato da troca, nem por perda de dados armazenados no aparelho entregue.
+    <div class="sec">
+      <div class="split">
+        <div class="split-box">
+          <div class="split-t">Aparelho Entregue pelo Cliente</div>
+          <div class="split-b">
+            <div class="row">
+              <div class="sf f2"><label>Modelo</label><div class="ul"></div></div>
+              <div class="sf"><label>Cor</label><div class="ul"></div></div>
+            </div>
+            <div class="row">
+              <div class="sf"><label>Capacidade</label><div class="ul"></div></div>
+              <div class="sf f2"><label>IMEI / Serial</label><div class="ul"></div></div>
+            </div>
+            <div class="row">
+              <div class="sf"><label>Observações / Defeitos Declarados</label><div class="ul"></div></div>
+            </div>
+            <div class="ck-row">
+              <span class="ck-lbl">Estado:</span>
+              <span class="ck"><span class="ck-box"></span> Excelente</span>
+              <span class="ck"><span class="ck-box"></span> Bom estado</span>
+              <span class="ck"><span class="ck-box"></span> Com defeito</span>
+            </div>
+          </div>
         </div>
-        <div>
-          <div class="nc-title">Garantia de 90 (noventa) dias por lei — NÃO cobre:</div>
-          <div class="nc-grid">
-            <div class="nci">Quedas e impactos</div>
-            <div class="nci">Mau uso</div>
-            <div class="nci">Tela quebrada</div>
-            <div class="nci">Oxidação</div>
-            <div class="nci">Danos por água</div>
-            <div class="nci">Violação técnica</div>
-            <div class="nci">Danos por terceiros</div>
-            <div class="nci">Atualizações indevidas</div>
+        <div class="split-box">
+          <div class="split-t">Aparelho Recebido da Easy Imports</div>
+          <div class="split-b">
+            <div class="row">
+              <div class="sf f2"><label>Modelo</label><div class="ul"></div></div>
+              <div class="sf"><label>Cor</label><div class="ul"></div></div>
+            </div>
+            <div class="row">
+              <div class="sf"><label>Capacidade</label><div class="ul"></div></div>
+              <div class="sf f2"><label>IMEI / Serial</label><div class="ul"></div></div>
+            </div>
+            <div class="row">
+              <div class="sf"><label>Garantia</label><div class="ul"></div></div>
+              <div class="sf"><label>Acessórios Inclusos</label><div class="ul"></div></div>
+            </div>
+            <div class="ck-row">
+              <span class="ck-lbl">Estado:</span>
+              <span class="ck"><span class="ck-box"></span> Novo</span>
+              <span class="ck"><span class="ck-box"></span> Seminovo — Excelente</span>
+              <span class="ck"><span class="ck-box"></span> Bom estado</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- DECLARAÇÃO -->
-  <div class="declaration">
-    Declaro que li e compreendi os termos deste documento, que conferi os dados de ambos os aparelhos incluindo IMEIs, e que aceito as condições da troca e da garantia estabelecidas pela Easy Imports. Declaro ainda que o aparelho entregue é de minha propriedade e não possui restrições de uso.
-  </div>
-
-  <!-- ASSINATURAS -->
-  <div class="sig-divider"></div>
-  <div class="sigs">
-    <div>
-      <div class="sig-role">Assinatura do Cliente</div>
-      <div class="sig-line"></div>
-      <div class="sig-sub">
-        <span>Nome: ___________________________________</span>
-        <span>CPF: _____________________</span>
+    <div class="sec">
+      <div class="sec-t">Acerto Financeiro</div>
+      <div class="sec-b">
+        <div class="ck-row">
+          <span class="ck-lbl">Diferença paga por:</span>
+          <span class="ck"><span class="ck-box"></span> Cliente pagou diferença</span>
+          <span class="ck"><span class="ck-box"></span> Easy Imports pagou diferença</span>
+          <span class="ck"><span class="ck-box"></span> Troca direta (sem diferença)</span>
+        </div>
+        <div class="row">
+          <div class="f f2"><label>Valor da Diferença (R$)</label><div class="ul"></div></div>
+          <div class="f f3"><label>Forma de Pagamento</label><div class="ul"></div></div>
+          <div class="f f2"><label>Data da Troca</label><div class="ul"></div></div>
+        </div>
       </div>
     </div>
-    <div>
-      <div class="sig-role">Easy Imports — Responsável</div>
-      <div class="sig-line"></div>
-      <div class="sig-sub">
-        <span>Responsável: _____________________________</span>
-        <span>Data: ____/____/______</span>
+
+    <div class="sec">
+      <div class="sec-t">Condições e Garantia</div>
+      <div class="sec-b">
+        <div class="g-grid">
+          <div class="g-txt">
+            O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
+            A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
+            peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados.<br><br>
+            O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong>, conforme art. 26 do CDC.
+          </div>
+          <div>
+            <div class="g-nc-t">A garantia NÃO cobre:</div>
+            <div class="g-nc">
+              <div class="nci">Quedas e impactos</div>
+              <div class="nci">Mau uso</div>
+              <div class="nci">Tela quebrada</div>
+              <div class="nci">Oxidação</div>
+              <div class="nci">Danos por água</div>
+              <div class="nci">Danos por terceiros</div>
+              <div class="nci">Violação técnica</div>
+              <div class="nci">Atualizações indevidas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sig-area">
+    <div class="sigs">
+      <div>
+        <div class="sig-role">Assinatura do Cliente</div>
+        <div class="sig-line"></div>
+        <div class="sig-sub">Nome: _______________________________&nbsp;&nbsp; CPF: ___________________</div>
+      </div>
+      <div>
+        <div class="sig-role">Easy Imports — Responsável</div>
+        <div class="sig-line"></div>
+        <div class="sig-sub">Data: ______ / ______ / __________</div>
       </div>
     </div>
   </div>
 
-  <div class="footer">
-    Easy Imports &nbsp;·&nbsp; Documento válido somente com assinaturas de ambas as partes &nbsp;·&nbsp; Não aceito com rasuras ou alterações
+  <div class="ftr">
+    Easy Imports &nbsp;·&nbsp; Não aceito com rasuras ou alterações &nbsp;·&nbsp; Garantia de 90 dias conforme art. 26 do CDC
   </div>
 
 </body>

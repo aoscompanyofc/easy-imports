@@ -178,11 +178,12 @@ body {
 .split-b { padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; }
 
 /* GARANTIA */
-.g-grid { display: grid; grid-template-columns: 54% 46%; gap: 12px; }
-.g-txt { font-size: 8.5pt; line-height: 1.65; color: #333; }
-.g-nc-t { font-size: 7.5pt; font-weight: 700; color: #222; margin-bottom: 6px; }
-.g-nc { display: flex; flex-direction: column; gap: 3px; }
-.nci { font-size: 8.5pt; color: #444; line-height: 1.4; }
+.g-wrap { display: flex; gap: 16px; }
+.g-txt { flex: 1; font-size: 8.5pt; line-height: 1.65; color: #111; }
+.g-list-wrap { flex: 0 0 42%; }
+.g-nc-t { font-size: 8pt; font-weight: 700; color: #111; margin-bottom: 5px; }
+.g-list { margin: 0; padding-left: 16px; list-style-type: disc; }
+.g-list li { font-size: 8.5pt; color: #111; line-height: 1.7; }
 
 /* ACERTO FINANCEIRO (troca) */
 .fin-cb-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -255,8 +256,13 @@ const WARRANTY_EXCLUSIONS = [
   'Violação técnica','Atualizações indevidas',
 ];
 
-function warrantyGrid() {
-  return `<div class="g-nc">${WARRANTY_EXCLUSIONS.map(i => `<div class="nci">• ${i}</div>`).join('')}</div>`;
+function warrantyBlock() {
+  const items = WARRANTY_EXCLUSIONS.map(i => `<li>${i}</li>`).join('');
+  return `
+    <div class="g-list-wrap">
+      <div class="g-nc-t">A garantia NÃO cobre:</div>
+      <ul class="g-list">${items}</ul>
+    </div>`;
 }
 
 function openAndPrint(html: string, title: string) {
@@ -347,7 +353,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
 <div class="sec">
   <div class="sec-t">Termo de Garantia</div>
   <div class="sec-b">
-    <div class="g-grid">
+    <div class="g-wrap">
       <div class="g-txt">
         A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong>
         para defeitos técnicos de funcionamento do aparelho, a contar desta data,
@@ -356,10 +362,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
         procurar a Easy Imports antes de qualquer intervenção de terceiros.
         Após abertura ou violação por terceiros, a garantia é automaticamente cancelada.
       </div>
-      <div>
-        <div class="g-nc-t">A garantia NÃO cobre:</div>
-        ${warrantyGrid()}
-      </div>
+      ${warrantyBlock()}
     </div>
   </div>
 </div>
@@ -465,17 +468,14 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
 <div class="sec">
   <div class="sec-t">Condições e Garantia</div>
   <div class="sec-b">
-    <div class="g-grid">
+    <div class="g-wrap">
       <div class="g-txt">
         O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
         A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
         peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados do aparelho entregue.<br><br>
         O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong>, conforme art. 26 do CDC.
       </div>
-      <div>
-        <div class="g-nc-t">A garantia NÃO cobre:</div>
-        ${warrantyGrid()}
-      </div>
+      ${warrantyBlock()}
     </div>
   </div>
 </div>

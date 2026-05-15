@@ -72,11 +72,12 @@
     }
 
     /* GARANTIA */
-    .g-grid { display: grid; grid-template-columns: 54% 46%; gap: 12px; }
-    .g-txt { font-size: 8.5pt; line-height: 1.7; color: #333; }
-    .g-nc-t { font-size: 7.5pt; font-weight: 700; color: #222; margin-bottom: 6px; }
-    .g-nc { display: flex; flex-direction: column; gap: 3px; }
-    .nci { font-size: 8.5pt; color: #444; line-height: 1.4; }
+    .g-wrap { display: flex; gap: 16px; }
+    .g-txt { flex: 1; font-size: 8.5pt; line-height: 1.7; color: #111; }
+    .g-list-wrap { flex: 0 0 42%; }
+    .g-nc-t { font-size: 8pt; font-weight: 700; color: #111; margin-bottom: 5px; }
+    .g-list { margin: 0; padding-left: 18px; list-style-type: disc; }
+    .g-list li { font-size: 8.5pt; color: #111; line-height: 1.7; }
 
     /* ASSINATURAS */
     .sig-area { margin-top: auto; padding-top: 12px; border-top: 2px solid #111; flex-shrink: 0; }
@@ -198,25 +199,25 @@
     <div class="sec">
       <div class="sec-t">Condições e Garantia</div>
       <div class="sec-b">
-        <div class="g-grid">
+        <div class="g-wrap">
           <div class="g-txt">
             O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
             A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
             peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados.<br><br>
             O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong>, conforme art. 26 do CDC.
           </div>
-          <div>
+          <div class="g-list-wrap">
             <div class="g-nc-t">A garantia NÃO cobre:</div>
-            <div class="g-nc">
-              <div class="nci">• Quedas e impactos</div>
-              <div class="nci">• Mau uso</div>
-              <div class="nci">• Tela quebrada</div>
-              <div class="nci">• Oxidação</div>
-              <div class="nci">• Danos por água</div>
-              <div class="nci">• Danos por terceiros</div>
-              <div class="nci">• Violação técnica</div>
-              <div class="nci">• Atualizações indevidas</div>
-            </div>
+            <ul class="g-list">
+              <li>Quedas e impactos</li>
+              <li>Mau uso</li>
+              <li>Tela quebrada</li>
+              <li>Oxidação</li>
+              <li>Danos por água</li>
+              <li>Danos por terceiros</li>
+              <li>Violação técnica</li>
+              <li>Atualizações indevidas</li>
+            </ul>
           </div>
         </div>
       </div>

@@ -180,27 +180,21 @@ export const Estoque: React.FC = () => {
             )}
           </div>
           {p.imei && <p className="text-xs text-neutral-400 font-mono mt-0.5">IMEI: {p.imei}</p>}
-          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-            {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
-                Garantia: {p.product_warranty}
-              </span>
-            )}
-            {p.product_origin && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                Origem: {p.product_origin}
-              </span>
-            )}
-            {p.entry_date && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 font-medium">
-                Entrada: {formatDate(p.entry_date)}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4 mt-1 text-xs text-neutral-400">
+          {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
+            <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
+              Garantia: {p.product_warranty}
+            </span>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-neutral-400">
             <span>Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
             <span>Venda: <strong className="text-primary-700">{formatCurrency(p.sale_price)}</strong></span>
             {!isSoldView && p.sale_price > 0 && <span>Lucro: <strong className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>}
+            {p.product_origin && (
+              <span>Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
+            )}
+            {p.entry_date && (
+              <span>Entrada: <strong className="text-neutral-600">{formatDate(p.entry_date)}</strong></span>
+            )}
           </div>
         </div>
 

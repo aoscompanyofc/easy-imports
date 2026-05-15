@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from './Input';
 import {
   DEVICE_CATALOG, ALL_CATEGORIES, getModelsByCategory,
@@ -50,13 +50,28 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
     onChange({ ...value, [field]: e.target.value });
   };
 
+  // Track whether each field is in "custom text" mode (user chose "Digitar...")
+  const [isCustom, setIsCustom] = useState({ model: false, capacity: false, color: false });
+
+  // Reset custom mode when value is cleared externally (e.g. form reset)
+  useEffect(() => { if (!value.model) setIsCustom((p) => ({ ...p, model: false })); }, [value.model]);
+  useEffect(() => { if (!value.capacity) setIsCustom((p) => ({ ...p, capacity: false })); }, [value.capacity]);
+  useEffect(() => { if (!value.color) setIsCustom((p) => ({ ...p, color: false })); }, [value.color]);
+
   // Reset model/capacity/color when category changes
   const handleCategory = (cat: string) => {
+    setIsCustom({ model: false, capacity: false, color: false });
     onChange({ ...value, category: cat, model: '', capacity: '', color: '' });
   };
 
   // Reset capacity/color when model changes
   const handleModel = (model: string) => {
+    if (model === '__custom') {
+      setIsCustom((p) => ({ ...p, model: true, capacity: false, color: false }));
+      onChange({ ...value, model: '', capacity: '', color: '' });
+      return;
+    }
+    setIsCustom({ model: false, capacity: false, color: false });
     const caps = getCapacitiesForModel(model);
     const cols = getColorsForModel(model);
     onChange({
@@ -65,6 +80,26 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
       capacity: caps.length === 1 ? caps[0] : '',
       color: cols.length === 1 ? cols[0] : '',
     });
+  };
+
+  const handleCapacity = (cap: string) => {
+    if (cap === '__custom') {
+      setIsCustom((p) => ({ ...p, capacity: true }));
+      onChange({ ...value, capacity: '' });
+      return;
+    }
+    setIsCustom((p) => ({ ...p, capacity: false }));
+    onChange({ ...value, capacity: cap });
+  };
+
+  const handleColor = (col: string) => {
+    if (col === '__custom') {
+      setIsCustom((p) => ({ ...p, color: true }));
+      onChange({ ...value, color: '' });
+      return;
+    }
+    setIsCustom((p) => ({ ...p, color: false }));
+    onChange({ ...value, color: col });
   };
 
   const catalogCategories = ALL_CATEGORIES;
@@ -92,7 +127,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         <div>
           <label className="block text-sm font-bold text-neutral-700 mb-1.5">Modelo *</label>
           {catalogModels.length > 0 ? (
-            <select className={S} value={value.model} onChange={(e) => handleModel(e.target.value)}>
+            <select className={S} value={isCustom.model ? '__custom' : value.model} onChange={(e) => handleModel(e.target.value)}>
               <option value="">Selecione o modelo...</option>
               {catalogModels.map((m) => <option key={m.name} value={m.name}>{m.name}</option>)}
               <option value="__custom">Digitar manualmente...</option>
@@ -109,13 +144,14 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         </div>
 
         {/* Manual model input when __custom selected */}
-        {value.model === '__custom' && (
+        {isCustom.model && (
           <div className="sm:col-span-2">
             <Input
               label="Modelo (digitar)"
               placeholder="Ex: iPhone 15 Pro Max"
-              value=""
+              value={value.model}
               onChange={(e) => onChange({ ...value, model: e.target.value })}
+              autoFocus
               autoComplete="off"
             />
           </div>
@@ -127,7 +163,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         <div>
           <label className="block text-sm font-bold text-neutral-700 mb-1.5">Capacidade / Armazenamento</label>
           {catalogCapacities.length > 0 ? (
-            <select className={S} value={value.capacity} onChange={set('capacity')}>
+            <select className={S} value={isCustom.capacity ? '__custom' : value.capacity} onChange={(e) => handleCapacity(e.target.value)}>
               <option value="">Selecione...</option>
               {catalogCapacities.map((c) => <option key={c} value={c}>{c}</option>)}
               <option value="__custom">Digitar...</option>
@@ -135,15 +171,15 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
           ) : (
             <input className={S} placeholder="Ex: 256GB" value={value.capacity} onChange={set('capacity')} autoComplete="off" />
           )}
-          {value.capacity === '__custom' && (
-            <input className={`${S} mt-2`} placeholder="Ex: 256GB" value="" onChange={(e) => onChange({ ...value, capacity: e.target.value })} autoComplete="off" />
+          {isCustom.capacity && (
+            <input className={`${S} mt-2`} placeholder="Ex: 256GB" value={value.capacity} onChange={(e) => onChange({ ...value, capacity: e.target.value })} autoFocus autoComplete="off" />
           )}
         </div>
 
         <div>
           <label className="block text-sm font-bold text-neutral-700 mb-1.5">Cor</label>
           {catalogColors.length > 0 ? (
-            <select className={S} value={value.color} onChange={set('color')}>
+            <select className={S} value={isCustom.color ? '__custom' : value.color} onChange={(e) => handleColor(e.target.value)}>
               <option value="">Selecione...</option>
               {catalogColors.map((c) => <option key={c} value={c}>{c}</option>)}
               <option value="__custom">Digitar...</option>
@@ -151,8 +187,8 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
           ) : (
             <input className={S} placeholder="Ex: Titânio Natural" value={value.color} onChange={set('color')} autoComplete="off" />
           )}
-          {value.color === '__custom' && (
-            <input className={`${S} mt-2`} placeholder="Ex: Titânio Natural" value="" onChange={(e) => onChange({ ...value, color: e.target.value })} autoComplete="off" />
+          {isCustom.color && (
+            <input className={`${S} mt-2`} placeholder="Ex: Titânio Natural" value={value.color} onChange={(e) => onChange({ ...value, color: e.target.value })} autoFocus autoComplete="off" />
           )}
         </div>
       </div>

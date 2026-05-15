@@ -196,10 +196,17 @@ export const Configuracoes: React.FC = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword) { toast.error('Informe a senha atual.'); return; }
     if (newPassword !== confirmPassword) { toast.error('As senhas não coincidem!'); return; }
     if (newPassword.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres!'); return; }
     try {
       setIsUpdatingPassword(true);
+      // Re-authenticate with current password before allowing change
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+      if (signInError) { toast.error('Senha atual incorreta.'); return; }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success('Senha atualizada com sucesso!');

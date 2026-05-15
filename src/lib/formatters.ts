@@ -2,6 +2,7 @@ import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const formatCurrency = (value: number): string => {
+  if (!isFinite(value) || isNaN(value)) return 'R$ —';
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',

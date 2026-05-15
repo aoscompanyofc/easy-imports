@@ -73,11 +73,16 @@ export const Documentacao: React.FC = () => {
   };
 
   const handleOpen = (doc: any) => {
-    if (doc.file_url) {
-      window.open(doc.file_url, '_blank', 'noopener');
-    } else {
+    if (!doc.file_url) {
       toast('Este documento não tem link anexado.', { icon: 'ℹ️' });
+      return;
     }
+    const url = doc.file_url.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      toast.error('URL inválida. Apenas links http:// ou https:// são permitidos.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const filtered = filterCategory

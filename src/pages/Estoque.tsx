@@ -174,7 +174,7 @@ export const Estoque: React.FC = () => {
           <div className="flex items-center gap-4 mt-1 text-xs text-neutral-400">
             <span>Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
             <span>Venda: <strong className="text-primary-700">{formatCurrency(p.sale_price)}</strong></span>
-            {!isSoldView && <span>Lucro: <strong className="text-green-600">{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>}
+            {!isSoldView && p.sale_price > 0 && <span>Lucro: <strong className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>}
           </div>
         </div>
 

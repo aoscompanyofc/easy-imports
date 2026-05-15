@@ -35,6 +35,13 @@ async function getUid(): Promise<string> {
 export const dataService = {
   async clearAllData() {
     if (useMock) return mockDataService.clearAllData();
+    const uid = await getUid();
+    await supabase.from('sale_items').delete().eq('user_id', uid);
+    await supabase.from('sales').delete().eq('user_id', uid);
+    await supabase.from('products').delete().eq('user_id', uid);
+    await supabase.from('customers').delete().eq('user_id', uid);
+    await supabase.from('leads').delete().eq('user_id', uid);
+    await supabase.from('transactions').delete().eq('user_id', uid);
     return true;
   },
 
@@ -61,9 +68,14 @@ export const dataService = {
   },
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
-    const { name, category, purchase_price, sale_price, stock_quantity, status, imei } = updates;
+    const { name, category, purchase_price, sale_price, stock_quantity, status,
+      imei, product_capacity, product_color, product_condition, supplier_id } = updates;
     const payload: any = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
     if (imei !== undefined) payload.imei = imei;
+    if (product_capacity !== undefined) payload.product_capacity = product_capacity;
+    if (product_color !== undefined) payload.product_color = product_color;
+    if (product_condition !== undefined) payload.product_condition = product_condition;
+    if (supplier_id !== undefined) payload.supplier_id = supplier_id;
     const { data, error } = await supabase
       .from('products').update(payload).eq('id', id).select();
     if (error) throw error;
@@ -132,10 +144,14 @@ export const dataService = {
         .from('products').select('stock_quantity, purchase_price').eq('id', item.product_id).single();
       if (product) {
         const newQty = product.stock_quantity - item.quantity;
-        await supabase.from('products')
+        const { data: updatedRows } = await supabase.from('products')
           .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
           .eq('id', item.product_id)
-          .eq('stock_quantity', product.stock_quantity); // optimistic lock — prevents double-sell race
+          .eq('stock_quantity', product.stock_quantity) // optimistic lock — prevents double-sell race
+          .select('id');
+        if (!updatedRows || updatedRows.length === 0) {
+          throw new Error('Produto já foi vendido ou o estoque mudou. Recarregue a página e tente novamente.');
+        }
         if (product.purchase_price > 0) {
           await this.addTransaction({
             description: `Custo Mercadoria #${saleId.slice(0, 8)}`,

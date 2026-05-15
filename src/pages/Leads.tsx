@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, MessageCircle, MoreVertical, GripVertical, Calendar, User as UserIcon, Trash2 } from 'lucide-react';
+import { Plus, Search, MessageCircle, MoreVertical, GripVertical, Calendar, User as UserIcon, Trash2, X } from 'lucide-react';
+import { formatDate } from '../lib/formatters';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
@@ -27,6 +28,7 @@ export const Leads: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -41,7 +43,7 @@ export const Leads: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await dataService.getLeads();
-      setLeads(data);
+      setLeads(data || []);
     } catch (error: any) {
       toast.error('Erro ao carregar leads: ' + error.message);
     } finally {
@@ -92,7 +94,18 @@ export const Leads: React.FC = () => {
   };
 
   const getLeadsByStage = (stageId: string) => {
-    return leads.filter(l => l.status === stageId);
+    return leads.filter(l => {
+      if (l.status !== stageId) return false;
+      if (!searchTerm) return true;
+      const q = searchTerm.toLowerCase();
+      return (
+        l.name?.toLowerCase().includes(q) ||
+        l.phone?.includes(searchTerm) ||
+        l.email?.toLowerCase().includes(q) ||
+        l.source?.toLowerCase().includes(q) ||
+        l.notes?.toLowerCase().includes(q)
+      );
+    });
   };
 
   return (
@@ -109,8 +122,21 @@ export const Leads: React.FC = () => {
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">
-          <Input placeholder="Buscar lead..." leftIcon={<Search size={20} />} />
+          <Input
+            placeholder="Buscar lead por nome, telefone, origem..."
+            leftIcon={<Search size={20} />}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm('')}
+            className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Kanban Board */}
@@ -157,7 +183,7 @@ export const Leads: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-neutral-500">
                       <Calendar size={14} />
-                      <span>{new Date(lead.created_at).toLocaleDateString()}</span>
+                      <span>{formatDate(lead.created_at)}</span>
                     </div>
                   </div>
 

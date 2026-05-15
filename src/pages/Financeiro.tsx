@@ -54,11 +54,13 @@ export const Financeiro: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = Number(formData.amount);
+    if (!amount || amount <= 0) { toast.error('Informe um valor maior que zero.'); return; }
     try {
       setIsSaving(true);
       await dataService.addTransaction({
         ...formData,
-        amount: Number(formData.amount)
+        amount,
       });
       toast.success('Transação registrada!');
       setIsModalOpen(false);

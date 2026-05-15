@@ -213,7 +213,6 @@ export const Dashboard: React.FC = () => {
             <MetricCard
               title="Faturamento Bruto"
               value={formatCurrency(stats.revenue)}
-              change={stats.revenue > 0 ? 12.4 : undefined}
               icon="DollarSign"
             />
             <MetricCard
@@ -228,7 +227,6 @@ export const Dashboard: React.FC = () => {
               title="Vendas Realizadas"
               value={`${stats.salesCount} vendas`}
               subtitle={`Ticket médio ${formatCurrency(stats.salesCount > 0 ? stats.revenue / stats.salesCount : 0)}`}
-              change={stats.salesCount > 0 ? 5.1 : undefined}
               icon="ShoppingBag"
               iconBgColor="bg-info-light"
             />

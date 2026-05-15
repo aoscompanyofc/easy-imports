@@ -331,7 +331,7 @@ export const Vendas: React.FC = () => {
           `Produto: ${productName || '—'}`,
           form.product_imei ? `IMEI: ${form.product_imei}` : '',
           `Valor: ${formatCurrency(totalAmount)}`,
-          form.installments > 1 ? `Parcelamento: ${form.installments}x de ${formatCurrency(totalAmount / form.installments)}` : '',
+          form.installments > 1 ? `Parcelamento: ${form.installments}x de ${formatCurrency(totalAmount / (form.installments || 1))}` : '',
           `Pagamento: ${form.payment_method}`,
           signLink ? `Link de assinatura: ${signLink}` : '',
         ].filter(Boolean).join('\n');
@@ -628,7 +628,7 @@ export const Vendas: React.FC = () => {
                           {/* Payment */}
                           <span className="hidden sm:block text-xs text-neutral-500 flex-shrink-0">
                             {sale.installments > 1
-                              ? `${sale.installments}x ${formatCurrency(sale.total_amount / sale.installments)}`
+                              ? `${sale.installments}x ${formatCurrency(sale.total_amount / (sale.installments || 1))}`
                               : sale.payment_method}
                           </span>
 
@@ -1305,7 +1305,7 @@ export const Vendas: React.FC = () => {
               {[
                 ['Número', detailSale.sale_number],
                 ['Pagamento', detailSale.installments > 1
-                  ? `Cartão de Crédito — ${detailSale.installments}x de ${formatCurrency(detailSale.total_amount / detailSale.installments)}`
+                  ? `Cartão de Crédito — ${detailSale.installments}x de ${formatCurrency(detailSale.total_amount / (detailSale.installments || 1))}`
                   : detailSale.payment_method],
                 ['Produto', detailSale.product_name],
                 ['IMEI', detailSale.product_imei],

@@ -1031,12 +1031,20 @@ export const Vendas: React.FC = () => {
           {/* Condições de Pagamento */}
           <div>
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
+
+            {/* Troca: banner explicativo */}
+            {form.sale_type === 'troca' && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
+                ⚠️ <strong>Na troca:</strong> informe o <strong>preço cheio do aparelho que você está vendendo</strong> (ex: R$4.900), não o valor recebido em caixa. O sistema desconta o crédito da troca automaticamente.
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
-                label="Valor de Venda (R$) *"
+                label={form.sale_type === 'troca' ? 'Preço do aparelho saindo (R$) *' : 'Valor de Venda (R$) *'}
                 type="number"
                 step="0.01"
-                placeholder="Digite o valor"
+                placeholder={form.sale_type === 'troca' ? 'Ex: 4900 (preço cheio)' : 'Digite o valor'}
                 value={form.sale_price_manual}
                 onChange={setF('sale_price_manual')}
                 required
@@ -1081,10 +1089,32 @@ export const Vendas: React.FC = () => {
             </div>
 
             {/* Preview total */}
-            {salePrice > 0 && (
+            {salePrice > 0 && form.sale_type !== 'troca' && (
               <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
                 <span className="text-sm font-bold text-neutral-700">Total da operação:</span>
                 <span className="text-2xl font-black text-primary-900">{formatCurrency(salePrice)}</span>
+              </div>
+            )}
+
+            {/* Preview troca — mostra breakdown */}
+            {form.sale_type === 'troca' && salePrice > 0 && (
+              <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-sm text-neutral-600">
+                  <span>Preço do aparelho</span>
+                  <span className="font-bold">{formatCurrency(salePrice)}</span>
+                </div>
+                {Number(form.incoming_purchase_price) > 0 && (
+                  <div className="flex items-center justify-between text-sm text-purple-700">
+                    <span>Crédito da troca</span>
+                    <span className="font-bold">− {formatCurrency(Number(form.incoming_purchase_price))}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-primary/20">
+                  <span className="font-bold text-neutral-700">Cliente paga em caixa</span>
+                  <span className="text-2xl font-black text-primary-900">
+                    {formatCurrency(Math.max(0, salePrice - Number(form.incoming_purchase_price || 0)))}
+                  </span>
+                </div>
               </div>
             )}
           </div>

@@ -114,15 +114,19 @@ export const Dashboard: React.FC = () => {
       setAllSales(sales || []);
 
       const totalRevenue = sales?.reduce((acc, s) => acc + Number(s.total_amount || 0), 0) || 0;
-      const totalIncome = transactions?.filter((t) => t.type === 'income').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
-      const totalExpense = transactions?.filter((t) => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0) || 0;
-      const netProfit = totalIncome - totalExpense;
-      const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      // Gross profit = revenue from sales − cost of goods sold (purchase_price of products that are no longer in stock)
+      const cogs = (products || [])
+        .filter((p: any) => p.stock_quantity <= 0 && Number(p.purchase_price) > 0)
+        .reduce((acc: number, p: any) => acc + Number(p.purchase_price || 0), 0);
+      const grossProfit = totalRevenue - cogs;
+      const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
       const stockValue = (products || [])
         .filter((p: any) => p.stock_quantity > 0)
         .reduce((acc: number, p: any) => acc + (p.sale_price > 0 ? Number(p.sale_price) : Number(p.purchase_price || 0)), 0);
 
-      setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: netProfit, cash: totalIncome - totalExpense, margin, stockValue });
+      setStats({ revenue: totalRevenue, salesCount: sales?.length || 0, profit: grossProfit, cash: grossProfit, margin, stockValue });
       setRecentSales((sales || []).slice(0, 5));
       setTopProducts(buildTopProducts(sales || []));
       setChannelData(buildChannelData(sales || []));
@@ -213,10 +217,10 @@ export const Dashboard: React.FC = () => {
               icon="DollarSign"
             />
             <MetricCard
-              title="Lucro Líquido"
+              title="Lucro Bruto"
               value={formatCurrency(stats.profit)}
               subtitle={`${stats.margin.toFixed(1)}% de margem`}
-              change={stats.profit !== 0 ? 8.2 : undefined}
+              change={stats.profit !== 0 ? undefined : undefined}
               icon="TrendingUp"
               iconBgColor="bg-success-light"
             />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Plus, Search, Phone, Mail, Trash2, User2, Edit2 } from 'lucide-react';
+import { Plus, Search, Phone, Mail, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -9,23 +9,77 @@ import { formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 
-const emptyForm = () => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '' });
+type FormData = { name: string; email: string; phone: string; cpf: string; city: string; notes: string };
+const emptyForm = (): FormData => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '' });
+
+// Definido FORA do componente pai para não remontear a cada render
+const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormData) => void }) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="md:col-span-2">
+      <Input
+        label="Nome Completo *"
+        placeholder="Ex: Ricardo Santos"
+        required
+        value={data.name}
+        onChange={(e) => onChange({ ...data, name: e.target.value })}
+        autoComplete="off"
+      />
+    </div>
+    <Input
+      label="WhatsApp"
+      placeholder="(11) 99999-9999"
+      value={data.phone}
+      onChange={(e) => onChange({ ...data, phone: e.target.value })}
+      autoComplete="off"
+    />
+    <Input
+      label="Email"
+      type="email"
+      placeholder="cliente@email.com"
+      value={data.email}
+      onChange={(e) => onChange({ ...data, email: e.target.value })}
+      autoComplete="off"
+    />
+    <Input
+      label="CPF"
+      placeholder="000.000.000-00"
+      value={data.cpf}
+      onChange={(e) => onChange({ ...data, cpf: e.target.value })}
+      autoComplete="off"
+    />
+    <Input
+      label="Cidade"
+      placeholder="Ex: São Paulo"
+      value={data.city}
+      onChange={(e) => onChange({ ...data, city: e.target.value })}
+      autoComplete="off"
+    />
+    <div className="md:col-span-2">
+      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
+      <textarea
+        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
+        rows={3}
+        placeholder="Informações adicionais sobre o cliente..."
+        value={data.notes}
+        onChange={(e) => onChange({ ...data, notes: e.target.value })}
+      />
+    </div>
+  </div>
+);
 
 export const Clientes: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Add
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState(emptyForm());
+  const [formData, setFormData] = useState<FormData>(emptyForm());
 
-  // Edit
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isEditSaving, setIsEditSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState(emptyForm());
+  const [editForm, setEditForm] = useState<FormData>(emptyForm());
 
   const fetchCustomers = async () => {
     try {
@@ -136,69 +190,15 @@ export const Clientes: React.FC = () => {
     { header: 'Status', accessor: () => <Badge variant="success">Ativo</Badge> },
     { header: 'Ações', accessor: (c: any) => (
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(c)} title="Editar cliente">
+        <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(c)} title="Editar">
           <Edit2 size={14} />
         </Button>
-        <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(c.id, c.name)} title="Remover cliente">
+        <Button variant="danger" size="sm" iconOnly onClick={() => handleDelete(c.id, c.name)} title="Remover">
           <Trash2 size={14} />
         </Button>
       </div>
     )},
   ];
-
-  const CustomerForm = ({ data, onChange }: { data: typeof formData; onChange: (d: typeof formData) => void }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="md:col-span-2">
-        <Input
-          label="Nome Completo *"
-          placeholder="Ex: Ricardo Santos"
-          required
-          value={data.name}
-          onChange={(e) => onChange({ ...data, name: e.target.value })}
-          autoComplete="off"
-        />
-      </div>
-      <Input
-        label="WhatsApp"
-        placeholder="(11) 99999-9999"
-        value={data.phone}
-        onChange={(e) => onChange({ ...data, phone: e.target.value })}
-        autoComplete="off"
-      />
-      <Input
-        label="Email"
-        type="email"
-        placeholder="cliente@email.com"
-        value={data.email}
-        onChange={(e) => onChange({ ...data, email: e.target.value })}
-        autoComplete="off"
-      />
-      <Input
-        label="CPF"
-        placeholder="000.000.000-00"
-        value={data.cpf}
-        onChange={(e) => onChange({ ...data, cpf: e.target.value })}
-        autoComplete="off"
-      />
-      <Input
-        label="Cidade"
-        placeholder="Ex: São Paulo"
-        value={data.city}
-        onChange={(e) => onChange({ ...data, city: e.target.value })}
-        autoComplete="off"
-      />
-      <div className="md:col-span-2">
-        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
-        <textarea
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
-          rows={3}
-          placeholder="Informações adicionais sobre o cliente..."
-          value={data.notes}
-          onChange={(e) => onChange({ ...data, notes: e.target.value })}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">

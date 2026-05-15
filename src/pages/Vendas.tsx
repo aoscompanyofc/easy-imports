@@ -216,9 +216,12 @@ export const Vendas: React.FC = () => {
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
     const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
-    const totalAmount = unitPrice * form.quantity;
+    // Para troca: total_amount = caixa recebido + valor do aparelho que entrou
+    // (representa o valor real da transação, evitando lucro negativo no Dashboard)
+    const tradeInValue = form.sale_type === 'troca' ? Number(form.incoming_purchase_price || 0) : 0;
+    const totalAmount = unitPrice * form.quantity + tradeInValue;
 
-    if (totalAmount <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
+    if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
 
     const saleNumber = generateSaleNumber(sales.length, form.sale_type);
 
@@ -925,16 +928,16 @@ export const Vendas: React.FC = () => {
 
               {/* ── Painel de lucratividade da troca ── */}
               {(() => {
-                const outSale   = Number(form.sale_price_manual) || 0;
-                const outCost   = selectedProductData?.purchase_price || 0;
-                const tradeIn   = Number(form.incoming_purchase_price) || 0;
-                const inResale  = Number(form.incoming_sale_price) || 0;
+                const cashReceived  = Number(form.sale_price_manual) || 0;
+                const tradeIn       = Number(form.incoming_purchase_price) || 0;
+                const outSale       = cashReceived + tradeIn; // valor real da transação
+                const outCost       = selectedProductData?.purchase_price || 0;
+                const inResale      = Number(form.incoming_sale_price) || 0;
 
-                const cashReceived    = outSale - tradeIn;
                 const profitOutgoing  = outSale - outCost;
                 const profitIncoming  = inResale > 0 ? inResale - tradeIn : null;
                 const totalProfit     = profitOutgoing + (profitIncoming ?? 0);
-                const hasNumbers      = outSale > 0 || outCost > 0 || tradeIn > 0;
+                const hasNumbers      = cashReceived > 0 || outCost > 0 || tradeIn > 0;
 
                 if (!hasNumbers) return null;
 
@@ -949,7 +952,17 @@ export const Vendas: React.FC = () => {
                     <div className="space-y-1 text-sm">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Aparelho saindo</p>
                       <div className="flex justify-between">
-                        <span className="text-neutral-500">Preço de venda</span>
+                        <span className="text-neutral-500">Você recebe em caixa</span>
+                        <span className="font-bold text-neutral-900">{formatCurrency(cashReceived)}</span>
+                      </div>
+                      {tradeIn > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Crédito da troca</span>
+                          <span className="font-bold text-neutral-900">+ {formatCurrency(tradeIn)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Valor total da operação</span>
                         <span className="font-bold text-neutral-900">{formatCurrency(outSale)}</span>
                       </div>
                       {outCost > 0 && (
@@ -959,7 +972,7 @@ export const Vendas: React.FC = () => {
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-neutral-700">Margem bruta</span>
+                        <span className="font-bold text-neutral-700">Lucro nesta venda</span>
                         <span className={cn('font-black', profitColor(profitOutgoing))}>
                           {formatCurrency(profitOutgoing)}
                           {outSale > 0 && <span className="text-xs font-normal ml-1">({((profitOutgoing / outSale) * 100).toFixed(0)}%)</span>}
@@ -968,27 +981,23 @@ export const Vendas: React.FC = () => {
                     </div>
 
                     {/* Aparelho entrando */}
-                    {tradeIn > 0 && (
+                    {tradeIn > 0 && inResale > 0 && (
                       <div className="space-y-1 text-sm border-t border-neutral-100 pt-3">
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Aparelho entrando</p>
                         <div className="flex justify-between">
-                          <span className="text-neutral-500">Valor dado ao cliente</span>
+                          <span className="text-neutral-500">Custo (valor dado)</span>
                           <span className="font-bold text-neutral-600">− {formatCurrency(tradeIn)}</span>
                         </div>
-                        {inResale > 0 && (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-neutral-500">Previsão de revenda</span>
-                              <span className="font-bold text-neutral-900">{formatCurrency(inResale)}</span>
-                            </div>
-                            <div className="flex justify-between pt-1 border-t border-neutral-100">
-                              <span className="font-bold text-neutral-700">Lucro potencial</span>
-                              <span className={cn('font-black', profitColor(profitIncoming ?? 0))}>
-                                {formatCurrency(profitIncoming ?? 0)}
-                              </span>
-                            </div>
-                          </>
-                        )}
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Previsão de revenda</span>
+                          <span className="font-bold text-neutral-900">{formatCurrency(inResale)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-neutral-100">
+                          <span className="font-bold text-neutral-700">Lucro potencial</span>
+                          <span className={cn('font-black', profitColor(profitIncoming ?? 0))}>
+                            {formatCurrency(profitIncoming ?? 0)}
+                          </span>
+                        </div>
                       </div>
                     )}
 
@@ -996,7 +1005,7 @@ export const Vendas: React.FC = () => {
                     <div className="border-t-2 border-purple-200 pt-3 space-y-1.5 text-sm">
                       <div className="flex justify-between">
                         <span className="text-neutral-500">Você recebe em caixa agora</span>
-                        <span className={cn('font-bold', profitColor(cashReceived))}>{formatCurrency(cashReceived)}</span>
+                        <span className="font-bold text-neutral-900">{formatCurrency(cashReceived)}</span>
                       </div>
                       <div className="flex justify-between text-base">
                         <span className="font-black text-neutral-800">
@@ -1032,19 +1041,12 @@ export const Vendas: React.FC = () => {
           <div>
             <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
 
-            {/* Troca: banner explicativo */}
-            {form.sale_type === 'troca' && (
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
-                ⚠️ <strong>Na troca:</strong> informe o <strong>preço cheio do aparelho que você está vendendo</strong> (ex: R$4.900), não o valor recebido em caixa. O sistema desconta o crédito da troca automaticamente.
-              </div>
-            )}
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
-                label={form.sale_type === 'troca' ? 'Preço do aparelho saindo (R$) *' : 'Valor de Venda (R$) *'}
+                label={form.sale_type === 'troca' ? 'Você recebe em caixa (R$) *' : 'Valor de Venda (R$) *'}
                 type="number"
                 step="0.01"
-                placeholder={form.sale_type === 'troca' ? 'Ex: 4900 (preço cheio)' : 'Digite o valor'}
+                placeholder={form.sale_type === 'troca' ? 'Ex: 3100 (só o dinheiro)' : 'Digite o valor'}
                 value={form.sale_price_manual}
                 onChange={setF('sale_price_manual')}
                 required
@@ -1100,19 +1102,19 @@ export const Vendas: React.FC = () => {
             {form.sale_type === 'troca' && salePrice > 0 && (
               <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
                 <div className="flex items-center justify-between text-sm text-neutral-600">
-                  <span>Preço do aparelho</span>
+                  <span>Você recebe em caixa</span>
                   <span className="font-bold">{formatCurrency(salePrice)}</span>
                 </div>
                 {Number(form.incoming_purchase_price) > 0 && (
                   <div className="flex items-center justify-between text-sm text-purple-700">
-                    <span>Crédito da troca</span>
-                    <span className="font-bold">− {formatCurrency(Number(form.incoming_purchase_price))}</span>
+                    <span>Aparelho da troca</span>
+                    <span className="font-bold">+ {formatCurrency(Number(form.incoming_purchase_price))}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-primary/20">
-                  <span className="font-bold text-neutral-700">Cliente paga em caixa</span>
+                  <span className="font-bold text-neutral-700">Valor total recebido</span>
                   <span className="text-2xl font-black text-primary-900">
-                    {formatCurrency(Math.max(0, salePrice - Number(form.incoming_purchase_price || 0)))}
+                    {formatCurrency(salePrice + Number(form.incoming_purchase_price || 0))}
                   </span>
                 </div>
               </div>

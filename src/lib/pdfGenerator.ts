@@ -181,16 +181,8 @@ body {
 .g-grid { display: grid; grid-template-columns: 54% 46%; gap: 12px; }
 .g-txt { font-size: 8.5pt; line-height: 1.65; color: #333; }
 .g-nc-t { font-size: 7.5pt; font-weight: 700; color: #222; margin-bottom: 6px; }
-.g-nc { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; }
-.nci { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #555; }
-.nci::before {
-  content: '';
-  width: 6px; height: 6px;
-  background: #cc2200;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: inline-block;
-}
+.g-nc { display: flex; flex-direction: column; gap: 3px; }
+.nci { font-size: 8.5pt; color: #444; line-height: 1.4; }
 
 /* ACERTO FINANCEIRO (troca) */
 .fin-cb-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -264,7 +256,7 @@ const WARRANTY_EXCLUSIONS = [
 ];
 
 function warrantyGrid() {
-  return `<div class="g-nc">${WARRANTY_EXCLUSIONS.map(i => `<div class="nci">${i}</div>`).join('')}</div>`;
+  return `<div class="g-nc">${WARRANTY_EXCLUSIONS.map(i => `<div class="nci">• ${i}</div>`).join('')}</div>`;
 }
 
 function openAndPrint(html: string, title: string) {

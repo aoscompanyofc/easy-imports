@@ -3,7 +3,7 @@ import { Input } from './Input';
 import {
   DEVICE_CATALOG, ALL_CATEGORIES, getModelsByCategory,
   getCapacitiesForModel, getColorsForModel,
-  BATTERY_HEALTH_OPTIONS, COMMON_CONDITIONS,
+  BATTERY_HEALTH_OPTIONS, COMMON_CONDITIONS, WARRANTY_OPTIONS,
 } from '../../lib/deviceCatalog';
 
 export interface DeviceFormData {
@@ -13,6 +13,7 @@ export interface DeviceFormData {
   color: string;
   condition: string;
   battery_health: string;
+  warranty: string;
   imei: string;
   purchase_price: string;
   sale_price?: string;
@@ -26,6 +27,7 @@ export function emptyDeviceForm(): DeviceFormData {
     color: '',
     condition: 'Seminovo — Excelente',
     battery_health: '',
+    warranty: 'Sem garantia',
     imei: '',
     purchase_price: '',
     sale_price: '',
@@ -33,7 +35,7 @@ export function emptyDeviceForm(): DeviceFormData {
 }
 
 export function deviceFormToProductName(f: DeviceFormData): string {
-  return [f.model, f.capacity, f.color].filter(Boolean).join(' ');
+  return [f.model, f.capacity !== '—' ? f.capacity : '', f.color].filter(Boolean).join(' ');
 }
 
 interface Props {
@@ -213,6 +215,16 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         ) : (
           <div />
         )}
+      </div>
+
+      {/* Row 4: Warranty */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-bold text-neutral-700 mb-1.5">Garantia</label>
+          <select className={S} value={value.warranty || 'Sem garantia'} onChange={set('warranty')}>
+            {WARRANTY_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* IMEI */}

@@ -57,9 +57,10 @@ export const dataService = {
     if (useMock) return mockDataService.addProduct(product);
     const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status,
-      imei, supplier_id, product_capacity, product_color, product_condition } = product;
+      imei, supplier_id, product_capacity, product_color, product_condition, product_warranty } = product;
     const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
     return tryInsert('products', [
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty },
       { ...base, imei, supplier_id, product_capacity, product_color, product_condition },
       { ...base, imei, supplier_id },
       { ...base, imei },
@@ -69,12 +70,13 @@ export const dataService = {
   async updateProduct(id: string, updates: any) {
     if (useMock) return mockDataService.updateProduct(id, updates);
     const { name, category, purchase_price, sale_price, stock_quantity, status,
-      imei, product_capacity, product_color, product_condition, supplier_id } = updates;
+      imei, product_capacity, product_color, product_condition, product_warranty, supplier_id } = updates;
     const payload: any = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
     if (imei !== undefined) payload.imei = imei;
     if (product_capacity !== undefined) payload.product_capacity = product_capacity;
     if (product_color !== undefined) payload.product_color = product_color;
     if (product_condition !== undefined) payload.product_condition = product_condition;
+    if (product_warranty !== undefined) payload.product_warranty = product_warranty;
     if (supplier_id !== undefined) payload.supplier_id = supplier_id;
     const { data, error } = await supabase
       .from('products').update(payload).eq('id', id).select();

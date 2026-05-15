@@ -114,8 +114,10 @@ export const Financeiro: React.FC = () => {
     return matchesSearch && matchesType && matchesFrom && matchesTo;
   });
 
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  // Cards always reflect the currently filtered view (when no filters, = all-time)
+  const summaryBase = hasActiveFilters ? filteredTransactions : transactions;
+  const totalIncome = summaryBase.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const totalExpense = summaryBase.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
   const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
 
@@ -159,6 +161,16 @@ export const Financeiro: React.FC = () => {
         </div>
       </div>
 
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/8 border border-primary/20 rounded-xl text-sm font-medium text-primary-900">
+          <Calendar size={15} />
+          <span>
+            Resumo do período filtrado
+            {dateFrom && dateTo ? ` — ${dateFrom.split('-').reverse().join('/')} a ${dateTo.split('-').reverse().join('/')}` : ''}
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="flex items-center gap-4">
           <div className="p-3 bg-success-light text-success rounded-xl">
@@ -167,6 +179,7 @@ export const Financeiro: React.FC = () => {
           <div>
             <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Entradas</p>
             <p className="text-xl font-bold text-neutral-900">{formatCurrency(totalIncome)}</p>
+            {!hasActiveFilters && <p className="text-xs text-neutral-400">Histórico total</p>}
           </div>
         </Card>
         <Card className="flex items-center gap-4">
@@ -176,6 +189,7 @@ export const Financeiro: React.FC = () => {
           <div>
             <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Saídas</p>
             <p className="text-xl font-bold text-neutral-900">{formatCurrency(totalExpense)}</p>
+            {!hasActiveFilters && <p className="text-xs text-neutral-400">Histórico total</p>}
           </div>
         </Card>
         <Card className="flex items-center gap-4">
@@ -194,8 +208,8 @@ export const Financeiro: React.FC = () => {
             <PieChartIcon size={24} />
           </div>
           <div>
-            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Margem Média</p>
-            <p className="text-xl font-bold text-neutral-900">{margin.toFixed(1)}%</p>
+            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Margem sobre Receita</p>
+            <p className={cn('text-xl font-bold', margin >= 0 ? 'text-neutral-900' : 'text-danger')}>{margin.toFixed(1)}%</p>
           </div>
         </Card>
       </div>

@@ -106,7 +106,15 @@ export const Clientes: React.FC = () => {
       setFormData(emptyForm());
       fetchCustomers();
     } catch (error: any) {
-      toast.error('Erro ao salvar: ' + error.message);
+      if (error.message === '__MIGRATION_NEEDED__') {
+        toast.success('Cliente salvo! Mas CPF e Cidade precisam de migração SQL.');
+        toast('⚠️ Vá em Configurações → Dados & Backup → Migração SQL para salvar CPF e Cidade.', { duration: 6000 });
+        setIsAddOpen(false);
+        setFormData(emptyForm());
+        fetchCustomers();
+      } else {
+        toast.error('Erro ao salvar: ' + error.message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -137,7 +145,15 @@ export const Clientes: React.FC = () => {
       setEditingId(null);
       fetchCustomers();
     } catch (error: any) {
-      toast.error('Erro ao atualizar: ' + error.message);
+      if (error.message === '__MIGRATION_NEEDED__') {
+        toast.success('Nome e contato atualizados!');
+        toast('⚠️ CPF e Cidade não salvos — execute o SQL de Migração em Configurações → Dados & Backup.', { duration: 7000 });
+        setIsEditOpen(false);
+        setEditingId(null);
+        fetchCustomers();
+      } else {
+        toast.error('Erro ao atualizar: ' + error.message);
+      }
     } finally {
       setIsEditSaving(false);
     }

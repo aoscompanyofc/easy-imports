@@ -201,27 +201,39 @@ export const dataService = {
     if (useMock) return mockDataService.addCustomer(customer);
     const uid = await getUid();
     const { name, email, phone, cpf, city, notes } = customer;
-    return tryInsert('customers', [
-      { name, email, phone, cpf, city, notes, user_id: uid },
-      { name, email, phone, user_id: uid },
-      { name, phone, user_id: uid },
-      { name, user_id: uid },
-    ]);
+    const hasCpfCity = !!(cpf?.trim() || city?.trim());
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([{ name, email, phone, cpf, city, notes, user_id: uid }])
+      .select();
+    if (!error) return data![0];
+    if (!isColErr(error)) throw error;
+    // Colunas cpf/city/notes não existem no banco → salva básico e avisa
+    const { data: d2, error: e2 } = await supabase
+      .from('customers')
+      .insert([{ name, email, phone, user_id: uid }])
+      .select();
+    if (e2) throw e2;
+    if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
+    return d2![0];
   },
   async updateCustomer(id: string, updates: any) {
     if (useMock) return updates;
     const { name, email, phone, cpf, city, notes } = updates;
-    const payload: any = { name };
-    if (email !== undefined) payload.email = email;
-    if (phone !== undefined) payload.phone = phone;
-    if (cpf !== undefined) payload.cpf = cpf;
-    if (city !== undefined) payload.city = city;
-    if (notes !== undefined) payload.notes = notes;
-    return tryUpdate('customers', id, [
-      payload,
-      { name, email, phone },
-      { name },
-    ]);
+    const hasCpfCity = !!(cpf?.trim() || city?.trim());
+    const full: any = { name };
+    if (email !== undefined) full.email = email;
+    if (phone !== undefined) full.phone = phone;
+    if (cpf  !== undefined) full.cpf  = cpf;
+    if (city !== undefined) full.city = city;
+    if (notes !== undefined) full.notes = notes;
+    const { data, error } = await supabase.from('customers').update(full).eq('id', id).select();
+    if (!error) return data![0];
+    if (!isColErr(error)) throw error;
+    // Colunas cpf/city/notes não existem → salva básico e avisa
+    await supabase.from('customers').update({ name, email, phone }).eq('id', id);
+    if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
+    return { name };
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);

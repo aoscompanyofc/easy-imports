@@ -149,6 +149,7 @@ export const Configuracoes: React.FC = () => {
   const [memberForm, setMemberForm] = useState(emptyMemberForm());
   const [isSavingMember, setIsSavingMember] = useState(false);
   const [copiedSQL, setCopiedSQL] = useState(false);
+  const [copiedMigSQL, setCopiedMigSQL] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
 
@@ -352,6 +353,28 @@ export const Configuracoes: React.FC = () => {
     setTimeout(() => setCopiedSQL(false), 2000);
   };
 
+  const MIGRATION_SQL = `-- Execute no Supabase Dashboard → SQL Editor
+-- Adiciona colunas que faltam para CPF, Cidade, Garantia, Origem e Data de Entrada
+
+-- Tabela: customers
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS cpf TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Tabela: products
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_capacity TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_color TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_condition TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_warranty TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_origin TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
+
+  const copyMigSQL = () => {
+    navigator.clipboard.writeText(MIGRATION_SQL);
+    setCopiedMigSQL(true);
+    setTimeout(() => setCopiedMigSQL(false), 2500);
+  };
+
   // ─── Tab content ───────────────────────────────────────────────────────
   const renderTabContent = () => {
     switch (activeTab) {
@@ -451,6 +474,38 @@ export const Configuracoes: React.FC = () => {
       case 'database':
         return (
           <div className="space-y-6 animate-in fade-in duration-300">
+
+            {/* ── Migração SQL ── */}
+            <Card className="border-amber-300 bg-amber-50">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="p-3 bg-amber-400 text-white rounded-xl flex-shrink-0">
+                  <Database size={24} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-neutral-900">Migração de Banco de Dados</h4>
+                  <p className="text-sm text-neutral-600 mt-1">
+                    Execute este SQL no <strong>Supabase Dashboard → SQL Editor</strong> para ativar o salvamento de
+                    <strong> CPF, Cidade e Notas</strong> dos clientes, e <strong>Garantia, Origem e Data de Entrada</strong> dos produtos.
+                  </p>
+                </div>
+              </div>
+              <div className="relative">
+                <pre className="text-xs bg-neutral-900 text-green-400 rounded-xl p-4 overflow-x-auto whitespace-pre-wrap leading-5">
+                  {MIGRATION_SQL}
+                </pre>
+                <button
+                  onClick={copyMigSQL}
+                  className="absolute top-3 right-3 flex items-center gap-1.5 bg-neutral-700 hover:bg-neutral-600 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {copiedMigSQL ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedMigSQL ? 'Copiado!' : 'Copiar SQL'}
+                </button>
+              </div>
+              <p className="text-xs text-amber-700 mt-3 font-medium">
+                ✅ Depois de executar o SQL, todos os campos serão salvos normalmente — sem precisar de mais nada.
+              </p>
+            </Card>
+
             <Card className="border-danger-light bg-danger-light/10">
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-danger text-white rounded-xl flex-shrink-0">

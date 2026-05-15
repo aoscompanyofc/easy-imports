@@ -168,11 +168,14 @@ export const Vendas: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Auto-fill WhatsApp number from selected customer
+  // Auto-fill WhatsApp e CPF do cliente selecionado
   useEffect(() => {
     if (form.selectedCustomer) {
       const c = customers.find((c) => c.id === form.selectedCustomer);
-      if (c?.phone) setForm((f) => ({ ...f, whatsapp_number: c.phone }));
+      const updates: Record<string, string> = {};
+      if (c?.phone) updates.whatsapp_number = c.phone;
+      if (c?.cpf)   updates.customer_cpf   = c.cpf;
+      if (Object.keys(updates).length > 0) setForm((f) => ({ ...f, ...updates }));
     }
   }, [form.selectedCustomer, customers]);
 

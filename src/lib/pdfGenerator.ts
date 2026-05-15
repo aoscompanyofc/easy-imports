@@ -291,7 +291,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-b">
     <div class="g-grid">
       <div class="g-txt">
-        A <strong>Easy Imports</strong> oferece garantia de <strong>30 (trinta) dias</strong> para defeitos técnicos de funcionamento do aparelho, a contar desta data.<br><br>
+        A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong> para defeitos técnicos de funcionamento do aparelho, a contar desta data, conforme art. 26 do Código de Defesa do Consumidor (CDC).<br><br>
         Válida apenas para defeitos internos. O cliente deve procurar a Easy Imports antes de qualquer intervenção de terceiros.
       </div>
       <div>
@@ -407,7 +407,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       <div class="g-txt">
         O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
         A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google), peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados.
-        <br><br>O aparelho recebido possui garantia de <strong>30 dias</strong> para defeitos técnicos.
+        <br><br>O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong> para defeitos técnicos, conforme art. 26 do CDC.
       </div>
       <div>
         <div class="g-nc-t">A garantia NÃO cobre:</div>

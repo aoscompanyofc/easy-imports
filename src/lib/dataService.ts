@@ -200,8 +200,9 @@ export const dataService = {
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
     const uid = await getUid();
-    const { name, email, phone } = customer;
+    const { name, email, phone, cpf, city, notes } = customer;
     return tryInsert('customers', [
+      { name, email, phone, cpf, city, notes, user_id: uid },
       { name, email, phone, user_id: uid },
       { name, phone, user_id: uid },
       { name, user_id: uid },

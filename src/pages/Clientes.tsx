@@ -48,8 +48,8 @@ const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormDa
       autoComplete="off"
     />
     <Input
-      label="Cidade"
-      placeholder="Ex: São Paulo"
+      label="Endereço"
+      placeholder="Rua, número, bairro, cidade — SP"
       value={data.city}
       onChange={(e) => onChange({ ...data, city: e.target.value })}
       autoComplete="off"

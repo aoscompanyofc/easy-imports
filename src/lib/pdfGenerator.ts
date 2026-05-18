@@ -330,8 +330,8 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${field('Telefone / WhatsApp', sale.customer_phone, 'f2')}
     </div>
     <div class="row">
-      ${field('Endereço', undefined, 'f4')}
-      ${field('Cidade / Estado', sale.customer_city, 'f2')}
+      ${field('Endereço', sale.customer_city, 'f4')}
+      ${field('Cidade / Estado', undefined, 'f2')}
     </div>
   </div>
 </div>
@@ -427,8 +427,8 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${field('Telefone / WhatsApp', clientPhone, 'f2')}
     </div>
     <div class="row">
-      ${field('Endereço', undefined, 'f4')}
-      ${field('Cidade / Estado', clientCity, 'f2')}
+      ${field('Endereço', clientCity, 'f4')}
+      ${field('Cidade / Estado', undefined, 'f2')}
     </div>
   </div>
 </div>

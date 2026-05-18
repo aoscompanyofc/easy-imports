@@ -117,6 +117,7 @@ const emptyForm = () => ({
 export const Vendas: React.FC = () => {
   const { signature: adminSignature } = useProfileStore();
   const [sales, setSales] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -147,12 +148,14 @@ export const Vendas: React.FC = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [salesData, custData, prodData] = await Promise.all([
+      const [salesData, custData, prodData, txData] = await Promise.all([
         dataService.getSales(),
         dataService.getCustomers(),
         dataService.getProducts(),
+        dataService.getTransactions(),
       ]);
       setSales(salesData || []);
+      setTransactions(txData || []);
       setCustomers(custData || []);
       setProducts((prodData || []).filter((p: any) => p.stock_quantity > 0));
 
@@ -167,6 +170,18 @@ export const Vendas: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Map sale ID prefix → cost from auto-created expense transactions
+  const costBySale = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const t of transactions) {
+      if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Mercadoria #')) {
+        const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+        map[prefix] = (map[prefix] || 0) + Number(t.amount || 0);
+      }
+    }
+    return map;
+  }, [transactions]);
 
   // Auto-fill WhatsApp e CPF do cliente selecionado
   useEffect(() => {
@@ -609,6 +624,8 @@ export const Vendas: React.FC = () => {
                       const type = sale.sale_type || 'venda';
                       const num = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
                       const name = sale.customer_name || sale.customers?.name || '—';
+                      const saleCost = costBySale[sale.id?.slice(0, 8)] ?? null;
+                      const saleProfit = saleCost !== null ? Number(sale.total_amount) - saleCost : null;
 
                       return (
                         <div key={sale.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-neutral-50 transition-colors">
@@ -657,10 +674,17 @@ export const Vendas: React.FC = () => {
                             {formatDate(sale.created_at)}
                           </span>
 
-                          {/* Value */}
-                          <span className="font-black text-neutral-900 flex-shrink-0 text-sm">
-                            {formatCurrency(Number(sale.total_amount))}
-                          </span>
+                          {/* Value + Profit */}
+                          <div className="flex-shrink-0 text-right">
+                            <p className="font-black text-neutral-900 text-sm leading-tight">
+                              {formatCurrency(Number(sale.total_amount))}
+                            </p>
+                            {saleProfit !== null && (
+                              <p className={cn('text-[10px] font-bold leading-tight', saleProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                                {saleProfit >= 0 ? '+' : ''}{formatCurrency(saleProfit)}
+                              </p>
+                            )}
+                          </div>
 
                           {/* Actions */}
                           <div className="flex items-center gap-1 flex-shrink-0">

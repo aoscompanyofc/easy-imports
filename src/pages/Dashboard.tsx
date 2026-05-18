@@ -159,18 +159,21 @@ export const Dashboard: React.FC = () => {
   const [showCustom, setShowCustom] = useState(false);
 
   // Raw data
-  const [allSales, setAllSales]       = useState<any[]>([]);
-  const [stockValue, setStockValue]   = useState(0);
-  const [isLoading, setIsLoading]     = useState(true);
+  const [allSales, setAllSales]             = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [stockValue, setStockValue]         = useState(0);
+  const [isLoading, setIsLoading]           = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [sales, products] = await Promise.all([
+      const [sales, products, transactions] = await Promise.all([
         dataService.getSales(),
         dataService.getProducts(),
+        dataService.getTransactions(),
       ]);
       setAllSales(sales || []);
+      setAllTransactions(transactions || []);
       const sv = (products || [])
         .filter((p: any) => p.stock_quantity > 0)
         .reduce((acc: number, p: any) =>
@@ -186,25 +189,32 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, salesCount, avgTicket, chartData, channelData, topProducts } = useMemo(() => {
+  const { filteredSales, revenue, salesCount, netProfit, chartData, channelData, topProducts } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
       const d = new Date(s.created_at);
       return d >= start && d < end;
     });
-    const rev   = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
-    const count = filtered.length;
+    const filteredTx = allTransactions.filter(t => {
+      if (!t.date) return false;
+      const d = new Date(t.date + 'T00:00:00');
+      return d >= start && d < end;
+    });
+    const rev      = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const count    = filtered.length;
+    const txIncome  = filteredTx.filter(t => t.type === 'income').reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const txExpense = filteredTx.filter(t => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0);
     return {
       filteredSales: filtered,
       revenue:       rev,
       salesCount:    count,
-      avgTicket:     count > 0 ? rev / count : 0,
+      netProfit:     txIncome - txExpense,
       chartData:     buildChartDataForRange(filtered, start, end),
       channelData:   buildChannelData(filtered),
       topProducts:   buildTopProducts(filtered),
     };
-  }, [allSales, period, customFrom, customTo]);
+  }, [allSales, allTransactions, period, customFrom, customTo]);
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
 
@@ -323,11 +333,16 @@ export const Dashboard: React.FC = () => {
               <p className="text-xs text-neutral-400">{periodLabel}</p>
             </div>
 
-            {/* Ticket Médio */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col gap-1">
-              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ticket Médio</p>
-              <p className="text-2xl font-black text-neutral-900">{formatCurrency(avgTicket)}</p>
-              <p className="text-xs text-neutral-400">{salesCount > 0 ? `${salesCount} venda${salesCount !== 1 ? 's' : ''}` : 'Sem vendas'}</p>
+            {/* Lucro Líquido */}
+            <div className={cn(
+              'rounded-2xl border shadow-sm p-5 flex flex-col gap-1',
+              netProfit >= 0 ? 'bg-white border-neutral-200' : 'bg-red-50 border-red-200',
+            )}>
+              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Lucro Líquido</p>
+              <p className={cn('text-2xl font-black', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                {formatCurrency(netProfit)}
+              </p>
+              <p className="text-xs text-neutral-400">{periodLabel}</p>
             </div>
 
             {/* Estoque — sempre total */}
@@ -503,7 +518,7 @@ export const Dashboard: React.FC = () => {
             {[
               { label: `Faturamento — ${periodLabel}`, value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
               { label: 'Vendas no período',             value: `${salesCount} vendas`,    icon: ShoppingCart, color: 'text-blue-600'    },
-              { label: 'Ticket médio',                  value: formatCurrency(avgTicket), icon: DollarSign,  color: 'text-emerald-600'  },
+              { label: 'Lucro líquido',                 value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
               { label: 'Valor em estoque',              value: formatCurrency(stockValue),icon: Package,     color: 'text-purple-600'   },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3 p-4 bg-white rounded-xl border border-neutral-100 shadow-sm">

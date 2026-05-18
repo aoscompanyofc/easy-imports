@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -8,6 +8,26 @@ import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 
 const FILTER_CATEGORIES = ['Todas', 'iPhone', 'iPad', 'MacBook', 'Watch', 'AirPods', 'Acessórios', 'Capas & Cases', 'Smartphones', 'Games', 'Outro'];
+
+// Strips repeated capacity/color suffixes from a product name and appends them once.
+// e.g. "iPhone 16 Pro Max 256GB Titânio Deserto 256GB Titânio Deserto" → "iPhone 16 Pro Max 256GB Titânio Deserto"
+function deduplicateName(name: string, capacity: string, color: string): string {
+  let n = name.trim();
+  const cap = capacity.trim();
+  const col = color.trim();
+  if (!cap && !col) return n;
+
+  // Repeatedly peel color then capacity off the end until nothing changes
+  let prev = '';
+  while (prev !== n) {
+    prev = n;
+    const nl = n.toLowerCase();
+    if (col && nl.endsWith(' ' + col.toLowerCase())) n = n.slice(0, -(col.length + 1)).trim();
+    if (cap && nl.endsWith(' ' + cap.toLowerCase())) n = n.slice(0, -(cap.length + 1)).trim();
+  }
+  // n is now the bare model — rebuild with one occurrence of each
+  return [n, cap, col].filter(Boolean).join(' ');
+}
 
 export const Estoque: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -25,12 +45,51 @@ export const Estoque: React.FC = () => {
   const [editForm, setEditForm] = useState<DeviceFormData>(emptyDeviceForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const autoFixedRef = useRef(false); // run dedup only once per session
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (skipAutoFix = false) => {
     try {
       setIsLoading(true);
       const data = await dataService.getProducts();
       setProducts(data || []);
+
+      // Auto-fix duplicate names on first load
+      if (!skipAutoFix && !autoFixedRef.current && data && data.length > 0) {
+        autoFixedRef.current = true;
+        const toFix = data.filter((p: any) => {
+          const cap = (p.product_capacity || '').trim();
+          const col = (p.product_color || '').trim();
+          if (!cap && !col) return false;
+          return deduplicateName(p.name || '', cap, col) !== (p.name || '').trim();
+        });
+
+        if (toFix.length > 0) {
+          for (const p of toFix) {
+            const cap = (p.product_capacity || '').trim();
+            const col = (p.product_color || '').trim();
+            const cleanName = deduplicateName(p.name || '', cap, col);
+            await dataService.updateProduct(p.id, {
+              name: cleanName,
+              category: p.category,
+              imei: p.imei,
+              purchase_price: p.purchase_price,
+              sale_price: p.sale_price,
+              stock_quantity: p.stock_quantity,
+              status: p.status,
+              product_capacity: cap,
+              product_color: col,
+              product_condition: p.product_condition,
+              product_warranty: p.product_warranty,
+              product_origin: p.product_origin,
+              entry_date: p.entry_date,
+            });
+          }
+          toast.success(`${toFix.length} nome${toFix.length !== 1 ? 's' : ''} duplicado${toFix.length !== 1 ? 's' : ''} corrigido${toFix.length !== 1 ? 's' : ''}!`);
+          // Reload with corrected names (skipAutoFix=true to avoid loop)
+          const updated = await dataService.getProducts();
+          setProducts(updated || []);
+        }
+      }
     } catch (error: any) {
       toast.error('Erro ao carregar estoque: ' + error.message);
     } finally {

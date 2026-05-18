@@ -17,11 +17,11 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'iPhone',
     models: [
-      // iPhone 17 (2025)
-      { name: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Desert', 'Titânio Black', 'Titânio White', 'Titânio Natural'] },
-      { name: 'iPhone 17 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Desert', 'Titânio Black', 'Titânio White', 'Titânio Natural'] },
-      { name: 'iPhone 17 Air', capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Azul Anil', 'Verde Anis'] },
-      { name: 'iPhone 17', capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Azul Anil', 'Verde Anis'] },
+      // iPhone 17 (2025) — cores oficiais Apple
+      { name: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Deserto', 'Titânio Preto', 'Titânio Branco', 'Titânio Natural'] },
+      { name: 'iPhone 17 Pro',     capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Deserto', 'Titânio Preto', 'Titânio Branco', 'Titânio Natural'] },
+      { name: 'iPhone 17 Air',     capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Azul Céu', 'Verde-Azulado'] },
+      { name: 'iPhone 17',         capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Ultramarino', 'Verde-Azulado'] },
       // iPhone 16 (2024)
       { name: 'iPhone 16 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Natural', 'Titânio Preto', 'Titânio Branco', 'Titânio Deserto'] },
       { name: 'iPhone 16 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Natural', 'Titânio Preto', 'Titânio Branco', 'Titânio Deserto'] },
@@ -389,9 +389,9 @@ export const WARRANTY_OPTIONS = [
   '30 dias (loja)',
   '3 meses',
   '6 meses',
+  '1 ano (Apple)',
   '12 meses',
   '24 meses',
-  'Garantia Apple',
   'AppleCare+',
   'Garantia de Fábrica',
 ];

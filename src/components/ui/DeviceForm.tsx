@@ -108,6 +108,17 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
     onChange({ ...value, color: col });
   };
 
+  // When condition is "Novo (lacrado)", auto-fill Apple 1-year warranty
+  const handleCondition = (cond: string) => {
+    if (cond === 'Novo (lacrado)') {
+      onChange({ ...value, condition: cond, warranty: '1 ano (Apple)', battery_health: '' });
+    } else {
+      onChange({ ...value, condition: cond });
+    }
+  };
+
+  const isNovo = value.condition === 'Novo (lacrado)';
+
   const catalogCategories = ALL_CATEGORIES;
   const catalogModels = value.category ? getModelsByCategory(value.category) : [];
   const catalogCapacities = value.model ? getCapacitiesForModel(value.model) : [];
@@ -203,12 +214,12 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado de Conservação *</label>
-          <select className={S} value={value.condition} onChange={set('condition')}>
+          <select className={S} value={value.condition} onChange={(e) => handleCondition(e.target.value)}>
             {COMMON_CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
-        {showBattery ? (
+        {showBattery && !isNovo ? (
           <div>
             <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
             <select className={S} value={value.battery_health} onChange={set('battery_health')}>
@@ -221,13 +232,20 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         )}
       </div>
 
-      {/* Row 4: Warranty */}
+      {/* Row 4: Warranty — auto-filled for new devices */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-bold text-neutral-700 mb-1.5">Garantia</label>
-          <select className={S} value={value.warranty || 'Sem garantia'} onChange={set('warranty')}>
-            {WARRANTY_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
+          {isNovo ? (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-300 rounded-xl">
+              <span className="text-green-600 font-black text-base">✓</span>
+              <span className="text-sm font-bold text-green-700">1 ano (Apple) — garantia de fábrica</span>
+            </div>
+          ) : (
+            <select className={S} value={value.warranty || 'Sem garantia'} onChange={set('warranty')}>
+              {WARRANTY_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
+            </select>
+          )}
         </div>
       </div>
 

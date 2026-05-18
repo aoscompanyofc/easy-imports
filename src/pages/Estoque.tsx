@@ -222,77 +222,77 @@ export const Estoque: React.FC = () => {
     const margin = p.sale_price > 0 ? (profit / p.sale_price) * 100 : 0;
     return (
       <div className={[
-        'flex items-center gap-4 p-4 rounded-2xl border transition-all',
+        'flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
         isSoldView
-          ? 'bg-neutral-50 border-neutral-200 opacity-60'
+          ? 'bg-neutral-50 border-neutral-200 opacity-55'
           : 'bg-white border-neutral-200 hover:border-primary/30 hover:shadow-sm',
       ].join(' ')}>
         {/* Icon */}
         <div className={[
-          'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
+          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
           isSoldView ? 'bg-neutral-200' : 'bg-primary/10',
         ].join(' ')}>
           {isSoldView
-            ? <CheckCircle2 size={22} className="text-neutral-400" />
-            : <Package size={22} className="text-primary" />}
+            ? <CheckCircle2 size={15} className="text-neutral-400" />
+            : <Package size={15} className="text-primary" />}
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className={['font-bold truncate', isSoldView ? 'text-neutral-500' : 'text-neutral-900'].join(' ')}>
-              {p.name}
-            </p>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 font-medium">{p.category}</span>
-            {isSoldView && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-500 font-bold">Vendido</span>
-            )}
-          </div>
-          {p.imei && <p className="text-xs text-neutral-400 font-mono mt-0.5">IMEI: {p.imei}</p>}
+        {/* Name + meta — single compact line */}
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          <span className={['text-sm font-bold truncate', isSoldView ? 'text-neutral-500' : 'text-neutral-900'].join(' ')}>
+            {p.name}
+          </span>
+          {p.imei && (
+            <span className="text-xs text-neutral-400 font-mono">IMEI: {p.imei}</span>
+          )}
+          <span className="text-[11px] px-1.5 py-px rounded-full bg-neutral-100 text-neutral-500 font-medium leading-tight">{p.category}</span>
+          {isSoldView && (
+            <span className="text-[11px] px-1.5 py-px rounded-full bg-neutral-200 text-neutral-500 font-bold leading-tight">Vendido</span>
+          )}
           {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
-            <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
-              Garantia: {p.product_warranty}
+            <span className="text-[11px] px-1.5 py-px rounded-full bg-green-100 text-green-700 font-bold leading-tight">
+              {p.product_warranty}
             </span>
           )}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-neutral-400">
-            <span>Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
-            <span>Venda: <strong className="text-primary-700">{formatCurrency(p.sale_price)}</strong></span>
-            {!isSoldView && p.sale_price > 0 && <span>Lucro: <strong className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>}
-            {p.product_origin && (
-              <span>Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
-            )}
-            {p.entry_date && (
-              <span>Entrada: <strong className="text-neutral-600">{formatDate(p.entry_date)}</strong></span>
-            )}
-          </div>
+          <span className="text-xs text-neutral-400">Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
+          <span className="text-xs text-neutral-400">Venda: <strong className={p.sale_price > 0 ? 'text-primary-700' : 'text-neutral-400'}>{formatCurrency(p.sale_price)}</strong></span>
+          {!isSoldView && p.sale_price > 0 && (
+            <span className="text-xs text-neutral-400">Lucro: <strong className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>
+          )}
+          {p.product_origin && (
+            <span className="text-xs text-neutral-400">Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
+          )}
+          {p.entry_date && (
+            <span className="text-xs text-neutral-400">Entrada: <strong className="text-neutral-600">{formatDate(p.entry_date)}</strong></span>
+          )}
         </div>
 
         {/* Actions */}
         {!isSoldView && (
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => handleOpenEdit(p)}
-              className="p-2 rounded-xl border border-neutral-200 text-neutral-500 hover:text-primary hover:border-primary/30 transition-colors"
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-primary hover:border-primary/30 transition-colors"
               title="Editar"
             >
-              <Edit2 size={15} />
+              <Edit2 size={13} />
             </button>
             <button
               onClick={() => handleDelete(p.id)}
-              className="p-2 rounded-xl border border-neutral-200 text-neutral-500 hover:text-red-500 hover:border-red-300 transition-colors"
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-red-500 hover:border-red-300 transition-colors"
               title="Remover"
             >
-              <Trash2 size={15} />
+              <Trash2 size={13} />
             </button>
           </div>
         )}
         {isSoldView && (
           <button
             onClick={() => handleDelete(p.id)}
-            className="p-2 rounded-xl border border-neutral-200 text-neutral-300 hover:text-red-400 hover:border-red-300 transition-colors flex-shrink-0"
+            className="p-1.5 rounded-lg border border-neutral-200 text-neutral-300 hover:text-red-400 hover:border-red-300 transition-colors flex-shrink-0"
             title="Remover do histórico"
           >
-            <Trash2 size={15} />
+            <Trash2 size={13} />
           </button>
         )}
       </div>
@@ -361,8 +361,8 @@ export const Estoque: React.FC = () => {
 
       {/* Available products */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-20 bg-neutral-100 rounded-2xl animate-pulse" />)}
+        <div className="space-y-1.5">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-neutral-100 rounded-xl animate-pulse" />)}
         </div>
       ) : available.length === 0 ? (
         <div className="py-16 flex flex-col items-center text-center gap-4 bg-white rounded-2xl border border-neutral-200">
@@ -378,7 +378,7 @@ export const Estoque: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-1.5">
           {available.map(p => <ProductCard key={p.id} p={p} />)}
         </div>
       )}
@@ -394,7 +394,7 @@ export const Estoque: React.FC = () => {
             {showSold ? 'Ocultar' : 'Ver'} histórico de vendidos ({sold.length} aparelho{sold.length !== 1 ? 's' : ''})
           </button>
           {showSold && (
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {sold.map(p => <ProductCard key={p.id} p={p} isSoldView />)}
             </div>
           )}

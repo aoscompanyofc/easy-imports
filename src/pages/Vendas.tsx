@@ -914,7 +914,7 @@ export const Vendas: React.FC = () => {
                 <Input
                   label="Valor dado ao cliente (R$) *"
                   type="number"
-                  step="0.01"
+                  step="any" inputMode="decimal"
                   placeholder="Quanto você avaliou o aparelho"
                   value={form.incoming_purchase_price}
                   onChange={setF('incoming_purchase_price')}
@@ -923,7 +923,7 @@ export const Vendas: React.FC = () => {
                 <Input
                   label="Previsão de revenda (R$)"
                   type="number"
-                  step="0.01"
+                  step="any" inputMode="decimal"
                   placeholder="Quanto pretende vender depois"
                   value={form.incoming_sale_price}
                   onChange={setF('incoming_sale_price')}
@@ -1051,7 +1051,7 @@ export const Vendas: React.FC = () => {
               <Input
                 label={form.sale_type === 'troca' ? 'Você recebe em caixa (R$) *' : 'Valor de Venda (R$) *'}
                 type="number"
-                step="0.01"
+                step="any" inputMode="decimal"
                 placeholder={form.sale_type === 'troca' ? 'Ex: 3100 (só o dinheiro)' : 'Digite o valor'}
                 value={form.sale_price_manual}
                 onChange={setF('sale_price_manual')}

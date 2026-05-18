@@ -105,11 +105,21 @@ export const Estoque: React.FC = () => {
 
   const handleOpenEdit = (product: any) => {
     setEditingId(product.id);
+
+    // deviceFormToProductName joins [model, capacity, color] with spaces.
+    // Strip capacity and color suffixes to recover the bare model name.
+    let modelName = product.name || '';
+    const cap = (product.product_capacity || '').trim();
+    const col = (product.product_color || '').trim();
+    if (col && modelName.endsWith(` ${col}`)) modelName = modelName.slice(0, -(col.length + 1));
+    if (cap && modelName.endsWith(` ${cap}`)) modelName = modelName.slice(0, -(cap.length + 1));
+    modelName = modelName.trim();
+
     setEditForm({
       category: product.category || 'iPhone',
-      model: product.name || '',
-      capacity: product.product_capacity || '',
-      color: product.product_color || '',
+      model: modelName,
+      capacity: cap,
+      color: col,
       condition: (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, ''),
       battery_health: (product.product_condition || '').match(/Bateria: (.+)/)?.[1] || '',
       warranty: product.product_warranty || 'Sem garantia',

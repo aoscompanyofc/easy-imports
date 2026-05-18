@@ -265,22 +265,24 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         <Input
           label="Preço de Custo (R$) *"
           type="number"
-          step="0.01"
-          min="0"
-          placeholder="0,00"
+          step="any"
+          inputMode="decimal"
+          placeholder="Ex: 9000"
           required
           value={value.purchase_price}
           onChange={set('purchase_price')}
+          autoComplete="off"
         />
         {showSalePrice && (
           <Input
             label={salePriceLabel || 'Preço de Venda (R$) — opcional'}
             type="number"
-            step="0.01"
-            min="0"
-            placeholder="Definir na hora da venda"
+            step="any"
+            inputMode="decimal"
+            placeholder="Ex: 11000"
             value={value.sale_price || ''}
             onChange={set('sale_price')}
+            autoComplete="off"
           />
         )}
       </div>

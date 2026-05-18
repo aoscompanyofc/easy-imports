@@ -18,8 +18,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
     brand: 'Apple', category: 'iPhone',
     models: [
       // iPhone 17 (2025) — cores oficiais Apple
-      { name: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Deserto', 'Titânio Preto', 'Titânio Branco', 'Titânio Natural'] },
-      { name: 'iPhone 17 Pro',     capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Deserto', 'Titânio Preto', 'Titânio Branco', 'Titânio Natural'] },
+      { name: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Laranja-Cósmico', 'Titânio Azul-Intenso', 'Titânio Prateado'] },
+      { name: 'iPhone 17 Pro',     capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Laranja-Cósmico', 'Titânio Azul-Intenso', 'Titânio Prateado'] },
       { name: 'iPhone 17 Air',     capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Azul Céu', 'Verde-Azulado'] },
       { name: 'iPhone 17',         capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa', 'Ultramarino', 'Verde-Azulado'] },
       // iPhone 16 (2024)

@@ -18,6 +18,7 @@ export interface SalePDFData {
   customer_name?: string;
   customer_phone?: string;
   customer_cpf?: string;
+  customer_city?: string;
   product_name?: string;
   product_capacity?: string;
   product_color?: string;
@@ -265,6 +266,24 @@ function warrantyBlock() {
     </div>`;
 }
 
+function warrantyBlockNovo() {
+  return `
+    <div class="g-list-wrap">
+      <div class="g-nc-t">Garantia do Fabricante:</div>
+      <ul class="g-list">
+        <li>12 meses (Apple) ou conforme fabricante</li>
+        <li>Defeitos internos de fabricação</li>
+        <li>Suporte pela assistência autorizada</li>
+      </ul>
+      <div class="g-nc-t" style="margin-top:10px;">NÃO cobre:</div>
+      <ul class="g-list">
+        <li>Quedas e impactos</li>
+        <li>Danos por água</li>
+        <li>Mau uso ou violação</li>
+      </ul>
+    </div>`;
+}
+
 function openAndPrint(html: string, title: string) {
   const w = window.open('', '_blank', 'width=920,height=1060');
   if (!w) { alert('Permita pop-ups no navegador para gerar o documento.'); return; }
@@ -307,12 +326,12 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-b">
     <div class="row">
       ${field('Nome Completo', sale.customer_name, 'f4')}
-      ${field('CPF', sale.customer_cpf, 'f2')}
+      ${field('CPF / CNPJ', sale.customer_cpf, 'f2')}
       ${field('Telefone / WhatsApp', sale.customer_phone, 'f2')}
     </div>
     <div class="row">
       ${field('Endereço', undefined, 'f4')}
-      ${field('Cidade / Estado', undefined, 'f2')}
+      ${field('Cidade / Estado', sale.customer_city, 'f2')}
     </div>
   </div>
 </div>
@@ -354,6 +373,18 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-t">Termo de Garantia</div>
   <div class="sec-b">
     <div class="g-wrap">
+      ${cond.includes('novo') ? `
+      <div class="g-txt">
+        Este aparelho é <strong>Novo (lacrado)</strong> e está coberto pela
+        <strong>Garantia Oficial do Fabricante</strong>. Consulte a embalagem ou o site
+        do fabricante para os termos e duração exatos.<br><br>
+        A <strong>Easy Imports não fornece garantia adicional</strong> para aparelhos novos
+        lacrados — a responsabilidade técnica é do fabricante (ex: Apple, Samsung).<br><br>
+        Em caso de defeito, acione diretamente a
+        <strong>assistência técnica autorizada</strong> do fabricante.
+      </div>
+      ${warrantyBlockNovo()}
+      ` : `
       <div class="g-txt">
         A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong>
         para defeitos técnicos de funcionamento do aparelho, a contar desta data,
@@ -363,6 +394,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
         Após abertura ou violação por terceiros, a garantia é automaticamente cancelada.
       </div>
       ${warrantyBlock()}
+      `}
     </div>
   </div>
 </div>
@@ -383,6 +415,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const clientName = sale.customer_name || sale.seller_name || '';
   const clientCpf  = sale.customer_cpf  || sale.seller_cpf  || '';
   const clientPhone = sale.customer_phone || sale.seller_phone || '';
+  const clientCity = sale.customer_city || '';
 
   const body = `
 <div class="sec">
@@ -390,12 +423,12 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-b">
     <div class="row">
       ${field('Nome Completo', clientName, 'f4')}
-      ${field('CPF', clientCpf, 'f2')}
+      ${field('CPF / CNPJ', clientCpf, 'f2')}
       ${field('Telefone / WhatsApp', clientPhone, 'f2')}
     </div>
     <div class="row">
       ${field('Endereço', undefined, 'f4')}
-      ${field('Cidade / Estado', undefined, 'f2')}
+      ${field('Cidade / Estado', clientCity, 'f2')}
     </div>
   </div>
 </div>

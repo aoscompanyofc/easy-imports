@@ -86,7 +86,7 @@ function generateSaleNumber(existingCount: number, type: string) {
 const emptyForm = () => ({
   sale_type: 'venda',
   // Cliente
-  selectedCustomer: '', customer_phone: '', customer_cpf: '',
+  selectedCustomer: '', customer_phone: '', customer_cpf: '', customer_city: '',
   seller_name: '', seller_cpf: '', seller_rg: '',
   seller_phone: '', seller_address: '', seller_email: '',
   // Produto que sai do estoque
@@ -175,6 +175,7 @@ export const Vendas: React.FC = () => {
       const updates: Record<string, string> = {};
       if (c?.phone) updates.whatsapp_number = c.phone;
       if (c?.cpf)   updates.customer_cpf   = c.cpf;
+      if (c?.city)  updates.customer_city  = c.city;
       if (Object.keys(updates).length > 0) setForm((f) => ({ ...f, ...updates }));
     }
   }, [form.selectedCustomer, customers]);
@@ -309,6 +310,7 @@ export const Vendas: React.FC = () => {
         customer_name: customerName,
         customer_phone: form.customer_phone || selectedCustomerData?.phone || '',
         customer_cpf: form.customer_cpf,
+        customer_city: form.customer_city || selectedCustomerData?.city || '',
         product_name: productName || '',
         product_capacity: form.product_capacity,
         product_color: form.product_color,
@@ -426,6 +428,7 @@ export const Vendas: React.FC = () => {
       customer_name: sale.customer_name || sale.customers?.name,
       customer_phone: sale.customer_phone,
       customer_cpf: sale.customer_cpf,
+      customer_city: sale.customer_city || sale.customers?.city || '',
       product_name: sale.product_name,
       product_capacity: sale.product_capacity,
       product_color: sale.product_color,
@@ -767,8 +770,8 @@ export const Vendas: React.FC = () => {
                         autoComplete="off"
                       />
                       <Input
-                        label="CPF"
-                        placeholder="000.000.000-00"
+                        label="CPF / CNPJ"
+                        placeholder="CPF ou CNPJ"
                         value={newCustomer.cpf}
                         onChange={(e) => setNewCustomer((c) => ({ ...c, cpf: e.target.value }))}
                         autoComplete="off"
@@ -804,7 +807,7 @@ export const Vendas: React.FC = () => {
                 {!showNewCustomer && !form.selectedCustomer && (
                 <>
                   <Input label="Nome (se não cadastrado)" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" />
-                  <Input label="CPF" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />
+                  <Input label="CPF / CNPJ" placeholder="CPF ou CNPJ" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />
                 </>
               )}
 

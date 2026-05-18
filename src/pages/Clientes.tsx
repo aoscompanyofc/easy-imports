@@ -41,8 +41,8 @@ const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormDa
       autoComplete="off"
     />
     <Input
-      label="CPF"
-      placeholder="000.000.000-00"
+      label="CPF / CNPJ"
+      placeholder="CPF ou CNPJ"
       value={data.cpf}
       onChange={(e) => onChange({ ...data, cpf: e.target.value })}
       autoComplete="off"
@@ -231,7 +231,7 @@ export const Clientes: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, telefone, email ou CPF..."
+            placeholder="Buscar por nome, telefone, email, CPF ou CNPJ..."
             leftIcon={<Search size={20} />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

@@ -100,6 +100,8 @@ const emptyForm = () => ({
   // Aparelho que entra (troca)
   incoming_name: '',
   incoming_imei: '',
+  incoming_serial: '',
+  incoming_email: '',
   incoming_category: 'Smartphones',
   incoming_capacity: '',
   incoming_color: '',
@@ -347,6 +349,8 @@ export const Vendas: React.FC = () => {
         // Aparelho entrante (troca)
         incoming_name: form.incoming_name || undefined,
         incoming_imei: form.incoming_imei || undefined,
+        incoming_serial: form.incoming_serial || undefined,
+        incoming_email: form.incoming_email || undefined,
         incoming_capacity: form.incoming_capacity || undefined,
         incoming_color: form.incoming_color || undefined,
         incoming_condition: form.incoming_condition || undefined,
@@ -472,6 +476,8 @@ export const Vendas: React.FC = () => {
       installments: sale.installments || 1,
       incoming_name: sale.incoming_name || undefined,
       incoming_imei: sale.incoming_imei || undefined,
+      incoming_serial: sale.incoming_serial || undefined,
+      incoming_email: sale.incoming_email || undefined,
       incoming_capacity: sale.incoming_capacity || undefined,
       incoming_color: sale.incoming_color || undefined,
       incoming_condition: sale.incoming_condition || undefined,
@@ -947,6 +953,8 @@ export const Vendas: React.FC = () => {
                   />
                 </div>
                 <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={form.incoming_imei} onChange={setF('incoming_imei')} autoComplete="off" />
+                <Input label="Número de Série" placeholder="Ex: C02XG2YJHV2Q" value={form.incoming_serial} onChange={setF('incoming_serial')} autoComplete="off" />
+                <Input label="E-mail da Conta (iCloud/Google)" placeholder="Ex: joao@icloud.com" value={form.incoming_email} onChange={setF('incoming_email')} autoComplete="off" />
                 <Input label="Capacidade" placeholder="128GB" value={form.incoming_capacity} onChange={setF('incoming_capacity')} autoComplete="off" />
                 <Input label="Cor" placeholder="Preto" value={form.incoming_color} onChange={setF('incoming_color')} autoComplete="off" />
                 <div>

@@ -32,6 +32,8 @@ export interface SalePDFData {
   // Aparelho que ENTRA (do cliente — troca)
   incoming_name?: string;
   incoming_imei?: string;
+  incoming_serial?: string;
+  incoming_email?: string;
   incoming_capacity?: string;
   incoming_color?: string;
   incoming_condition?: string;
@@ -429,6 +431,12 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const inCond  = (sale.incoming_condition  || '').toLowerCase();
   const outCond = (sale.product_condition   || '').toLowerCase();
 
+  // Helpers para detectar estado sem falso-positivo de "seminovo" → "novo"
+  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ');
+  const isSemi    = (c: string) => c.includes('seminovo');
+  const isBom     = (c: string) => c.includes('bom');
+  const isDefeito = (c: string) => c.includes('defeito') || (c.includes('usado') && !c.includes('bom'));
+
   // Aparelho entregue pelo cliente
   const incomingBlock = `
     <div class="split-box">
@@ -440,20 +448,23 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         </div>
         <div class="row">
           ${field('Capacidade', sale.incoming_capacity)}
-          ${field('IMEI / Serial', sale.incoming_imei, 'f2')}
+          ${field('IMEI', sale.incoming_imei, 'f2')}
+        </div>
+        <div class="row">
+          ${field('Número de Série', sale.incoming_serial, 'f2')}
+          ${field('E-mail da Conta', sale.incoming_email, 'f2')}
         </div>
         ${sale.incoming_battery_health
-          ? `<div class="row">${field('Saúde da Bateria', sale.incoming_battery_health)}</div>`
-          : ''}
-        ${sale.incoming_purchase_price
-          ? `<div class="row">${field('Valor Avaliado (R$)', fmtMoney(sale.incoming_purchase_price))}</div>`
-          : ''}
+          ? `<div class="row">${field('Saúde da Bateria', sale.incoming_battery_health)}${field('Valor Avaliado (R$)', sale.incoming_purchase_price ? fmtMoney(sale.incoming_purchase_price) : '')}</div>`
+          : sale.incoming_purchase_price
+            ? `<div class="row">${field('Valor Avaliado (R$)', fmtMoney(sale.incoming_purchase_price))}</div>`
+            : ''}
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
-          ${checkbox('Novo (lacrado)', inCond.includes('novo'))}
-          ${checkbox('Seminovo — Excelente', inCond.includes('excelente'))}
-          ${checkbox('Bom estado', inCond.includes('bom'))}
-          ${checkbox('Com defeito', inCond.includes('defeito') || inCond.includes('usado'))}
+          ${checkbox('Novo (lacrado)', isNovo(inCond))}
+          ${checkbox('Seminovo', isSemi(inCond))}
+          ${checkbox('Bom estado', isBom(inCond))}
+          ${checkbox('Com defeito', isDefeito(inCond))}
         </div>
       </div>
     </div>`;
@@ -477,10 +488,10 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         </div>
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
-          ${checkbox('Novo (lacrado)', outCond.includes('novo'))}
-          ${checkbox('Seminovo — Excelente', outCond.includes('excelente'))}
-          ${checkbox('Bom estado', outCond.includes('bom'))}
-          ${checkbox('Usado', outCond.includes('usado'))}
+          ${checkbox('Novo (lacrado)', isNovo(outCond))}
+          ${checkbox('Seminovo', isSemi(outCond))}
+          ${checkbox('Bom estado', isBom(outCond))}
+          ${checkbox('Usado', isDefeito(outCond))}
         </div>
       </div>
     </div>`;

@@ -208,16 +208,16 @@ export const Vendas: React.FC = () => {
     }
   }, [newCustomer.phone, showNewCustomer]);
 
-  // When a product is selected from stock, pre-fill its details into the form
+  // When a product is selected from stock, pre-fill its details into the form.
+  // product_condition always comes from the stock record (strips battery note suffix).
   useEffect(() => {
     if (!form.selectedProduct || !selectedProductData) return;
     setForm((f) => ({
       ...f,
-      product_imei: f.product_imei || selectedProductData.imei || '',
-      product_capacity: f.product_capacity || selectedProductData.product_capacity || '',
-      product_color: f.product_color || selectedProductData.product_color || '',
-      product_condition: f.product_condition || selectedProductData.product_condition || 'Seminovo',
-      // Pre-fill sale price only if product has one defined (> 0) and user hasn't typed one yet
+      product_imei:     f.product_imei     || selectedProductData.imei              || '',
+      product_capacity: f.product_capacity || selectedProductData.product_capacity  || '',
+      product_color:    f.product_color    || selectedProductData.product_color     || '',
+      product_condition: (selectedProductData.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
       sale_price_manual: f.sale_price_manual || (selectedProductData.sale_price > 0 ? String(selectedProductData.sale_price) : ''),
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps

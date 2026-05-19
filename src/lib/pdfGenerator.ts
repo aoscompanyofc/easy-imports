@@ -330,6 +330,11 @@ ${body}
 export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   const date = fmtDate(sale.created_at);
   const cond  = (sale.product_condition || '').toLowerCase();
+  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
+  const isSemi    = (c: string) => c.includes('seminovo');
+  const isBom     = (c: string) => c.includes('bom') && !c.includes('seminovo');
+  const isUsado   = (c: string) => c.includes('usado') || (c.includes('defeito'));
+
 
   const body = `
 <div class="sec">
@@ -361,10 +366,10 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
     <div class="ck-row">
       <span class="ck-lbl">Estado:</span>
-      ${checkbox('Novo (lacrado)', cond.includes('novo'))}
-      ${checkbox('Seminovo — Excelente', cond.includes('excelente'))}
-      ${checkbox('Seminovo — Bom estado', cond.includes('bom'))}
-      ${checkbox('Usado', cond.includes('usado'))}
+      ${checkbox('Novo (lacrado)', isNovo(cond))}
+      ${checkbox('Seminovo', isSemi(cond))}
+      ${checkbox('Bom estado', isBom(cond))}
+      ${checkbox('Usado', isUsado(cond))}
     </div>
   </div>
 </div>
@@ -432,9 +437,9 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const outCond = (sale.product_condition   || '').toLowerCase();
 
   // Helpers para detectar estado sem falso-positivo de "seminovo" → "novo"
-  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ');
+  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
   const isSemi    = (c: string) => c.includes('seminovo');
-  const isBom     = (c: string) => c.includes('bom');
+  const isBom     = (c: string) => c.includes('bom') && !c.includes('seminovo');
   const isDefeito = (c: string) => c.includes('defeito') || (c.includes('usado') && !c.includes('bom'));
 
   // Aparelho entregue pelo cliente

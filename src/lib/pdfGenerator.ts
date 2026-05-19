@@ -474,6 +474,16 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       </div>
     </div>`;
 
+  // Valores financeiros
+  const tradeInCredit = sale.incoming_purchase_price || 0;
+  const totalValue    = sale.total_amount || 0;
+  // cash = quanto o cliente pagou em caixa (PIX/cartão), sem contar o aparelho da troca
+  const cashReceived  = Math.max(0, totalValue - tradeInCredit);
+  const isDirectSwap  = cashReceived === 0;
+
+  // Garantia do aparelho entregue pela Easy Imports depende da condição
+  const outWarrantyLabel = isNovo(outCond) ? 'Garantia do Fabricante (1 ano)' : '90 dias por lei — CDC';
+
   // Aparelho entregue pela Easy Imports ao cliente
   const outgoingBlock = `
     <div class="split-box">
@@ -489,7 +499,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         </div>
         <div class="row">
           ${field('Acessórios Inclusos', sale.product_accessories, 'f3')}
-          ${field('Garantia', '90 dias — CDC')}
+          ${field('Garantia', outWarrantyLabel)}
         </div>
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
@@ -500,6 +510,18 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         </div>
       </div>
     </div>`;
+
+  // Texto e bloco de garantia (depende se novo ou não)
+  const outWarrantyText = isNovo(outCond)
+    ? `O aparelho entregue pela Easy Imports é <strong>Novo (lacrado)</strong> e coberto pela
+       <strong>Garantia Oficial do Fabricante</strong>. Em caso de defeito acione diretamente a
+       assistência técnica autorizada. A Easy Imports não fornece garantia adicional para
+       aparelhos novos lacrados.`
+    : `O aparelho entregue possui garantia de <strong>90 (noventa) dias</strong> para defeitos
+       técnicos de funcionamento, conforme art. 26 do CDC. Válida apenas para defeitos internos.
+       Procure a Easy Imports antes de qualquer intervenção de terceiros.`;
+
+  const outWarrantyBlock = isNovo(outCond) ? warrantyBlockNovo() : warrantyBlock();
 
   const body = `
 <div class="sec">
@@ -529,13 +551,16 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-b">
     <div class="fin-cb-row" style="margin-bottom:8px;">
       <span class="ck-lbl">Diferença paga por:</span>
-      ${checkbox('Cliente pagou diferença')}
-      ${checkbox('Easy Imports pagou diferença')}
-      ${checkbox('Troca direta (sem diferença)')}
+      ${checkbox('Cliente pagou diferença', !isDirectSwap)}
+      ${checkbox('Troca direta (sem diferença)', isDirectSwap)}
     </div>
     <div class="row">
-      ${field('Valor Recebido em Caixa (R$)', sale.total_amount && sale.total_amount > 0 ? fmtMoney(sale.total_amount) : 'Troca direta', 'f2')}
-      ${field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, sale.total_amount), 'f3')}
+      ${field('Valor do Aparelho (Easy Imports)', fmtMoney(totalValue), 'f2')}
+      ${field('Crédito pelo Aparelho Entregue', tradeInCredit > 0 ? fmtMoney(tradeInCredit) : '—', 'f2')}
+      ${field('Pago em Caixa (PIX / Cartão)', isDirectSwap ? 'Troca direta' : fmtMoney(cashReceived), 'f2')}
+    </div>
+    <div class="row">
+      ${!isDirectSwap ? field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, cashReceived), 'f3') : ''}
       ${field('Data da Troca', date)}
     </div>
   </div>
@@ -548,11 +573,10 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       <div class="g-txt">
         O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
         A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
-        peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados do aparelho entregue.<br><br>
-        O aparelho recebido da Easy Imports possui garantia de <strong>90 (noventa) dias por lei</strong>,
-        conforme art. 26 do Código de Defesa do Consumidor.
+        peças trocadas anteriormente, defeitos ocultos não informados, nem por perda de dados.<br><br>
+        ${outWarrantyText}
       </div>
-      ${warrantyBlock()}
+      ${outWarrantyBlock}
     </div>
   </div>
 </div>

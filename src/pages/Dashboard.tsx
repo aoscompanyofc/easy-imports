@@ -196,20 +196,24 @@ export const Dashboard: React.FC = () => {
       const d = new Date(s.created_at);
       return d >= start && d < end;
     });
-    const filteredTx = allTransactions.filter(t => {
-      if (!t.date) return false;
-      const d = new Date(t.date + 'T00:00:00');
-      return d >= start && d < end;
-    });
-    const rev      = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
-    const count    = filtered.length;
-    const txIncome  = filteredTx.filter(t => t.type === 'income').reduce((acc, t) => acc + Number(t.amount || 0), 0);
-    const txExpense = filteredTx.filter(t => t.type === 'expense').reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const rev   = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const count = filtered.length;
+
+    // Cost map: sale id prefix → purchase cost (from auto-created expense transactions)
+    const costMap: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Mercadoria #')) {
+        const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+        costMap[prefix] = (costMap[prefix] || 0) + Number(t.amount || 0);
+      }
+    }
+    const totalCost = filtered.reduce((acc, s) => acc + (costMap[s.id?.slice(0, 8)] || 0), 0);
+
     return {
       filteredSales: filtered,
       revenue:       rev,
       salesCount:    count,
-      netProfit:     txIncome - txExpense,
+      netProfit:     rev - totalCost,
       chartData:     buildChartDataForRange(filtered, start, end),
       channelData:   buildChannelData(filtered),
       topProducts:   buildTopProducts(filtered),

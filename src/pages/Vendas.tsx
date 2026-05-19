@@ -104,6 +104,7 @@ const emptyForm = () => ({
   incoming_capacity: '',
   incoming_color: '',
   incoming_condition: 'Seminovo',
+  incoming_battery_health: '',
   incoming_purchase_price: '',
   incoming_sale_price: '',
   // Pagamento
@@ -287,8 +288,15 @@ export const Vendas: React.FC = () => {
           product_capacity: form.product_capacity,
           product_color: form.product_color,
           product_condition: form.product_condition,
-          product_imei: form.product_imei,
+          product_imei: form.product_imei || selectedProductData?.imei || '',
           product_accessories: form.product_accessories,
+          incoming_name: form.incoming_name || '',
+          incoming_imei: form.incoming_imei || '',
+          incoming_capacity: form.incoming_capacity || '',
+          incoming_color: form.incoming_color || '',
+          incoming_condition: form.incoming_condition || '',
+          incoming_battery_health: form.incoming_battery_health || '',
+          incoming_purchase_price: Number(form.incoming_purchase_price) || 0,
         },
         product
           ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
@@ -297,17 +305,18 @@ export const Vendas: React.FC = () => {
 
       // For troca: add incoming device to stock
       if (form.sale_type === 'troca' && form.incoming_name.trim()) {
+        const batteryNote = form.incoming_battery_health ? ` · Bateria: ${form.incoming_battery_health}` : '';
         await dataService.addProduct({
           name: form.incoming_name.trim(),
           category: form.incoming_category || 'Smartphones',
           purchase_price: Number(form.incoming_purchase_price) || 0,
-          sale_price: 0,
+          sale_price: Number(form.incoming_sale_price) || 0,
           stock_quantity: 1,
           status: 'available',
           imei: form.incoming_imei || '',
           product_capacity: form.incoming_capacity || '',
           product_color: form.incoming_color || '',
-          product_condition: form.incoming_condition || 'Seminovo',
+          product_condition: (form.incoming_condition || 'Seminovo') + batteryNote,
         });
       }
 
@@ -330,11 +339,19 @@ export const Vendas: React.FC = () => {
         product_capacity: form.product_capacity,
         product_color: form.product_color,
         product_condition: form.product_condition,
-        product_imei: form.product_imei,
+        product_imei: form.product_imei || selectedProductData?.imei || '',
         product_accessories: form.product_accessories,
         total_amount: totalAmount,
         payment_method: form.payment_method,
         installments: form.installments,
+        // Aparelho entrante (troca)
+        incoming_name: form.incoming_name || undefined,
+        incoming_imei: form.incoming_imei || undefined,
+        incoming_capacity: form.incoming_capacity || undefined,
+        incoming_color: form.incoming_color || undefined,
+        incoming_condition: form.incoming_condition || undefined,
+        incoming_battery_health: form.incoming_battery_health || undefined,
+        incoming_purchase_price: Number(form.incoming_purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
       };
       generatePDF(pdfData, getCompanyInfo());
@@ -453,6 +470,13 @@ export const Vendas: React.FC = () => {
       total_amount: Number(sale.total_amount),
       payment_method: sale.payment_method,
       installments: sale.installments || 1,
+      incoming_name: sale.incoming_name || undefined,
+      incoming_imei: sale.incoming_imei || undefined,
+      incoming_capacity: sale.incoming_capacity || undefined,
+      incoming_color: sale.incoming_color || undefined,
+      incoming_condition: sale.incoming_condition || undefined,
+      incoming_battery_health: sale.incoming_battery_health || undefined,
+      incoming_purchase_price: sale.incoming_purchase_price || undefined,
       signature_admin: adminSignature || undefined,
       signature_client: sale.signature_client || undefined,
     };
@@ -869,7 +893,7 @@ export const Vendas: React.FC = () => {
                   <option value="">Selecione do estoque ou preencha manualmente...</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} — {formatCurrency(p.sale_price)} ({p.stock_quantity} un.)
+                      {p.name}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
                     </option>
                   ))}
                 </select>
@@ -933,6 +957,19 @@ export const Vendas: React.FC = () => {
                     onChange={setF('incoming_condition')}
                   >
                     {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
+                  <select
+                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                    value={form.incoming_battery_health}
+                    onChange={setF('incoming_battery_health')}
+                  >
+                    <option value="">Não verificado</option>
+                    {['100%','99%','98%','97%','96%','95%','94%','93%','92%','91%','90%','89%','88%','87%','86%','85%','84%','83%','82%','81%','80%','Abaixo de 80%'].map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
                   </select>
                 </div>
                 <Input

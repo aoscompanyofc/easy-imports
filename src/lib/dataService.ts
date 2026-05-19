@@ -118,6 +118,8 @@ export const dataService = {
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
+      incoming_name, incoming_imei, incoming_capacity, incoming_color, incoming_condition,
+      incoming_battery_health, incoming_purchase_price,
     } = sale;
     const sign_token = crypto.randomUUID();
     const fullPayload = {
@@ -126,6 +128,8 @@ export const dataService = {
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
+      incoming_name, incoming_imei, incoming_capacity, incoming_color, incoming_condition,
+      incoming_battery_health, incoming_purchase_price,
       user_id: uid,
     };
     const isColumnError = (e: any) =>

@@ -19,6 +19,7 @@ export interface SalePDFData {
   customer_phone?: string;
   customer_cpf?: string;
   customer_city?: string;
+  // Aparelho que SAI (da Easy Imports para o cliente)
   product_name?: string;
   product_capacity?: string;
   product_color?: string;
@@ -28,6 +29,14 @@ export interface SalePDFData {
   total_amount?: number;
   payment_method?: string;
   installments?: number;
+  // Aparelho que ENTRA (do cliente — troca)
+  incoming_name?: string;
+  incoming_imei?: string;
+  incoming_capacity?: string;
+  incoming_color?: string;
+  incoming_condition?: string;
+  incoming_battery_health?: string;
+  incoming_purchase_price?: number;
   signature_admin?: string;
   signature_client?: string;
 }
@@ -411,11 +420,70 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
 
 // ─── TERMO DE TROCA ───────────────────────────────────────────────────────────
 export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
-  const date       = fmtDate(sale.created_at);
-  const clientName = sale.customer_name || sale.seller_name || '';
-  const clientCpf  = sale.customer_cpf  || sale.seller_cpf  || '';
+  const date        = fmtDate(sale.created_at);
+  const clientName  = sale.customer_name  || sale.seller_name  || '';
+  const clientCpf   = sale.customer_cpf   || sale.seller_cpf   || '';
   const clientPhone = sale.customer_phone || sale.seller_phone || '';
-  const clientCity = sale.customer_city || '';
+  const clientCity  = sale.customer_city  || '';
+
+  const inCond  = (sale.incoming_condition  || '').toLowerCase();
+  const outCond = (sale.product_condition   || '').toLowerCase();
+
+  // Aparelho entregue pelo cliente
+  const incomingBlock = `
+    <div class="split-box">
+      <div class="split-t">Aparelho Entregue pelo Cliente</div>
+      <div class="split-b">
+        <div class="row">
+          ${field('Modelo', sale.incoming_name, 'f3')}
+          ${field('Cor', sale.incoming_color)}
+        </div>
+        <div class="row">
+          ${field('Capacidade', sale.incoming_capacity)}
+          ${field('IMEI / Serial', sale.incoming_imei, 'f2')}
+        </div>
+        ${sale.incoming_battery_health
+          ? `<div class="row">${field('Saúde da Bateria', sale.incoming_battery_health)}</div>`
+          : ''}
+        ${sale.incoming_purchase_price
+          ? `<div class="row">${field('Valor Avaliado (R$)', fmtMoney(sale.incoming_purchase_price))}</div>`
+          : ''}
+        <div class="ck-row">
+          <span class="ck-lbl">Estado:</span>
+          ${checkbox('Novo (lacrado)', inCond.includes('novo'))}
+          ${checkbox('Seminovo — Excelente', inCond.includes('excelente'))}
+          ${checkbox('Bom estado', inCond.includes('bom'))}
+          ${checkbox('Com defeito', inCond.includes('defeito') || inCond.includes('usado'))}
+        </div>
+      </div>
+    </div>`;
+
+  // Aparelho entregue pela Easy Imports ao cliente
+  const outgoingBlock = `
+    <div class="split-box">
+      <div class="split-t">Aparelho Recebido da Easy Imports</div>
+      <div class="split-b">
+        <div class="row">
+          ${field('Modelo', sale.product_name, 'f3')}
+          ${field('Cor', sale.product_color)}
+        </div>
+        <div class="row">
+          ${field('Capacidade', sale.product_capacity)}
+          ${field('IMEI / Serial', sale.product_imei, 'f2')}
+        </div>
+        <div class="row">
+          ${field('Acessórios Inclusos', sale.product_accessories, 'f3')}
+          ${field('Garantia', '90 dias — CDC')}
+        </div>
+        <div class="ck-row">
+          <span class="ck-lbl">Estado:</span>
+          ${checkbox('Novo (lacrado)', outCond.includes('novo'))}
+          ${checkbox('Seminovo — Excelente', outCond.includes('excelente'))}
+          ${checkbox('Bom estado', outCond.includes('bom'))}
+          ${checkbox('Usado', outCond.includes('usado'))}
+        </div>
+      </div>
+    </div>`;
 
   const body = `
 <div class="sec">
@@ -427,57 +495,16 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${field('Telefone / WhatsApp', clientPhone, 'f2')}
     </div>
     <div class="row">
-      ${field('Endereço', clientCity, 'f4')}
-      ${field('Cidade / Estado', undefined, 'f2')}
+      ${field('Endereço', clientCity, 'f6')}
     </div>
   </div>
 </div>
 
 <div class="sec">
+  <div class="sec-t">Aparelhos Envolvidos na Troca</div>
   <div class="split">
-    <div class="split-box">
-      <div class="split-t">Aparelho Entregue pelo Cliente</div>
-      <div class="split-b">
-        <div class="row">
-          ${field('Modelo', undefined, 'f2')}
-          ${field('Cor')}
-        </div>
-        <div class="row">
-          ${field('Capacidade')}
-          ${field('IMEI / Serial', undefined, 'f2')}
-        </div>
-        <div class="row">${field('Observações / Defeitos Declarados')}</div>
-        <div class="ck-row">
-          <span class="ck-lbl">Estado:</span>
-          ${checkbox('Excelente')}
-          ${checkbox('Bom estado')}
-          ${checkbox('Com defeito')}
-        </div>
-      </div>
-    </div>
-    <div class="split-box">
-      <div class="split-t">Aparelho Recebido da Easy Imports</div>
-      <div class="split-b">
-        <div class="row">
-          ${field('Modelo', sale.product_name, 'f2')}
-          ${field('Cor', sale.product_color)}
-        </div>
-        <div class="row">
-          ${field('Capacidade', sale.product_capacity)}
-          ${field('IMEI / Serial', sale.product_imei, 'f2')}
-        </div>
-        <div class="row">
-          ${field('Garantia', '90 dias por lei (CDC)')}
-          ${field('Acessórios Inclusos', sale.product_accessories)}
-        </div>
-        <div class="ck-row">
-          <span class="ck-lbl">Estado:</span>
-          ${checkbox('Novo (lacrado)')}
-          ${checkbox('Seminovo — Excelente')}
-          ${checkbox('Bom estado')}
-        </div>
-      </div>
-    </div>
+    ${incomingBlock}
+    ${outgoingBlock}
   </div>
 </div>
 
@@ -491,7 +518,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       ${checkbox('Troca direta (sem diferença)')}
     </div>
     <div class="row">
-      ${field('Valor da Diferença (R$)', sale.total_amount && sale.total_amount > 0 ? fmtMoney(sale.total_amount) : undefined, 'f2')}
+      ${field('Valor Recebido em Caixa (R$)', sale.total_amount && sale.total_amount > 0 ? fmtMoney(sale.total_amount) : 'Troca direta', 'f2')}
       ${field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, sale.total_amount), 'f3')}
       ${field('Data da Troca', date)}
     </div>
@@ -506,7 +533,8 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         O cliente declara que o aparelho entregue está nas condições aqui descritas, sem omissão de defeitos.<br><br>
         A <strong>Easy Imports não se responsabiliza</strong> por bloqueios futuros (iCloud/Google),
         peças substituídas anteriormente, defeitos ocultos não informados, nem por perda de dados do aparelho entregue.<br><br>
-        O aparelho recebido possui garantia de <strong>90 (noventa) dias por lei</strong>, conforme art. 26 do CDC.
+        O aparelho recebido da Easy Imports possui garantia de <strong>90 (noventa) dias por lei</strong>,
+        conforme art. 26 do Código de Defesa do Consumidor.
       </div>
       ${warrantyBlock()}
     </div>

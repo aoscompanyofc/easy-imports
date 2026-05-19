@@ -105,7 +105,7 @@ export const dataService = {
   async getSales() {
     if (useMock) return mockDataService.getSales();
     const { data, error } = await supabase
-      .from('sales').select('*, customers(name)').order('created_at', { ascending: false });
+      .from('sales').select('*, customers(name, city)').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -116,41 +116,63 @@ export const dataService = {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
       sale_number, sale_type, installments,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
-      customer_phone, customer_cpf,
+      customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
       incoming_capacity, incoming_color, incoming_condition,
       incoming_battery_health, incoming_purchase_price,
     } = sale;
     const sign_token = crypto.randomUUID();
+
+    const isColumnError = (e: any) =>
+      e?.code === '42703' ||
+      e?.message?.includes('schema cache') ||
+      e?.message?.includes('Could not find');
+
+    // Nível 1: schema completo com incoming_* e customer_city
     const fullPayload = {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
       sale_number, sale_type, installments: installments || 1, sign_token,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
-      customer_phone, customer_cpf,
+      customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
       incoming_capacity, incoming_color, incoming_condition,
       incoming_battery_health, incoming_purchase_price,
       user_id: uid,
     };
-    const isColumnError = (e: any) =>
-      e?.code === '42703' ||
-      e?.message?.includes('schema cache') ||
-      e?.message?.includes('Could not find');
+
+    // Nível 2: sem incoming_* (bancos sem essas colunas — preserva todos os outros campos)
+    const payloadWithoutIncoming = {
+      customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
+      sale_number, sale_type, installments: installments || 1, sign_token,
+      seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
+      customer_phone, customer_cpf, customer_city,
+      product_capacity, product_color, product_condition, product_imei, product_accessories,
+      user_id: uid,
+    };
 
     let saleData: any[], saleError: any;
     try {
+      // Nível 1: tudo (schema completo com incoming_*)
       const res = await supabase.from('sales').insert([fullPayload]).select();
       saleData = res.data || [];
       saleError = res.error;
+
       if (isColumnError(saleError)) {
-        // Fallback to basic schema if extra columns don't exist yet
-        const res2 = await supabase.from('sales')
-          .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
-          .select();
+        // Nível 2: sem incoming_* (schema intermediário — mantém todos os outros campos)
+        const res2 = await supabase.from('sales').insert([payloadWithoutIncoming]).select();
         saleData = res2.data || [];
         saleError = res2.error;
+      }
+
+      if (isColumnError(saleError)) {
+        // Nível 3: mínimo absoluto
+        const res3 = await supabase.from('sales')
+          .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
+          .select();
+        saleData = res3.data || [];
+        saleError = res3.error;
       }
     } catch (e) {
       throw e;

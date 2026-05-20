@@ -791,7 +791,7 @@ export const Vendas: React.FC = () => {
                       const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';
                       const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
-                      const saleProfit = saleCost !== null ? Number(sale.total_amount) - saleCost : null;
+                      const saleProfit = type === 'troca' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
 
                       return (
                         <div key={sale.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-neutral-50 transition-colors">

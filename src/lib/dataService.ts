@@ -238,14 +238,22 @@ export const dataService = {
     if (!e3) return true;
     if (!isColErr(e3)) throw e3;
 
-    // Nível 4: mínimo absoluto — garante que pelo menos valor/pagamento/data sejam salvos
+    // Nível 4: mínimo absoluto — só colunas garantidas no schema base
     const minimal: Record<string, any> = {};
-    for (const k of ['customer_name','product_name','total_amount','payment_method','installments','created_at']) {
+    for (const k of ['customer_name','product_name','total_amount','payment_method','created_at']) {
       if (updates[k] !== undefined) minimal[k] = updates[k];
     }
     const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);
     if (e4) throw e4;
     return true;
+  },
+
+  async tryUpdateSaleRevision(id: string, revision: number) {
+    if (useMock) return;
+    const uid = await getUid();
+    const { error } = await supabase.from('sales').update({ revision }).eq('id', id).eq('user_id', uid);
+    // Silently ignore column-missing errors — column needs migration
+    if (error && !isColErr(error)) throw error;
   },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);

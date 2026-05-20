@@ -71,7 +71,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_color TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_condition TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_battery_health TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC DEFAULT 0;
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';`;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
 
 function toWhatsAppNumber(phone: string) {
   const d = phone.replace(/\D/g, '');
@@ -516,7 +517,10 @@ export const Vendas: React.FC = () => {
         updates.incoming_purchase_price = Number(editForm.incoming_purchase_price) || 0;
       }
       await dataService.updateSale(editSale.id, updates);
-      toast.success('Venda atualizada! O próximo PDF já reflete as mudanças.');
+      const nextRev = (editSale.revision || 0) + 1;
+      await dataService.tryUpdateSaleRevision(editSale.id, nextRev);
+      const baseNum = editSale.sale_number || '';
+      toast.success(`Venda atualizada! PDF versão ${baseNum}.${nextRev}`);
       setEditSale(null);
       fetchData();
     } catch (error: any) {
@@ -563,8 +567,10 @@ export const Vendas: React.FC = () => {
   };
 
   const handleGeneratePDF = (sale: any) => {
+    const baseNum = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
+    const displayNum = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
     const pdfData: SalePDFData = {
-      sale_number: sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`,
+      sale_number: displayNum,
       sale_type: sale.sale_type || 'venda',
       created_at: sale.created_at,
       seller_name: sale.seller_name || sale.customer_name,
@@ -765,7 +771,8 @@ export const Vendas: React.FC = () => {
                   <div className="border-t border-neutral-100 divide-y divide-neutral-100">
                     {monthSales.map((sale) => {
                       const type = sale.sale_type || 'venda';
-                      const num = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
+                      const baseNum = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
+                      const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';
                       const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
                       const saleProfit = saleCost !== null ? Number(sale.total_amount) - saleCost : null;

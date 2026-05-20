@@ -957,6 +957,11 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
           </div>
         )}
       </Modal>
+
+      {/* Footer / Credits */}
+      <div className="text-center pt-8 pb-4 text-neutral-400 text-sm font-medium">
+        Feito pela <span className="font-bold text-neutral-500">AOS Company</span>
+      </div>
     </div>
   );
 };

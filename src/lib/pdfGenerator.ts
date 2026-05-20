@@ -41,6 +41,9 @@ export interface SalePDFData {
   incoming_purchase_price?: number;
   signature_admin?: string;
   signature_client?: string;
+  // 'novo' = garantia do fabricante (1 ano) | 'seminovo' = 90 dias Easy Imports
+  // Quando informado, sobrepõe a detecção automática pela condição do aparelho
+  pdf_type?: string;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -389,7 +392,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-t">Termo de Garantia</div>
   <div class="sec-b">
     <div class="g-wrap">
-      ${cond.includes('novo') ? `
+      ${(sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(cond))) ? `
       <div class="g-txt">
         Este aparelho é <strong>Novo (lacrado)</strong> e está coberto pela
         <strong>Garantia Oficial do Fabricante</strong>. Consulte a embalagem ou o site
@@ -481,8 +484,9 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const cashReceived  = Math.max(0, totalValue - tradeInCredit);
   const isDirectSwap  = cashReceived === 0;
 
-  // Garantia do aparelho entregue pela Easy Imports depende da condição
-  const outWarrantyLabel = isNovo(outCond) ? 'Garantia do Fabricante (1 ano)' : '90 dias por lei — CDC';
+  // Garantia do aparelho entregue pela Easy Imports: usa pdf_type explícito se informado
+  const useNewWarranty = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
+  const outWarrantyLabel = useNewWarranty ? 'Garantia do Fabricante (1 ano)' : '90 dias por lei — CDC';
 
   // Aparelho entregue pela Easy Imports ao cliente
   const outgoingBlock = `
@@ -512,7 +516,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>`;
 
   // Texto e bloco de garantia (depende se novo ou não)
-  const outWarrantyText = isNovo(outCond)
+  const outWarrantyText = useNewWarranty
     ? `O aparelho entregue pela Easy Imports é <strong>Novo (lacrado)</strong> e coberto pela
        <strong>Garantia Oficial do Fabricante</strong>. Em caso de defeito acione diretamente a
        assistência técnica autorizada. A Easy Imports não fornece garantia adicional para
@@ -521,7 +525,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
        técnicos de funcionamento, conforme art. 26 do CDC. Válida apenas para defeitos internos.
        Procure a Easy Imports antes de qualquer intervenção de terceiros.`;
 
-  const outWarrantyBlock = isNovo(outCond) ? warrantyBlockNovo() : warrantyBlock();
+  const outWarrantyBlock = useNewWarranty ? warrantyBlockNovo() : warrantyBlock();
 
   const body = `
 <div class="sec">

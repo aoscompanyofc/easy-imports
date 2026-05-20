@@ -70,7 +70,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_capacity TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_color TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_condition TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_battery_health TEXT;
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC DEFAULT 0;`;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';`;
 
 function toWhatsAppNumber(phone: string) {
   const d = phone.replace(/\D/g, '');
@@ -126,6 +127,8 @@ const emptyForm = () => ({
   sale_date: new Date().toISOString().slice(0, 16),
   // WhatsApp para envio automático do link de assinatura
   whatsapp_number: '',
+  // Tipo de garantia no PDF: 'novo' = fabricante 1 ano | 'seminovo' = 90 dias Easy Imports
+  pdf_type: 'seminovo',
 });
 
 export const Vendas: React.FC = () => {
@@ -223,12 +226,16 @@ export const Vendas: React.FC = () => {
   // product_condition always comes from the stock record (strips battery note suffix).
   useEffect(() => {
     if (!form.selectedProduct || !selectedProductData) return;
+    const rawCond = (selectedProductData.product_condition || 'Seminovo').replace(/ · Bateria:.*/, '');
+    const condLower = rawCond.toLowerCase();
+    const condIsNovo = condLower === 'novo' || condLower.startsWith('novo ') || condLower.startsWith('novo(');
     setForm((f) => ({
       ...f,
       product_imei:     f.product_imei     || selectedProductData.imei              || '',
       product_capacity: f.product_capacity || selectedProductData.product_capacity  || '',
       product_color:    f.product_color    || selectedProductData.product_color     || '',
-      product_condition: (selectedProductData.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
+      product_condition: rawCond,
+      pdf_type: condIsNovo ? 'novo' : 'seminovo',
       sale_price_manual: f.sale_price_manual || (selectedProductData.sale_price > 0 ? String(selectedProductData.sale_price) : ''),
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -311,6 +318,7 @@ export const Vendas: React.FC = () => {
           incoming_condition: form.incoming_condition || '',
           incoming_battery_health: form.incoming_battery_health || '',
           incoming_purchase_price: Number(form.incoming_purchase_price) || 0,
+          pdf_type: form.pdf_type || 'seminovo',
         },
         product
           ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
@@ -369,6 +377,7 @@ export const Vendas: React.FC = () => {
         incoming_battery_health: form.incoming_battery_health || undefined,
         incoming_purchase_price: Number(form.incoming_purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
+        pdf_type: form.pdf_type || 'seminovo',
       };
       generatePDF(pdfData, getCompanyInfo());
 
@@ -497,6 +506,7 @@ export const Vendas: React.FC = () => {
       incoming_purchase_price: sale.incoming_purchase_price || undefined,
       signature_admin: adminSignature || undefined,
       signature_client: sale.signature_client || undefined,
+      pdf_type: sale.pdf_type || undefined,
     };
     generatePDF(pdfData, getCompanyInfo());
   };
@@ -935,7 +945,12 @@ export const Vendas: React.FC = () => {
                 <select
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                   value={form.product_condition}
-                  onChange={setF('product_condition')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const cLower = val.toLowerCase();
+                    const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
+                    setForm((f) => ({ ...f, product_condition: val, pdf_type: condIsNovo ? 'novo' : 'seminovo' }));
+                  }}
                 >
                   {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -946,6 +961,81 @@ export const Vendas: React.FC = () => {
                 <Input label="Acessórios Inclusos" placeholder="Cabo, carregador, caixa original..." value={form.product_accessories} onChange={setF('product_accessories')} autoComplete="off" />
               </div>
             </div>
+          </div>
+
+          {/* ─── Tipo de Garantia no PDF ─── */}
+          <div className="border-2 border-primary/20 bg-primary/5 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+              <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Tipo de Garantia no PDF</p>
+              <span className="text-xs text-neutral-400 font-normal normal-case">— será impresso no contrato</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className={cn(
+                'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
+                form.pdf_type === 'novo'
+                  ? 'border-amber-400 bg-amber-50 shadow-sm'
+                  : 'border-neutral-200 bg-white hover:border-amber-300'
+              )}>
+                <input type="radio" name="pdf_type" value="novo"
+                  checked={form.pdf_type === 'novo'}
+                  onChange={() => setForm((f) => ({ ...f, pdf_type: 'novo' }))}
+                  className="hidden" />
+                <div className="flex items-center gap-2.5">
+                  <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                    form.pdf_type === 'novo' ? 'border-amber-500' : 'border-neutral-300')}>
+                    {form.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                  </div>
+                  <span className="font-bold text-sm text-neutral-900">Aparelho Novo (Lacrado)</span>
+                </div>
+                <p className="text-xs text-neutral-500 pl-6.5">Garantia do Fabricante · 12 meses (Apple)</p>
+                <p className="text-[10px] text-amber-600 font-semibold pl-6.5">→ PDF imprime: Garantia Oficial do Fabricante</p>
+              </label>
+
+              <label className={cn(
+                'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
+                form.pdf_type === 'seminovo'
+                  ? 'border-blue-400 bg-blue-50 shadow-sm'
+                  : 'border-neutral-200 bg-white hover:border-blue-300'
+              )}>
+                <input type="radio" name="pdf_type" value="seminovo"
+                  checked={form.pdf_type === 'seminovo'}
+                  onChange={() => setForm((f) => ({ ...f, pdf_type: 'seminovo' }))}
+                  className="hidden" />
+                <div className="flex items-center gap-2.5">
+                  <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                    form.pdf_type === 'seminovo' ? 'border-blue-500' : 'border-neutral-300')}>
+                    {form.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                  </div>
+                  <span className="font-bold text-sm text-neutral-900">Seminovo / Usado</span>
+                </div>
+                <p className="text-xs text-neutral-500 pl-6.5">Garantia Easy Imports · 90 dias (CDC art. 26)</p>
+                <p className="text-[10px] text-blue-600 font-semibold pl-6.5">→ PDF imprime: Garantia Easy Imports 90 dias</p>
+              </label>
+            </div>
+
+            {/* Aviso de inconsistência entre condição e tipo de garantia */}
+            {(() => {
+              const cLower = (form.product_condition || '').toLowerCase();
+              const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
+              if (condIsNovo && form.pdf_type !== 'novo') return (
+                <p className="mt-3 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                  ⚠️ O estado selecionado é "Novo" mas a garantia do PDF está como Seminovo — verifique se está correto!
+                </p>
+              );
+              if (!condIsNovo && form.pdf_type === 'novo') return (
+                <p className="mt-3 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                  ⚠️ O estado selecionado é Seminovo/Usado mas a garantia do PDF está como Novo — verifique se está correto!
+                </p>
+              );
+              return (
+                <p className="mt-2 text-xs text-neutral-400 font-medium">
+                  {form.pdf_type === 'novo'
+                    ? '✅ Aparelho Novo selecionado — PDF com Garantia do Fabricante (12 meses)'
+                    : '✅ Seminovo/Usado selecionado — PDF com Garantia Easy Imports (90 dias)'}
+                </p>
+              );
+            })()}
           </div>
 
           {/* Aparelho Entrando (troca) */}

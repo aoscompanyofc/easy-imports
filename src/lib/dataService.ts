@@ -214,18 +214,38 @@ export const dataService = {
   async updateSale(id: string, updates: Record<string, any>) {
     if (useMock) throw new Error('Mock não suporta updateSale');
     const uid = await getUid();
-    // Tenta atualizar com todos os campos — se falhar por coluna inexistente, remove os incoming_* e tenta novamente
-    const { error } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
-    if (!error) return true;
-    if (isColErr(error)) {
-      const safe = Object.fromEntries(
-        Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type')
-      );
-      const { error: e2 } = await supabase.from('sales').update(safe).eq('id', id).eq('user_id', uid);
-      if (e2) throw e2;
-      return true;
+
+    // Nível 1: schema completo
+    const { error: e1 } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
+    if (!e1) return true;
+    if (!isColErr(e1)) throw e1;
+
+    // Nível 2: sem incoming_* e pdf_type
+    const lvl2 = Object.fromEntries(
+      Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type')
+    );
+    const { error: e2 } = await supabase.from('sales').update(lvl2).eq('id', id).eq('user_id', uid);
+    if (!e2) return true;
+    if (!isColErr(e2)) throw e2;
+
+    // Nível 3: sem colunas extras (customer_cpf, customer_city, product_condition, etc.)
+    const EXTRA_COLS = ['customer_cpf','customer_city','customer_phone','product_condition',
+      'product_imei','product_accessories','product_capacity','product_color'];
+    const lvl3 = Object.fromEntries(
+      Object.entries(lvl2).filter(([k]) => !EXTRA_COLS.includes(k))
+    );
+    const { error: e3 } = await supabase.from('sales').update(lvl3).eq('id', id).eq('user_id', uid);
+    if (!e3) return true;
+    if (!isColErr(e3)) throw e3;
+
+    // Nível 4: mínimo absoluto — garante que pelo menos valor/pagamento/data sejam salvos
+    const minimal: Record<string, any> = {};
+    for (const k of ['customer_name','product_name','total_amount','payment_method','installments','created_at']) {
+      if (updates[k] !== undefined) minimal[k] = updates[k];
     }
-    throw error;
+    const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);
+    if (e4) throw e4;
+    return true;
   },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);

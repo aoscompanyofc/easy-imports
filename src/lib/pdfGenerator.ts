@@ -386,9 +386,9 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-t">Dados da Venda</div>
   <div class="sec-b">
     <div class="row">
-      ${field('Valor Total (R$)', fmtMoney(sale.total_amount), 'f2')}
+      ${field('Valor Pago pelo Cliente', fmtMoney(sale.total_amount), 'f2')}
       ${field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, sale.total_amount), 'f3')}
-      ${field('Data da Compra', date)}
+      ${field('Data', date)}
     </div>
   </div>
 </div>
@@ -468,10 +468,8 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
           ${field('E-mail da Conta', sale.incoming_email, 'f2')}
         </div>
         ${sale.incoming_battery_health
-          ? `<div class="row">${field('Saúde da Bateria', sale.incoming_battery_health)}${field('Valor Avaliado (R$)', sale.incoming_purchase_price ? fmtMoney(sale.incoming_purchase_price) : '')}</div>`
-          : sale.incoming_purchase_price
-            ? `<div class="row">${field('Valor Avaliado (R$)', fmtMoney(sale.incoming_purchase_price))}</div>`
-            : ''}
+          ? `<div class="row">${field('Saúde da Bateria', sale.incoming_battery_health)}</div>`
+          : ''}
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
           ${checkbox('Novo (lacrado)', isNovo(inCond))}
@@ -496,7 +494,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   // Aparelho entregue pela Easy Imports ao cliente
   const outgoingBlock = `
     <div class="split-box">
-      <div class="split-t">Aparelho Recebido da Easy Imports</div>
+      <div class="split-t">Aparelho Entregue pela Easy Imports</div>
       <div class="split-b">
         <div class="row">
           ${field('Modelo', sale.product_name, 'f3')}
@@ -556,21 +554,12 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
 </div>
 
 <div class="sec">
-  <div class="sec-t">Acerto Financeiro</div>
+  <div class="sec-t">Condições de Pagamento</div>
   <div class="sec-b">
-    <div class="fin-cb-row" style="margin-bottom:8px;">
-      <span class="ck-lbl">Diferença paga por:</span>
-      ${checkbox('Cliente pagou diferença', !isDirectSwap)}
-      ${checkbox('Troca direta (sem diferença)', isDirectSwap)}
-    </div>
     <div class="row">
-      ${field('Valor do Aparelho (Easy Imports)', fmtMoney(totalValue), 'f2')}
-      ${field('Crédito pelo Aparelho Entregue', tradeInCredit > 0 ? fmtMoney(tradeInCredit) : '—', 'f2')}
-      ${field('Pago em Caixa (PIX / Cartão)', isDirectSwap ? 'Troca direta' : fmtMoney(cashReceived), 'f2')}
-    </div>
-    <div class="row">
-      ${!isDirectSwap ? field('Forma de Pagamento', fmtPayment(sale.payment_method, sale.installments, cashReceived), 'f3') : ''}
-      ${field('Data da Troca', date)}
+      ${field('Valor Pago pelo Cliente', isDirectSwap ? 'Troca direta (sem pagamento)' : fmtMoney(cashReceived), 'f2')}
+      ${field('Forma de Pagamento', isDirectSwap ? 'Troca direta' : fmtPayment(sale.payment_method, sale.installments, cashReceived), 'f3')}
+      ${field('Data', date)}
     </div>
   </div>
 </div>

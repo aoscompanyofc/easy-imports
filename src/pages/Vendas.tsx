@@ -79,7 +79,7 @@ function toWhatsAppNumber(phone: string) {
   return d;
 }
 
-function getCompanyInfo(): CompanyInfo {
+export function getCompanyInfo(): CompanyInfo {
   const store = useProfileStore.getState();
   return {
     name: store.name || localStorage.getItem('user_name') || 'Easy Imports',

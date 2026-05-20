@@ -1,19 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Plus, Download, Trash2, Link2, FolderOpen } from 'lucide-react';
+import { FileText, Plus, Download, Trash2, Link2, FolderOpen, Calendar } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
 import { dataService } from '../lib/dataService';
 import { formatDate } from '../lib/formatters';
+import { generatePDF, type SalePDFData } from '../lib/pdfGenerator';
+import { getCompanyInfo } from './Vendas';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { useProfileStore } from '../stores/profileStore';
 
-const CATEGORIES = ['Procedimentos', 'Manuais', 'Financeiro', 'Marketing', 'Contratos', 'Importação', 'Outros'];
+const CATEGORIES = ['Vendas', 'Trocas', 'Compras', 'Procedimentos', 'Manuais', 'Financeiro', 'Marketing', 'Contratos', 'Importação', 'Outros'];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Procedimentos: 'bg-blue-100 text-blue-700',
-  Manuais: 'bg-purple-100 text-purple-700',
-  Financeiro: 'bg-green-100 text-green-700',
+  Vendas: 'bg-green-100 text-green-700',
+  Trocas: 'bg-purple-100 text-purple-700',
+  Compras: 'bg-blue-100 text-blue-700',
+  Procedimentos: 'bg-indigo-100 text-indigo-700',
+  Manuais: 'bg-teal-100 text-teal-700',
+  Financeiro: 'bg-emerald-100 text-emerald-700',
   Marketing: 'bg-pink-100 text-pink-700',
   Contratos: 'bg-amber-100 text-amber-700',
   Importação: 'bg-cyan-100 text-cyan-700',
@@ -23,6 +31,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 const emptyForm = () => ({ title: '', category: 'Procedimentos', file_url: '' });
 
 export const Documentacao: React.FC = () => {
+  const { signature: adminSignature } = useProfileStore();
   const [documents, setDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,8 +42,26 @@ export const Documentacao: React.FC = () => {
   const fetchDocuments = async () => {
     try {
       setIsLoading(true);
-      const data = await dataService.getDocuments();
-      setDocuments(data || []);
+      const [docsData, salesData] = await Promise.all([
+        dataService.getDocuments(),
+        dataService.getSales(),
+      ]);
+      
+      const salesDocs = (salesData || []).map((sale: any) => ({
+        id: `sale-${sale.id}`,
+        title: `${(sale.sale_type || 'venda').toUpperCase()} ${sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`} — ${sale.customer_name || sale.seller_name || 'Cliente'}`,
+        category: sale.sale_type === 'venda' ? 'Vendas' : sale.sale_type === 'troca' ? 'Trocas' : 'Compras',
+        created_at: sale.created_at,
+        isSale: true,
+        saleData: sale
+      }));
+
+      // Sort all combined by created_at desc
+      const combined = [...(docsData || []), ...salesDocs].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setDocuments(combined);
     } catch (error: any) {
       toast.error('Erro ao carregar documentos: ' + error.message);
     } finally {
@@ -73,6 +100,47 @@ export const Documentacao: React.FC = () => {
   };
 
   const handleOpen = (doc: any) => {
+    if (doc.isSale) {
+      const sale = doc.saleData;
+      const pdfData: SalePDFData = {
+        sale_number: sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`,
+        sale_type: sale.sale_type || 'venda',
+        created_at: sale.created_at,
+        seller_name: sale.seller_name || sale.customer_name,
+        seller_cpf: sale.seller_cpf,
+        seller_rg: sale.seller_rg,
+        seller_phone: sale.seller_phone,
+        seller_address: sale.seller_address,
+        seller_email: sale.seller_email,
+        customer_name: sale.customer_name || sale.customers?.name,
+        customer_phone: sale.customer_phone,
+        customer_cpf: sale.customer_cpf,
+        customer_city: sale.customer_city || sale.customers?.city || '',
+        product_name: sale.product_name,
+        product_capacity: sale.product_capacity,
+        product_color: sale.product_color,
+        product_condition: sale.product_condition,
+        product_imei: sale.product_imei,
+        product_accessories: sale.product_accessories,
+        total_amount: Number(sale.total_amount),
+        payment_method: sale.payment_method,
+        installments: sale.installments || 1,
+        incoming_name: sale.incoming_name || undefined,
+        incoming_imei: sale.incoming_imei || undefined,
+        incoming_serial: sale.incoming_serial || undefined,
+        incoming_email: sale.incoming_email || undefined,
+        incoming_capacity: sale.incoming_capacity || undefined,
+        incoming_color: sale.incoming_color || undefined,
+        incoming_condition: sale.incoming_condition || undefined,
+        incoming_battery_health: sale.incoming_battery_health || undefined,
+        incoming_purchase_price: sale.incoming_purchase_price || undefined,
+        signature_admin: adminSignature || undefined,
+        signature_client: sale.signature_client || undefined,
+      };
+      generatePDF(pdfData, getCompanyInfo());
+      return;
+    }
+
     if (!doc.file_url) {
       toast('Este documento não tem link anexado.', { icon: 'ℹ️' });
       return;
@@ -159,46 +227,90 @@ export const Documentacao: React.FC = () => {
           )}
         </Card>
       ) : (
-        <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-neutral-100">
-          {filtered.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-4 px-5 py-4 hover:bg-neutral-50 transition-colors group">
-              <div className="p-2.5 bg-neutral-100 rounded-xl flex-shrink-0">
-                <FileText size={18} className="text-neutral-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-neutral-900 truncate">{doc.title}</p>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className={['px-2 py-0.5 rounded-full text-[10px] font-bold', CATEGORY_COLORS[doc.category] || CATEGORY_COLORS['Outros']].join(' ')}>
-                    {doc.category}
-                  </span>
-                  <span className="text-xs text-neutral-400">{formatDate(doc.created_at)}</span>
-                  {doc.file_url && (
-                    <span className="text-xs text-primary font-medium flex items-center gap-1">
-                      <Link2 size={10} /> Link anexado
-                    </span>
-                  )}
+        <div className="space-y-8">
+          {(() => {
+            const groupedDocuments = filtered.reduce((groups, doc) => {
+              const d = new Date(doc.created_at);
+              if (isNaN(d.getTime())) return groups;
+              const monthKey = format(d, 'yyyy-MM');
+              const dayKey = format(d, 'yyyy-MM-dd');
+
+              if (!groups[monthKey]) groups[monthKey] = { label: format(d, 'MMMM yyyy', { locale: ptBR }), days: {} };
+              if (!groups[monthKey].days[dayKey]) groups[monthKey].days[dayKey] = { label: format(d, "dd 'de' MMMM", { locale: ptBR }), docs: [] };
+              
+              groups[monthKey].days[dayKey].docs.push(doc);
+              return groups;
+            }, {} as any);
+
+            const sortedMonths = Object.keys(groupedDocuments).sort((a, b) => b.localeCompare(a));
+
+            return sortedMonths.map(monthKey => {
+              const month = groupedDocuments[monthKey];
+              const sortedDays = Object.keys(month.days).sort((a, b) => b.localeCompare(a));
+              return (
+                <div key={monthKey} className="animate-in fade-in duration-300">
+                  <h3 className="text-xl font-black text-neutral-900 capitalize mb-4 flex items-center gap-2">
+                    <Calendar className="text-neutral-400" size={24} />
+                    {month.label}
+                  </h3>
+                  <div className="space-y-4">
+                    {sortedDays.map(dayKey => {
+                      const day = month.days[dayKey];
+                      return (
+                        <div key={dayKey} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+                          <div className="bg-neutral-50/80 border-b border-neutral-100 px-5 py-3 flex items-center">
+                            <p className="font-bold text-neutral-600 text-sm">{day.label}</p>
+                          </div>
+                          <div className="divide-y divide-neutral-100">
+                            {day.docs.map((doc: any) => (
+                              <div key={doc.id} className="flex items-center gap-4 px-5 py-4 hover:bg-neutral-50 transition-colors group">
+                                <div className="p-2.5 bg-neutral-100 rounded-xl flex-shrink-0">
+                                  <FileText size={18} className="text-neutral-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-neutral-900 truncate">{doc.title}</p>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <span className={['px-2 py-0.5 rounded-full text-[10px] font-bold', CATEGORY_COLORS[doc.category] || CATEGORY_COLORS['Outros']].join(' ')}>
+                                      {doc.category}
+                                    </span>
+                                    {doc.file_url && (
+                                      <span className="text-xs text-primary font-medium flex items-center gap-1">
+                                        <Link2 size={10} /> Link anexado
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {(doc.file_url || doc.isSale) && (
+                                    <button
+                                      onClick={() => handleOpen(doc)}
+                                      className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                                      title={doc.isSale ? "Gerar PDF" : "Abrir link"}
+                                    >
+                                      <Download size={15} />
+                                    </button>
+                                  )}
+                                  {!doc.isSale && (
+                                    <button
+                                      onClick={() => handleDelete(doc.id, doc.title)}
+                                      className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                      title="Remover"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {doc.file_url && (
-                  <button
-                    onClick={() => handleOpen(doc)}
-                    className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="Abrir link"
-                  >
-                    <Download size={15} />
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDelete(doc.id, doc.title)}
-                  className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Remover"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
+              );
+            });
+          })()}
         </div>
       )}
 

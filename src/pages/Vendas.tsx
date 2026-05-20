@@ -189,6 +189,21 @@ export const Vendas: React.FC = () => {
       // Default: open current month
       const thisMonth = format(new Date(), 'yyyy-MM');
       setOpenMonths(new Set([thisMonth]));
+
+      // Auto-fix: vendas salvas sem sale_type mas com aparelho entrante → são trocas
+      const toFix = (salesData || []).filter(
+        (s: any) => s.incoming_name?.trim() && s.sale_type !== 'troca'
+      );
+      if (toFix.length > 0) {
+        await Promise.all(
+          toFix.map((s: any) =>
+            dataService.updateSale(s.id, { sale_type: 'troca' }).catch(() => {})
+          )
+        );
+        // Re-busca com os tipos corrigidos
+        const fixed = await dataService.getSales();
+        if (fixed) setSales(fixed);
+      }
     } catch (error: any) {
       toast.error('Erro ao carregar dados: ' + error.message);
     } finally {
@@ -572,7 +587,7 @@ export const Vendas: React.FC = () => {
     const displayNum = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
     const pdfData: SalePDFData = {
       sale_number: displayNum,
-      sale_type: sale.sale_type || 'venda',
+      sale_type: sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda'),
       created_at: sale.created_at,
       seller_name: sale.seller_name || sale.customer_name,
       seller_cpf: sale.seller_cpf,
@@ -771,7 +786,7 @@ export const Vendas: React.FC = () => {
                 {isOpen && (
                   <div className="border-t border-neutral-100 divide-y divide-neutral-100">
                     {monthSales.map((sale) => {
-                      const type = sale.sale_type || 'venda';
+                      const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
                       const baseNum = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
                       const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';

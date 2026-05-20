@@ -146,8 +146,12 @@ export const Vendas: React.FC = () => {
   const [deleteSale, setDeleteSale] = useState<any | null>(null);
   const [isDeletingSale, setIsDeletingSale] = useState(false);
   const [editSale, setEditSale] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState({ total_amount: '', payment_method: 'PIX', installments: 1 });
+  const [editForm, setEditForm] = useState<any>({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const setEF = (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setEditForm((f: any) => ({ ...f, [field]: e.target.value }));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -485,12 +489,34 @@ export const Vendas: React.FC = () => {
     if (!amount || amount <= 0) { toast.error('Informe um valor maior que zero.'); return; }
     try {
       setIsSavingEdit(true);
-      await dataService.updateSale(editSale.id, {
+      const updates: any = {
+        customer_name: editForm.customer_name,
+        customer_phone: editForm.customer_phone,
+        customer_cpf: editForm.customer_cpf,
+        customer_city: editForm.customer_city,
+        product_name: editForm.product_name,
+        product_capacity: editForm.product_capacity,
+        product_color: editForm.product_color,
+        product_condition: editForm.product_condition,
+        product_imei: editForm.product_imei,
+        product_accessories: editForm.product_accessories,
+        pdf_type: editForm.pdf_type,
         total_amount: amount,
         payment_method: editForm.payment_method,
         installments: editForm.installments,
-      });
-      toast.success('Venda atualizada!');
+        created_at: new Date(editForm.sale_date).toISOString(),
+      };
+      if (editSale.sale_type === 'troca') {
+        updates.incoming_name = editForm.incoming_name;
+        updates.incoming_imei = editForm.incoming_imei;
+        updates.incoming_capacity = editForm.incoming_capacity;
+        updates.incoming_color = editForm.incoming_color;
+        updates.incoming_condition = editForm.incoming_condition;
+        updates.incoming_battery_health = editForm.incoming_battery_health;
+        updates.incoming_purchase_price = Number(editForm.incoming_purchase_price) || 0;
+      }
+      await dataService.updateSale(editSale.id, updates);
+      toast.success('Venda atualizada! O próximo PDF já reflete as mudanças.');
       setEditSale(null);
       fetchData();
     } catch (error: any) {
@@ -822,7 +848,32 @@ export const Vendas: React.FC = () => {
                             <button
                               onClick={() => {
                                 setEditSale(sale);
-                                setEditForm({ total_amount: String(sale.total_amount || ''), payment_method: sale.payment_method || 'PIX', installments: sale.installments || 1 });
+                                setEditForm({
+                                  customer_name: sale.customer_name || '',
+                                  customer_phone: sale.customer_phone || '',
+                                  customer_cpf: sale.customer_cpf || '',
+                                  customer_city: sale.customer_city || sale.customers?.city || '',
+                                  product_name: sale.product_name || '',
+                                  product_capacity: sale.product_capacity || '',
+                                  product_color: sale.product_color || '',
+                                  product_condition: sale.product_condition || 'Seminovo',
+                                  product_imei: sale.product_imei || '',
+                                  product_accessories: sale.product_accessories || '',
+                                  pdf_type: sale.pdf_type || 'seminovo',
+                                  total_amount: String(sale.total_amount || ''),
+                                  payment_method: sale.payment_method || 'PIX',
+                                  installments: sale.installments || 1,
+                                  sale_date: sale.created_at
+                                    ? new Date(sale.created_at).toISOString().slice(0, 16)
+                                    : new Date().toISOString().slice(0, 16),
+                                  incoming_name: sale.incoming_name || '',
+                                  incoming_imei: sale.incoming_imei || '',
+                                  incoming_capacity: sale.incoming_capacity || '',
+                                  incoming_color: sale.incoming_color || '',
+                                  incoming_condition: sale.incoming_condition || 'Seminovo',
+                                  incoming_battery_health: sale.incoming_battery_health || '',
+                                  incoming_purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
+                                });
                               }}
                               className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar venda"
@@ -1594,70 +1645,196 @@ export const Vendas: React.FC = () => {
       </Modal>
 
       {/* ─── EDITAR VENDA MODAL ─── */}
-      <Modal isOpen={!!editSale} onClose={() => !isSavingEdit && setEditSale(null)} title="Editar Venda" maxWidth="sm">
+      <Modal isOpen={!!editSale} onClose={() => !isSavingEdit && setEditSale(null)} title={`Editar — ${editSale?.sale_number || ''}`} maxWidth="2xl">
         {editSale && (
-          <form onSubmit={handleSaveEdit} className="space-y-5">
-            <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', TYPE_COLORS[editSale.sale_type || 'venda'])}>
-                  {TYPE_LABELS[editSale.sale_type || 'venda']}
-                </span>
-                <span className="text-xs font-mono text-neutral-500">{editSale.sale_number}</span>
-              </div>
-              <p className="font-bold text-neutral-900">{editSale.customer_name}</p>
-              <p className="text-sm text-neutral-500 mt-0.5">{editSale.product_name}</p>
+          <form onSubmit={handleSaveEdit} className="space-y-6">
+
+            {/* Identificação */}
+            <div className="flex items-center gap-2">
+              <span className={cn('px-3 py-1 rounded-full text-xs font-bold', TYPE_COLORS[editSale.sale_type || 'venda'])}>
+                {TYPE_LABELS[editSale.sale_type || 'venda']}
+              </span>
+              <span className="text-xs font-mono text-neutral-400">{editSale.sale_number}</span>
             </div>
 
-            <Input
-              label="Novo Valor Total (R$) *"
-              type="number"
-              step="any"
-              inputMode="decimal"
-              required
-              value={editForm.total_amount}
-              onChange={(e) => setEditForm((f) => ({ ...f, total_amount: e.target.value }))}
-            />
-
+            {/* Comprador */}
             <div>
-              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Forma de Pagamento</label>
-              <select
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                value={editForm.payment_method}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setEditForm((f) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 }));
-                }}
-              >
-                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Dados do Comprador</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Input label="Nome do Cliente *" value={editForm.customer_name} onChange={setEF('customer_name')} autoComplete="off" required />
+                </div>
+                <Input label="Telefone / WhatsApp" type="tel" placeholder="(11) 99999-9999" value={editForm.customer_phone} onChange={setEF('customer_phone')} autoComplete="off" />
+                <Input label="CPF / CNPJ" placeholder="CPF ou CNPJ" value={editForm.customer_cpf} onChange={setEF('customer_cpf')} autoComplete="off" />
+                <div className="sm:col-span-2">
+                  <Input label="Endereço / Cidade" placeholder="Rua, número, bairro, cidade — SP" value={editForm.customer_city} onChange={setEF('customer_city')} autoComplete="off" />
+                </div>
+              </div>
             </div>
 
-            {editForm.payment_method === 'Cartão de Crédito' && (
-              <div>
-                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
-                <select
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                  value={editForm.installments}
-                  onChange={(e) => setEditForm((f) => ({ ...f, installments: Number(e.target.value) }))}
-                >
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
-                    const amt = Number(editForm.total_amount);
-                    const label = n === 1 ? '1x (à vista)' : `${n}x de ${amt > 0 ? formatCurrency(amt / n) : '—'}`;
-                    return <option key={n} value={n}>{label}</option>;
-                  })}
-                </select>
+            {/* Produto */}
+            <div>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">
+                {editSale.sale_type === 'troca' ? 'Aparelho Saindo (do estoque)' : 'Dados do Produto'}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Input label="Modelo *" placeholder="Ex: iPhone 13 Pro Max" value={editForm.product_name} onChange={setEF('product_name')} autoComplete="off" required />
+                </div>
+                <Input label="Capacidade" placeholder="256GB" value={editForm.product_capacity} onChange={setEF('product_capacity')} autoComplete="off" />
+                <Input label="Cor" placeholder="Azul-Sierra" value={editForm.product_color} onChange={setEF('product_color')} autoComplete="off" />
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado de Conservação</label>
+                  <select
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    value={editForm.product_condition}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const cLower = val.toLowerCase();
+                      const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
+                      setEditForm((f: any) => ({ ...f, product_condition: val, pdf_type: condIsNovo ? 'novo' : 'seminovo' }));
+                    }}
+                  >
+                    {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={editForm.product_imei} onChange={setEF('product_imei')} autoComplete="off" />
+                <div className="sm:col-span-2">
+                  <Input label="Acessórios Inclusos" placeholder="Cabo, carregador, caixa original..." value={editForm.product_accessories} onChange={setEF('product_accessories')} autoComplete="off" />
+                </div>
+              </div>
+            </div>
+
+            {/* Garantia no PDF */}
+            <div className="border-2 border-primary/20 bg-primary/5 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+                <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Tipo de Garantia no PDF</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className={cn(
+                  'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
+                  editForm.pdf_type === 'novo' ? 'border-amber-400 bg-amber-50 shadow-sm' : 'border-neutral-200 bg-white hover:border-amber-300'
+                )}>
+                  <input type="radio" name="edit_pdf_type" value="novo" checked={editForm.pdf_type === 'novo'}
+                    onChange={() => setEditForm((f: any) => ({ ...f, pdf_type: 'novo' }))} className="hidden" />
+                  <div className="flex items-center gap-2.5">
+                    <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                      editForm.pdf_type === 'novo' ? 'border-amber-500' : 'border-neutral-300')}>
+                      {editForm.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                    </div>
+                    <span className="font-bold text-sm text-neutral-900">Aparelho Novo (Lacrado)</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 pl-6.5">Garantia do Fabricante · 12 meses</p>
+                </label>
+                <label className={cn(
+                  'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
+                  editForm.pdf_type === 'seminovo' ? 'border-blue-400 bg-blue-50 shadow-sm' : 'border-neutral-200 bg-white hover:border-blue-300'
+                )}>
+                  <input type="radio" name="edit_pdf_type" value="seminovo" checked={editForm.pdf_type === 'seminovo'}
+                    onChange={() => setEditForm((f: any) => ({ ...f, pdf_type: 'seminovo' }))} className="hidden" />
+                  <div className="flex items-center gap-2.5">
+                    <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                      editForm.pdf_type === 'seminovo' ? 'border-blue-500' : 'border-neutral-300')}>
+                      {editForm.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                    </div>
+                    <span className="font-bold text-sm text-neutral-900">Seminovo / Usado</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 pl-6.5">Garantia Easy Imports · 90 dias (CDC art. 26)</p>
+                </label>
+              </div>
+            </div>
+
+            {/* Aparelho Entrante (apenas troca) */}
+            {editSale.sale_type === 'troca' && (
+              <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
+                <p className="text-xs font-black text-purple-600 uppercase tracking-widest">Aparelho Entrando (do cliente)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Input label="Modelo do aparelho" placeholder="Ex: Samsung Galaxy S22" value={editForm.incoming_name} onChange={setEF('incoming_name')} autoComplete="off" />
+                  </div>
+                  <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={editForm.incoming_imei} onChange={setEF('incoming_imei')} autoComplete="off" />
+                  <Input label="Capacidade" placeholder="128GB" value={editForm.incoming_capacity} onChange={setEF('incoming_capacity')} autoComplete="off" />
+                  <Input label="Cor" placeholder="Preto" value={editForm.incoming_color} onChange={setEF('incoming_color')} autoComplete="off" />
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
+                    <select className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
+                      value={editForm.incoming_condition} onChange={setEF('incoming_condition')}>
+                      {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
+                    <select className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
+                      value={editForm.incoming_battery_health} onChange={setEF('incoming_battery_health')}>
+                      <option value="">Não verificado</option>
+                      {['100%','99%','98%','97%','96%','95%','94%','93%','92%','91%','90%','89%','88%','87%','86%','85%','84%','83%','82%','81%','80%','Abaixo de 80%'].map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Input label="Valor dado ao cliente (R$)" type="number" step="any" inputMode="decimal"
+                    value={editForm.incoming_purchase_price} onChange={setEF('incoming_purchase_price')} autoComplete="off" />
+                </div>
               </div>
             )}
 
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3 font-medium">
-              ⚠️ Alterar o valor atualiza a venda e o PDF, mas não ajusta automaticamente as transações financeiras já registradas.
-            </p>
+            {/* Pagamento */}
+            <div>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="Valor Total (R$) *"
+                  type="number" step="any" inputMode="decimal" required
+                  value={editForm.total_amount}
+                  onChange={setEF('total_amount')}
+                />
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Forma de Pagamento</label>
+                  <select
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    value={editForm.payment_method}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditForm((f: any) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 }));
+                    }}
+                  >
+                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                {editForm.payment_method === 'Cartão de Crédito' && (
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
+                    <select
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      value={editForm.installments}
+                      onChange={(e) => setEditForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
+                    >
+                      {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
+                        const amt = Number(editForm.total_amount);
+                        const label = n === 1 ? '1x (à vista)' : `${n}x de ${amt > 0 ? formatCurrency(amt / n) : '—'}`;
+                        return <option key={n} value={n}>{label}</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data e Hora</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    value={editForm.sale_date}
+                    onChange={setEF('sale_date')}
+                  />
+                </div>
+              </div>
+            </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <Button variant="secondary" fullWidth onClick={() => setEditSale(null)} type="button" disabled={isSavingEdit}>
                 Cancelar
               </Button>
-              <Button fullWidth loading={isSavingEdit} type="submit">
+              <Button fullWidth loading={isSavingEdit} type="submit" leftIcon={<CheckCircle2 size={18} />}>
                 Salvar Alterações
               </Button>
             </div>

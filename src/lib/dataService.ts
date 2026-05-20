@@ -211,12 +211,21 @@ export const dataService = {
     }
     return saleData[0];
   },
-  async updateSale(id: string, updates: { total_amount?: number; payment_method?: string; installments?: number }) {
+  async updateSale(id: string, updates: Record<string, any>) {
     if (useMock) throw new Error('Mock não suporta updateSale');
     const uid = await getUid();
+    // Tenta atualizar com todos os campos — se falhar por coluna inexistente, remove os incoming_* e tenta novamente
     const { error } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
-    if (error) throw error;
-    return true;
+    if (!error) return true;
+    if (isColErr(error)) {
+      const safe = Object.fromEntries(
+        Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type')
+      );
+      const { error: e2 } = await supabase.from('sales').update(safe).eq('id', id).eq('user_id', uid);
+      if (e2) throw e2;
+      return true;
+    }
+    throw error;
   },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);

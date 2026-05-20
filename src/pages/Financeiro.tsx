@@ -123,18 +123,38 @@ export const Financeiro: React.FC = () => {
 
   const filterTypeLabels = { all: 'Filtros', income: 'Receitas', expense: 'Despesas' };
 
+  const CATEGORY_LABELS: Record<string, string> = {
+    sale: 'Venda', stock: 'Custo estoque', rent: 'Aluguel',
+    salaries: 'Salários', marketing: 'Marketing', taxes: 'Impostos',
+    utilities: 'Serviços', other: 'Outros',
+  };
+
+  // Transações auto-geradas pelo sistema têm descrição começando em Receita/Custo + nº operação
+  const isAutoTx = (t: any) =>
+    /^(Receita|Custo|Venda) #/.test(t.description || '') ||
+    t.description?.startsWith('Custo Mercadoria #');
+
   const columns = [
-    { header: 'Descrição', accessor: (t: any) => <span className="font-medium text-neutral-900">{t.description}</span> },
-    { header: 'Categoria', accessor: 'category' },
+    { header: 'Descrição', accessor: (t: any) => (
+      <div className="flex flex-col gap-0.5">
+        <span className="font-semibold text-neutral-900">{t.description}</span>
+        {isAutoTx(t) && (
+          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Automático · gerado pela venda</span>
+        )}
+      </div>
+    )},
+    { header: 'Categoria', accessor: (t: any) => (
+      <span className="text-sm text-neutral-600">{CATEGORY_LABELS[t.category] || t.category || '—'}</span>
+    )},
     { header: 'Data', accessor: (t: any) => formatDate(t.date) },
     { header: 'Valor', accessor: (t: any) => (
       <span className={t.type === 'income' ? 'text-success font-bold' : 'text-danger font-bold'}>
-        {t.type === 'income' ? '+' : '-'} {formatCurrency(t.amount)}
+        {t.type === 'income' ? '+' : '−'} {formatCurrency(t.amount)}
       </span>
     )},
-    { header: 'Status', accessor: (t: any) => (
-      <Badge variant={t.status === 'confirmed' ? 'success' : 'warning'}>
-        {t.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+    { header: 'Tipo', accessor: (t: any) => (
+      <Badge variant={t.type === 'income' ? 'success' : 'danger'}>
+        {t.type === 'income' ? 'Entrada' : 'Saída'}
       </Badge>
     )},
     { header: 'Ações', accessor: (t: any) => (

@@ -188,13 +188,20 @@ export const Vendas: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Map sale ID prefix → cost from auto-created expense transactions
+  // Map sale_number / ID-prefix → cost de transações auto-criadas (suporta formato antigo e novo)
   const costBySale = useMemo<Record<string, number>>(() => {
     const map: Record<string, number> = {};
     for (const t of transactions) {
-      if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Mercadoria #')) {
-        const prefix = t.description.replace('Custo Mercadoria #', '').trim();
-        map[prefix] = (map[prefix] || 0) + Number(t.amount || 0);
+      if (t.type === 'expense' && t.category === 'stock') {
+        if (t.description?.startsWith('Custo Mercadoria #')) {
+          // Formato antigo: "Custo Mercadoria #a3f8b2c1"
+          const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+          map[`uuid:${prefix}`] = (map[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+        } else if (t.description?.startsWith('Custo #') || t.description?.startsWith('Custo T') || t.description?.startsWith('Custo V')) {
+          // Formato novo: "Custo #V0001 — iPhone 17 Pro Max"
+          const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
+          if (match) map[match[1]] = (map[match[1]] || 0) + Number(t.amount || 0);
+        }
       }
     }
     return map;
@@ -686,7 +693,7 @@ export const Vendas: React.FC = () => {
                       const type = sale.sale_type || 'venda';
                       const num = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
                       const name = sale.customer_name || sale.customers?.name || '—';
-                      const saleCost = costBySale[sale.id?.slice(0, 8)] ?? null;
+                      const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
                       const saleProfit = saleCost !== null ? Number(sale.total_amount) - saleCost : null;
 
                       return (

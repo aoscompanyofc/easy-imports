@@ -199,15 +199,23 @@ export const Dashboard: React.FC = () => {
     const rev   = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const count = filtered.length;
 
-    // Cost map: sale id prefix → purchase cost (from auto-created expense transactions)
+    // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
     const costMap: Record<string, number> = {};
     for (const t of allTransactions) {
-      if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Mercadoria #')) {
-        const prefix = t.description.replace('Custo Mercadoria #', '').trim();
-        costMap[prefix] = (costMap[prefix] || 0) + Number(t.amount || 0);
+      if (t.type === 'expense' && t.category === 'stock') {
+        if (t.description?.startsWith('Custo Mercadoria #')) {
+          // Formato antigo: "Custo Mercadoria #a3f8b2c1"
+          const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+          costMap[`uuid:${prefix}`] = (costMap[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+        } else if (t.description?.startsWith('Custo ')) {
+          // Formato novo: "Custo #V0001 — iPhone 17 Pro Max"
+          const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
+          if (match) costMap[match[1]] = (costMap[match[1]] || 0) + Number(t.amount || 0);
+        }
       }
     }
-    const totalCost = filtered.reduce((acc, s) => acc + (costMap[s.id?.slice(0, 8)] || 0), 0);
+    const totalCost = filtered.reduce((acc, s) =>
+      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
 
     return {
       filteredSales: filtered,

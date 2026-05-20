@@ -195,7 +195,7 @@ export const dataService = {
         }
         if (product.purchase_price > 0) {
           await this.addTransaction({
-            description: `Custo Mercadoria #${saleId.slice(0, 8)}`,
+            description: `Custo ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
             amount: product.purchase_price * item.quantity,
             type: 'expense', category: 'stock',
             date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -203,7 +203,7 @@ export const dataService = {
         }
       }
       await this.addTransaction({
-        description: `Venda #${saleId.slice(0, 8)}`,
+        description: `Receita ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
         amount: item.unit_price * item.quantity,
         type: 'income', category: 'sale',
         date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -213,6 +213,29 @@ export const dataService = {
   },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);
+    const uid = await getUid();
+
+    // Busca sale_number antes de deletar (para limpar transações pelo número da operação)
+    const { data: saleRow } = await supabase
+      .from('sales').select('sale_number').eq('id', id).single();
+
+    // Remove transações — formato novo (Receita/Custo #V0001 — ...)
+    if (saleRow?.sale_number) {
+      await supabase.from('transactions').delete()
+        .like('description', `Receita ${saleRow.sale_number} —%`)
+        .eq('user_id', uid);
+      await supabase.from('transactions').delete()
+        .like('description', `Custo ${saleRow.sale_number} —%`)
+        .eq('user_id', uid);
+    }
+
+    // Remove transações — formato antigo (Venda #xxxxxxxx / Custo Mercadoria #xxxxxxxx)
+    const prefix = id.slice(0, 8);
+    await supabase.from('transactions').delete()
+      .eq('description', `Venda #${prefix}`).eq('user_id', uid);
+    await supabase.from('transactions').delete()
+      .eq('description', `Custo Mercadoria #${prefix}`).eq('user_id', uid);
+
     const { error } = await supabase.from('sales').delete().eq('id', id);
     if (error) throw error;
     return true;

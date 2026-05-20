@@ -211,6 +211,13 @@ export const dataService = {
     }
     return saleData[0];
   },
+  async updateSale(id: string, updates: { total_amount?: number; payment_method?: string; installments?: number }) {
+    if (useMock) throw new Error('Mock não suporta updateSale');
+    const uid = await getUid();
+    const { error } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
+    if (error) throw error;
+    return true;
+  },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);
     const uid = await getUid();

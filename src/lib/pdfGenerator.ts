@@ -369,10 +369,15 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
     <div class="ck-row">
       <span class="ck-lbl">Estado:</span>
-      ${checkbox('Novo (lacrado)', isNovo(cond))}
-      ${checkbox('Seminovo', isSemi(cond))}
-      ${checkbox('Bom estado', isBom(cond))}
-      ${checkbox('Usado', isUsado(cond))}
+      ${(() => {
+        const forceNovo = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(cond));
+        return `
+          ${checkbox('Novo (lacrado)', forceNovo)}
+          ${checkbox('Seminovo',  !forceNovo && isSemi(cond))}
+          ${checkbox('Bom estado', !forceNovo && isBom(cond))}
+          ${checkbox('Usado',      !forceNovo && isUsado(cond))}
+        `;
+      })()}
     </div>
   </div>
 </div>
@@ -507,10 +512,10 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         </div>
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
-          ${checkbox('Novo (lacrado)', isNovo(outCond))}
-          ${checkbox('Seminovo', isSemi(outCond))}
-          ${checkbox('Bom estado', isBom(outCond))}
-          ${checkbox('Usado', isDefeito(outCond))}
+          ${checkbox('Novo (lacrado)', useNewWarranty)}
+          ${checkbox('Seminovo',  !useNewWarranty && isSemi(outCond))}
+          ${checkbox('Bom estado', !useNewWarranty && isBom(outCond))}
+          ${checkbox('Usado',      !useNewWarranty && isDefeito(outCond))}
         </div>
       </div>
     </div>`;

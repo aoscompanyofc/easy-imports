@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
-  RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw,
+  RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw, Pencil,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -129,6 +129,8 @@ const emptyForm = () => ({
   whatsapp_number: '',
   // Tipo de garantia no PDF: 'novo' = fabricante 1 ano | 'seminovo' = 90 dias Easy Imports
   pdf_type: 'seminovo',
+  // Custo manual (quando produto não vem do estoque)
+  product_cost_manual: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -143,6 +145,9 @@ export const Vendas: React.FC = () => {
   const [detailSale, setDetailSale] = useState<any | null>(null);
   const [deleteSale, setDeleteSale] = useState<any | null>(null);
   const [isDeletingSale, setIsDeletingSale] = useState(false);
+  const [editSale, setEditSale] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ total_amount: '', payment_method: 'PIX', installments: 1 });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -253,7 +258,7 @@ export const Vendas: React.FC = () => {
   const salePrice = resolvedUnitPrice * form.quantity;
 
   // Lucro estimado para venda simples (sempre calculado, exibido no preview de pagamento)
-  const unitCost = selectedProductData?.purchase_price || 0;
+  const unitCost = selectedProductData?.purchase_price || Number(form.product_cost_manual) || 0;
   const totalCost = unitCost * (form.quantity || 1);
   const vendaProfit = salePrice - totalCost;
   const vendaMargin = salePrice > 0 ? Math.round((vendaProfit / salePrice) * 100) : 0;
@@ -359,6 +364,27 @@ export const Vendas: React.FC = () => {
         });
       }
 
+      // Para produtos sem estoque: cria transações financeiras manualmente
+      if (!product) {
+        await dataService.addTransaction({
+          description: `Receita ${saleNumber} — ${productName || 'Produto'}`,
+          amount: unitPrice * form.quantity,
+          type: 'income',
+          category: 'sale',
+          date: new Date(form.sale_date).toISOString().slice(0, 10),
+        });
+        const manualCost = Number(form.product_cost_manual);
+        if (manualCost > 0) {
+          await dataService.addTransaction({
+            description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
+            amount: manualCost * form.quantity,
+            type: 'expense',
+            category: 'stock',
+            date: new Date(form.sale_date).toISOString().slice(0, 10),
+          });
+        }
+      }
+
       // Generate PDF immediately with form data
       const pdfData: SalePDFData = {
         sale_number: saleNumber,
@@ -450,6 +476,28 @@ export const Vendas: React.FC = () => {
 
   const handleDelete = (sale: any) => {
     setDeleteSale(sale);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editSale) return;
+    const amount = Number(editForm.total_amount);
+    if (!amount || amount <= 0) { toast.error('Informe um valor maior que zero.'); return; }
+    try {
+      setIsSavingEdit(true);
+      await dataService.updateSale(editSale.id, {
+        total_amount: amount,
+        payment_method: editForm.payment_method,
+        installments: editForm.installments,
+      });
+      toast.success('Venda atualizada!');
+      setEditSale(null);
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message);
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleDeleteWithChoice = async (choice: 'restore' | 'discard') => {
@@ -772,6 +820,16 @@ export const Vendas: React.FC = () => {
                               <Download size={15} />
                             </button>
                             <button
+                              onClick={() => {
+                                setEditSale(sale);
+                                setEditForm({ total_amount: String(sale.total_amount || ''), payment_method: sale.payment_method || 'PIX', installments: sale.installments || 1 });
+                              }}
+                              className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Editar venda"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
                               onClick={() => handleDelete(sale)}
                               className="p-1.5 text-neutral-400 hover:text-danger hover:bg-danger-light rounded-lg transition-colors"
                               title="Cancelar venda"
@@ -962,6 +1020,21 @@ export const Vendas: React.FC = () => {
                   autoComplete="off"
                 />
               </div>
+
+              {!form.selectedProduct && (
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Custo do Produto (R$)"
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    placeholder="Quanto custou para você (opcional — calcula o lucro)"
+                    value={form.product_cost_manual}
+                    onChange={setF('product_cost_manual')}
+                    autoComplete="off"
+                  />
+                </div>
+              )}
 
               <Input label="Capacidade" placeholder="256GB" value={form.product_capacity} onChange={setF('product_capacity')} autoComplete="off" />
               <Input label="Cor" placeholder="Azul-Sierra" value={form.product_color} onChange={setF('product_color')} autoComplete="off" />
@@ -1517,6 +1590,78 @@ export const Vendas: React.FC = () => {
               Cancelar
             </Button>
           </div>
+        )}
+      </Modal>
+
+      {/* ─── EDITAR VENDA MODAL ─── */}
+      <Modal isOpen={!!editSale} onClose={() => !isSavingEdit && setEditSale(null)} title="Editar Venda" maxWidth="sm">
+        {editSale && (
+          <form onSubmit={handleSaveEdit} className="space-y-5">
+            <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', TYPE_COLORS[editSale.sale_type || 'venda'])}>
+                  {TYPE_LABELS[editSale.sale_type || 'venda']}
+                </span>
+                <span className="text-xs font-mono text-neutral-500">{editSale.sale_number}</span>
+              </div>
+              <p className="font-bold text-neutral-900">{editSale.customer_name}</p>
+              <p className="text-sm text-neutral-500 mt-0.5">{editSale.product_name}</p>
+            </div>
+
+            <Input
+              label="Novo Valor Total (R$) *"
+              type="number"
+              step="any"
+              inputMode="decimal"
+              required
+              value={editForm.total_amount}
+              onChange={(e) => setEditForm((f) => ({ ...f, total_amount: e.target.value }))}
+            />
+
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Forma de Pagamento</label>
+              <select
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={editForm.payment_method}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEditForm((f) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 }));
+                }}
+              >
+                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+
+            {editForm.payment_method === 'Cartão de Crédito' && (
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
+                <select
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                  value={editForm.installments}
+                  onChange={(e) => setEditForm((f) => ({ ...f, installments: Number(e.target.value) }))}
+                >
+                  {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
+                    const amt = Number(editForm.total_amount);
+                    const label = n === 1 ? '1x (à vista)' : `${n}x de ${amt > 0 ? formatCurrency(amt / n) : '—'}`;
+                    return <option key={n} value={n}>{label}</option>;
+                  })}
+                </select>
+              </div>
+            )}
+
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3 font-medium">
+              ⚠️ Alterar o valor atualiza a venda e o PDF, mas não ajusta automaticamente as transações financeiras já registradas.
+            </p>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setEditSale(null)} type="button" disabled={isSavingEdit}>
+                Cancelar
+              </Button>
+              <Button fullWidth loading={isSavingEdit} type="submit">
+                Salvar Alterações
+              </Button>
+            </div>
+          </form>
         )}
       </Modal>
 

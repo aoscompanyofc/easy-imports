@@ -213,7 +213,7 @@ export const dataService = {
 
     // Nível 4: mínimo absoluto — só colunas garantidas no schema base
     const minimal: Record<string, any> = {};
-    for (const k of ['customer_name','product_name','total_amount','payment_method','created_at']) {
+    for (const k of ['sale_type','customer_name','product_name','total_amount','payment_method','created_at']) {
       if (updates[k] !== undefined) minimal[k] = updates[k];
     }
     const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);

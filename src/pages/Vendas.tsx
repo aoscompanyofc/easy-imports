@@ -491,6 +491,7 @@ export const Vendas: React.FC = () => {
     try {
       setIsSavingEdit(true);
       const updates: any = {
+        sale_type: editForm.sale_type,
         customer_name: editForm.customer_name,
         customer_phone: editForm.customer_phone,
         customer_cpf: editForm.customer_cpf,
@@ -507,7 +508,7 @@ export const Vendas: React.FC = () => {
         installments: editForm.installments,
         created_at: new Date(editForm.sale_date).toISOString(),
       };
-      if (editSale.sale_type === 'troca') {
+      if (editForm.sale_type === 'troca') {
         updates.incoming_name = editForm.incoming_name;
         updates.incoming_imei = editForm.incoming_imei;
         updates.incoming_capacity = editForm.incoming_capacity;
@@ -866,6 +867,7 @@ export const Vendas: React.FC = () => {
                                   product_condition: sale.product_condition || 'Seminovo',
                                   product_imei: sale.product_imei || '',
                                   product_accessories: sale.product_accessories || '',
+                                  sale_type: sale.sale_type || 'venda',
                                   pdf_type: sale.pdf_type || 'seminovo',
                                   total_amount: String(sale.total_amount || ''),
                                   payment_method: sale.payment_method || 'PIX',
@@ -1656,12 +1658,35 @@ export const Vendas: React.FC = () => {
         {editSale && (
           <form onSubmit={handleSaveEdit} className="space-y-6">
 
-            {/* Identificação */}
-            <div className="flex items-center gap-2">
-              <span className={cn('px-3 py-1 rounded-full text-xs font-bold', TYPE_COLORS[editSale.sale_type || 'venda'])}>
-                {TYPE_LABELS[editSale.sale_type || 'venda']}
-              </span>
-              <span className="text-xs font-mono text-neutral-400">{editSale.sale_number}</span>
+            {/* Tipo da operação — editável para corrigir vendas antigas */}
+            <div>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Tipo da Operação</p>
+              <div className="grid grid-cols-2 gap-3">
+                {SALE_TYPES.map((t) => (
+                  <label
+                    key={t.value}
+                    className={cn(
+                      'flex flex-col gap-1 p-4 rounded-xl border-2 cursor-pointer transition-all',
+                      editForm.sale_type === t.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-neutral-200 hover:border-neutral-300'
+                    )}
+                  >
+                    <input type="radio" name="edit_sale_type" value={t.value}
+                      checked={editForm.sale_type === t.value}
+                      onChange={() => setEditForm((f: any) => ({ ...f, sale_type: t.value }))}
+                      className="hidden" />
+                    <span className="font-bold text-sm text-neutral-900">{t.label}</span>
+                    <span className="text-xs text-neutral-500">{t.desc}</span>
+                  </label>
+                ))}
+              </div>
+              {editForm.sale_type !== (editSale.sale_type || 'venda') && (
+                <p className="mt-2 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                  ⚠️ Tipo alterado — o PDF gerado após salvar refletirá o novo tipo de documento.
+                </p>
+              )}
+              <p className="mt-1 text-xs font-mono text-neutral-400">{editSale.sale_number}</p>
             </div>
 
             {/* Comprador */}
@@ -1682,7 +1707,7 @@ export const Vendas: React.FC = () => {
             {/* Produto */}
             <div>
               <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">
-                {editSale.sale_type === 'troca' ? 'Aparelho Saindo (do estoque)' : 'Dados do Produto'}
+                {editForm.sale_type === 'troca' ? 'Aparelho Saindo (do estoque)' : 'Dados do Produto'}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
@@ -1753,7 +1778,7 @@ export const Vendas: React.FC = () => {
             </div>
 
             {/* Aparelho Entrante (apenas troca) */}
-            {editSale.sale_type === 'troca' && (
+            {editForm.sale_type === 'troca' && (
               <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
                 <p className="text-xs font-black text-purple-600 uppercase tracking-widest">Aparelho Entrando (do cliente)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

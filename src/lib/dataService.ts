@@ -114,7 +114,7 @@ export const dataService = {
     const uid = await getUid();
     const {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type, installments,
+      sale_number, sale_type, installments, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
@@ -123,62 +123,35 @@ export const dataService = {
       incoming_battery_health, incoming_purchase_price,
     } = sale;
     const sign_token = crypto.randomUUID();
+    const inst = installments || 1;
+    const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid };
 
-    const isColumnError = (e: any) =>
-      e?.code === '42703' ||
-      e?.message?.includes('schema cache') ||
-      e?.message?.includes('Could not find');
-
-    // Nível 1: schema completo com incoming_* e customer_city
-    const fullPayload = {
-      customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type, installments: installments || 1, sign_token,
+    // Nível 1: schema completo — tudo incluindo incoming_*, pdf_type, customer_city
+    const p1 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
-      incoming_capacity, incoming_color, incoming_condition,
-      incoming_battery_health, incoming_purchase_price,
-      user_id: uid,
-    };
+      incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price };
 
-    // Nível 2: sem incoming_* (bancos sem essas colunas — preserva todos os outros campos)
-    const payloadWithoutIncoming = {
-      customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type, installments: installments || 1, sign_token,
+    // Nível 2: sem incoming_* — mantém sale_type, pdf_type, customer_city
+    const p2 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
-      product_capacity, product_color, product_condition, product_imei, product_accessories,
-      user_id: uid,
-    };
+      product_capacity, product_color, product_condition, product_imei, product_accessories };
 
-    let saleData: any[], saleError: any;
-    try {
-      // Nível 1: tudo (schema completo com incoming_*)
-      const res = await supabase.from('sales').insert([fullPayload]).select();
-      saleData = res.data || [];
-      saleError = res.error;
+    // Nível 3: sem incoming_*, sem customer_city/cpf e colunas de seller — mantém sale_type e pdf_type
+    const p3 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
+      customer_phone, product_capacity, product_color, product_condition, product_imei, product_accessories };
 
-      if (isColumnError(saleError)) {
-        // Nível 2: sem incoming_* (schema intermediário — mantém todos os outros campos)
-        const res2 = await supabase.from('sales').insert([payloadWithoutIncoming]).select();
-        saleData = res2.data || [];
-        saleError = res2.error;
-      }
+    // Nível 4: sem colunas de produto extras — garante sale_type e sale_number
+    const p4 = { ...base, sale_number, sale_type, installments: inst, sign_token };
 
-      if (isColumnError(saleError)) {
-        // Nível 3: mínimo absoluto
-        const res3 = await supabase.from('sales')
-          .insert([{ customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid }])
-          .select();
-        saleData = res3.data || [];
-        saleError = res3.error;
-      }
-    } catch (e) {
-      throw e;
-    }
-    if (saleError) throw saleError;
-    const saleId = saleData[0].id;
+    // Nível 5: mínimo absoluto — pelo menos sale_type é salvo
+    const p5 = { ...base, sale_type };
+
+    const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5]);
+    const saleId = saleRow.id;
     for (const item of items) {
       await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
       const { data: product } = await supabase
@@ -188,7 +161,7 @@ export const dataService = {
         const { data: updatedRows } = await supabase.from('products')
           .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
           .eq('id', item.product_id)
-          .eq('stock_quantity', product.stock_quantity) // optimistic lock — prevents double-sell race
+          .eq('stock_quantity', product.stock_quantity)
           .select('id');
         if (!updatedRows || updatedRows.length === 0) {
           throw new Error('Produto já foi vendido ou o estoque mudou. Recarregue a página e tente novamente.');
@@ -209,7 +182,7 @@ export const dataService = {
         date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       });
     }
-    return saleData[0];
+    return saleRow;
   },
   async updateSale(id: string, updates: Record<string, any>) {
     if (useMock) throw new Error('Mock não suporta updateSale');

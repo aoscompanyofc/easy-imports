@@ -353,37 +353,29 @@ export const Estoque: React.FC = () => {
             </div>
           )}
         </div>
-        {/* Filtro por data de entrada */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              title="Entrada a partir de"
-              className="px-3 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-neutral-600 w-36"
-            />
-            {!filterDateFrom && (
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">Entrada de</span>
-            )}
-          </div>
-          <div className="relative">
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              title="Entrada até"
-              className="px-3 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-neutral-600 w-36"
-            />
-            {!filterDateTo && (
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">Entrada até</span>
-            )}
-          </div>
+        {/* Filtro por data de entrada — pill compacto */}
+        <div className="flex items-center gap-1.5 border border-neutral-200 rounded-xl bg-neutral-50 px-3 py-1.5">
+          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap flex-shrink-0">Entrada</span>
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            title="Entrada a partir de"
+            className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]"
+          />
+          <span className="text-neutral-300 text-xs flex-shrink-0">—</span>
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            title="Entrada até"
+            className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]"
+          />
         </div>
         {(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo) && (
           <button
             onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); }}
-            className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors"
+            className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors flex-shrink-0"
           >
             <X size={18} />
           </button>

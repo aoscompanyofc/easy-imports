@@ -36,6 +36,8 @@ export const Estoque: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState('Todas');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [showSold, setShowSold] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addForm, setAddForm] = useState<DeviceFormData>(emptyDeviceForm());
@@ -211,7 +213,9 @@ export const Estoque: React.FC = () => {
         p.imei?.includes(searchTerm) ||
         p.category?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchCat = filterCategory === 'Todas' || p.category === filterCategory;
-      return matchSearch && matchCat;
+      const matchDateFrom = !filterDateFrom || (p.entry_date && p.entry_date >= filterDateFrom);
+      const matchDateTo   = !filterDateTo   || (p.entry_date && p.entry_date <= filterDateTo);
+      return matchSearch && matchCat && matchDateFrom && matchDateTo;
     });
 
   const available = applyFilters(products.filter(p => p.stock_quantity > 0));
@@ -349,9 +353,36 @@ export const Estoque: React.FC = () => {
             </div>
           )}
         </div>
-        {(searchTerm || filterCategory !== 'Todas') && (
+        {/* Filtro por data de entrada */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              title="Entrada a partir de"
+              className="px-3 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-neutral-600 w-36"
+            />
+            {!filterDateFrom && (
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">Entrada de</span>
+            )}
+          </div>
+          <div className="relative">
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              title="Entrada até"
+              className="px-3 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-neutral-600 w-36"
+            />
+            {!filterDateTo && (
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">Entrada até</span>
+            )}
+          </div>
+        </div>
+        {(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo) && (
           <button
-            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); }}
+            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); }}
             className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors"
           >
             <X size={18} />

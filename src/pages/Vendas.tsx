@@ -152,7 +152,7 @@ export const Vendas: React.FC = () => {
 
   const [form, setForm] = useState(emptyForm());
   const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', cpf: '', email: '' });
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', cpf: '', email: '', address: '' });
   const [postSaleData, setPostSaleData] = useState<{
     customerName: string; phone: string; signLink: string;
     saleNumber: string; saleType: string;
@@ -245,6 +245,13 @@ export const Vendas: React.FC = () => {
   const resolvedUnitPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price > 0 ? selectedProductData.sale_price : 0);
   const salePrice = resolvedUnitPrice * form.quantity;
 
+  // Lucro estimado para venda simples (sempre calculado, exibido no preview de pagamento)
+  const unitCost = selectedProductData?.purchase_price || 0;
+  const totalCost = unitCost * (form.quantity || 1);
+  const vendaProfit = salePrice - totalCost;
+  const vendaMargin = salePrice > 0 ? Math.round((vendaProfit / salePrice) * 100) : 0;
+  const hasCost = unitCost > 0;
+
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -278,6 +285,8 @@ export const Vendas: React.FC = () => {
           name: newCustomer.name.trim(),
           phone: newCustomer.phone.trim(),
           email: newCustomer.email.trim(),
+          cpf: newCustomer.cpf.trim(),
+          city: newCustomer.address.trim(),
         });
         customerId = created.id;
         customerName = created.name;
@@ -339,6 +348,7 @@ export const Vendas: React.FC = () => {
           product_capacity: form.incoming_capacity || '',
           product_color: form.incoming_color || '',
           product_condition: (form.incoming_condition || 'Seminovo') + batteryNote,
+          entry_date: new Date(form.sale_date).toISOString().split('T')[0],
         });
       }
 
@@ -422,7 +432,7 @@ export const Vendas: React.FC = () => {
       setIsModalOpen(false);
       setForm(emptyForm());
       setShowNewCustomer(false);
-      setNewCustomer({ name: '', phone: '', cpf: '', email: '' });
+      setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
       fetchData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -575,7 +585,7 @@ export const Vendas: React.FC = () => {
           <button onClick={() => setShowSQL(!showSQL)} className="text-xs text-neutral-400 hover:text-neutral-700 underline">
             SQL campos extras
           </button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '' }); setIsModalOpen(true); }}>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
             Nova Operação
           </Button>
         </div>
@@ -859,6 +869,15 @@ export const Vendas: React.FC = () => {
                           placeholder="joao@email.com"
                           value={newCustomer.email}
                           onChange={(e) => setNewCustomer((c) => ({ ...c, email: e.target.value }))}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="Endereço"
+                          placeholder="Rua, número, bairro, cidade — SP"
+                          value={newCustomer.address}
+                          onChange={(e) => setNewCustomer((c) => ({ ...c, address: e.target.value }))}
                           autoComplete="off"
                         />
                       </div>
@@ -1267,11 +1286,36 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            {/* Preview total */}
+            {/* Preview total + Lucro */}
             {salePrice > 0 && form.sale_type !== 'troca' && (
-              <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
-                <span className="text-sm font-bold text-neutral-700">Total da operação:</span>
-                <span className="text-2xl font-black text-primary-900">{formatCurrency(salePrice)}</span>
+              <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-neutral-700">Total da operação</span>
+                  <span className="text-2xl font-black text-primary-900">{formatCurrency(salePrice)}</span>
+                </div>
+                {hasCost && (
+                  <div className="flex items-center justify-between text-sm text-neutral-500">
+                    <span>Custo do produto</span>
+                    <span className="font-semibold">− {formatCurrency(totalCost)}</span>
+                  </div>
+                )}
+                <div className={cn('flex items-center justify-between pt-2 border-t', 'border-primary/20')}>
+                  <span className="font-bold text-neutral-800">Lucro estimado</span>
+                  <div className="text-right">
+                    {hasCost ? (
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-xl font-black', vendaProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
+                          {formatCurrency(vendaProfit)}
+                        </span>
+                        <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', vendaProfit >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600')}>
+                          {vendaMargin}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-neutral-400 font-medium">— custo não cadastrado</span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1365,10 +1409,13 @@ export const Vendas: React.FC = () => {
                     href={`https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-base transition-colors"
+                    className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-base transition-colors"
                   >
-                    <MessageCircle size={20} />
-                    Enviar pelo WhatsApp
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 2L11 13"/>
+                      <path d="M22 2L15 22L11 13L2 9L22 2z"/>
+                    </svg>
+                    Enviar link ao cliente
                   </a>
                 ) : (
                   <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3">

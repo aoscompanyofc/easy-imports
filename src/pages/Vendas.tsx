@@ -85,7 +85,9 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_condition TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_battery_health TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC DEFAULT 0;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS rep_seller_id UUID;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS rep_seller_name TEXT;`;
 
 function toWhatsAppNumber(phone: string) {
   const d = phone.replace(/\D/g, '');
@@ -930,6 +932,13 @@ export const Vendas: React.FC = () => {
                               {type === 'troca' && sale.incoming_name?.trim() ? ` ⇄ ${sale.incoming_name}` : ''}
                             </p>
                           </div>
+
+                          {/* Rep seller badge */}
+                          {sale.rep_seller_name && (
+                            <span className="hidden md:block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary-900 flex-shrink-0 max-w-[100px] truncate">
+                              {sale.rep_seller_name}
+                            </span>
+                          )}
 
                           {/* Payment */}
                           <span className="hidden sm:block text-xs text-neutral-500 flex-shrink-0">
@@ -1783,26 +1792,55 @@ export const Vendas: React.FC = () => {
             )}
           </div>
 
-          {/* Vendedor responsável */}
-          {sellers.length > 0 && (
-            <div>
-              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">
-                Responsável pela Venda
-              </p>
-              <select
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                value={form.rep_id}
-                onChange={setF('rep_id')}
-              >
-                <option value="">Sem atribuição</option>
-                {sellers.map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}{s.role && s.role !== 'Vendedor' ? ` — ${s.role}` : ''}
-                  </option>
-                ))}
-              </select>
+          {/* Vendedor responsável — sempre visível */}
+          <div className="border-2 border-primary/20 bg-primary/5 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+              <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Vendedor Responsável</p>
             </div>
-          )}
+            {sellers.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                Nenhum vendedor cadastrado.{' '}
+                <a href="/vendedores" className="text-primary font-bold underline underline-offset-2 hover:opacity-80">
+                  Cadastre na aba Vendedores
+                </a>{' '}
+                para metrificar vendas por vendedor.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[{ id: '', name: 'Sem atribuição', role: '' }, ...sellers].map((s: any) => (
+                  <label
+                    key={s.id || 'none'}
+                    className={cn(
+                      'flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all',
+                      form.rep_id === s.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-neutral-200 bg-white hover:border-primary/40'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="rep_id"
+                      value={s.id}
+                      checked={form.rep_id === s.id}
+                      onChange={() => setForm((f) => ({ ...f, rep_id: s.id }))}
+                      className="hidden"
+                    />
+                    {s.id && s.color && (
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: s.color }}
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-neutral-900 truncate">{s.name}</p>
+                      {s.role && <p className="text-[10px] text-neutral-400 truncate">{s.role}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>
@@ -2306,6 +2344,7 @@ export const Vendas: React.FC = () => {
                 ['Cor', detailSale.product_color],
                 ['Estado', detailSale.product_condition],
                 ['Acessórios', detailSale.product_accessories],
+                ['Responsável', detailSale.rep_seller_name],
                 ['Vendedor/Cliente', detailSale.customer_name || detailSale.seller_name],
                 ['CPF', detailSale.seller_cpf || detailSale.customer_cpf],
                 ['RG', detailSale.seller_rg],

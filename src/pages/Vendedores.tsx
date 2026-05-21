@@ -95,7 +95,7 @@ export const Vendedores: React.FC = () => {
       setSellers(sellersData || []);
       setSales(salesData || []);
     } catch (error: any) {
-      toast.error('Erro ao carregar: ' + error.message);
+      toast.error('Erro ao carregar vendas: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -250,20 +250,46 @@ export const Vendedores: React.FC = () => {
           ))}
         </div>
       ) : sellers.length === 0 ? (
-        <Card className="py-16 flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center">
-            <Users2 size={28} className="text-neutral-300" />
+        <div className="space-y-4">
+          {/* Setup hint — shown automatically since table may not exist yet */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+            <div className="flex items-start gap-3 mb-3">
+              <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-800">Configure a tabela no Supabase primeiro</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Execute o script abaixo no Supabase → SQL Editor para criar a tabela de vendedores.
+                  Depois volte aqui e adicione o primeiro vendedor.
+                </p>
+              </div>
+            </div>
+            <pre className="text-xs bg-neutral-900 text-green-400 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap mb-3">
+              {SELLER_SQL}
+            </pre>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => { navigator.clipboard.writeText(SELLER_SQL); toast.success('SQL copiado! Cole no Supabase → SQL Editor e execute.'); }}
+            >
+              Copiar SQL
+            </Button>
           </div>
-          <div>
-            <p className="font-bold text-neutral-700">Nenhum vendedor cadastrado</p>
-            <p className="text-sm text-neutral-400 mt-1">
-              Adicione vendedores para acompanhar o desempenho da equipe.
-            </p>
-          </div>
-          <Button leftIcon={<Plus size={16} />} size="sm" onClick={openAdd}>
-            Adicionar Vendedor
-          </Button>
-        </Card>
+
+          <Card className="py-12 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center">
+              <Users2 size={28} className="text-neutral-300" />
+            </div>
+            <div>
+              <p className="font-bold text-neutral-700">Nenhum vendedor cadastrado</p>
+              <p className="text-sm text-neutral-400 mt-1">
+                Após executar o SQL acima, adicione o primeiro vendedor.
+              </p>
+            </div>
+            <Button leftIcon={<Plus size={16} />} size="sm" onClick={openAdd}>
+              Adicionar Vendedor
+            </Button>
+          </Card>
+        </div>
       ) : (
         <>
           {/* Performance cards */}

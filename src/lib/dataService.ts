@@ -15,6 +15,13 @@ const isColErr = (e: any) =>
   e?.message?.includes('schema cache') ||
   e?.message?.includes('Could not find');
 
+// Missing-table error — table was never created in Supabase
+const isTableErr = (e: any) =>
+  e?.code === '42P01' ||
+  e?.message?.includes('does not exist') ||
+  e?.message?.includes('schema cache') ||
+  e?.message?.includes('Could not find');
+
 // Try each payload in order; move to next on column error, throw on any other error
 async function tryInsert(table: string, payloads: Record<string, any>[]) {
   for (const payload of payloads) {
@@ -463,7 +470,8 @@ export const dataService = {
       .select('*')
       .eq('user_id', uid)
       .order('created_at', { ascending: true });
-    if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) return [];
+    // Table not created yet — silently return empty list
+    if (error && isTableErr(error)) return [];
     if (error) throw error;
     return data || [];
   },
@@ -474,6 +482,12 @@ export const dataService = {
       .from('sellers')
       .insert([{ ...seller, user_id: uid, active: true }])
       .select();
+    if (error && isTableErr(error)) {
+      throw new Error(
+        'Tabela de vendedores ainda não existe no Supabase. ' +
+        'Clique em "SQL necessário" na tela de Vendedores, copie o script e execute no SQL Editor do Supabase.'
+      );
+    }
     if (error) throw error;
     return data![0];
   },
@@ -484,12 +498,16 @@ export const dataService = {
       .update(updates)
       .eq('id', id)
       .select();
+    if (error && isTableErr(error)) {
+      throw new Error('Tabela de vendedores não existe. Execute o SQL necessário no Supabase.');
+    }
     if (error) throw error;
     return data![0];
   },
   async deleteSeller(id: string) {
     if (useMock) return;
     const { error } = await supabase.from('sellers').delete().eq('id', id);
+    if (error && isTableErr(error)) return true; // table gone, nothing to delete
     if (error) throw error;
     return true;
   },

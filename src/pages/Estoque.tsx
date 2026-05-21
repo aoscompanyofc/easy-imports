@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
@@ -38,6 +38,24 @@ export const Estoque: React.FC = () => {
   const [showSold, setShowSold] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+
+  const [filterCondition, setFilterCondition] = useState('Todas');
+  const [filterPriceMin, setFilterPriceMin] = useState('');
+  const [filterPriceMax, setFilterPriceMax] = useState('');
+  const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo', 'Usado'];
+
+  const exportCSV = (list: any[]) => {
+    const header = ['Nome','Categoria','Condição','IMEI','Custo','Preço Venda','Garantia','Entrada'];
+    const rows = list.map(p => [
+      p.name, p.category, p.product_condition, p.imei || '',
+      p.purchase_price, p.sale_price, p.product_warranty || '', p.entry_date || '',
+    ]);
+    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `estoque_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addForm, setAddForm] = useState<DeviceFormData>(emptyDeviceForm());
@@ -211,6 +229,8 @@ export const Estoque: React.FC = () => {
     }
   };
 
+  const STALE_DAYS = 45;
+
   const applyFilters = (list: any[]) =>
     list.filter(p => {
       const matchSearch =
@@ -221,7 +241,11 @@ export const Estoque: React.FC = () => {
       const matchCat = filterCategory === 'Todas' || p.category === filterCategory;
       const matchDateFrom = !filterDateFrom || (p.entry_date && p.entry_date >= filterDateFrom);
       const matchDateTo   = !filterDateTo   || (p.entry_date && p.entry_date <= filterDateTo);
-      return matchSearch && matchCat && matchDateFrom && matchDateTo;
+      const matchCondition = filterCondition === 'Todas' || (p.product_condition || '').toLowerCase().includes(filterCondition.toLowerCase());
+      const price = Number(p.sale_price) || 0;
+      const matchPriceMin = !filterPriceMin || price >= Number(filterPriceMin);
+      const matchPriceMax = !filterPriceMax || price <= Number(filterPriceMax);
+      return matchSearch && matchCat && matchDateFrom && matchDateTo && matchCondition && matchPriceMin && matchPriceMax;
     });
 
   const available = applyFilters(products.filter(p => p.stock_quantity > 0));
@@ -231,11 +255,15 @@ export const Estoque: React.FC = () => {
     const profit = p.sale_price - p.purchase_price;
     const margin = p.sale_price > 0 ? (profit / p.sale_price) * 100 : 0;
     const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
+    const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
+    const isStale = !isSoldView && daysInStock >= STALE_DAYS;
     return (
       <div className={[
         'flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
         isSoldView
           ? 'bg-neutral-50 border-neutral-200 opacity-55'
+          : isStale
+          ? 'bg-amber-50 border-amber-200 hover:border-amber-300 hover:shadow-sm'
           : 'bg-white border-neutral-200 hover:border-primary/30 hover:shadow-sm',
       ].join(' ')}>
 
@@ -289,6 +317,11 @@ export const Estoque: React.FC = () => {
           )}
           {p.product_origin && (
             <span className="text-xs text-neutral-400">Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
+          )}
+          {isStale && (
+            <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">
+              <AlertTriangle size={10} /> {daysInStock}d parado
+            </span>
           )}
         </div>
 
@@ -432,14 +465,45 @@ export const Estoque: React.FC = () => {
             className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]"
           />
         </div>
-        {(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo) && (
+        {(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo || filterCondition !== 'Todas' || filterPriceMin || filterPriceMax) && (
           <button
-            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); }}
+            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); setFilterCondition('Todas'); setFilterPriceMin(''); setFilterPriceMax(''); }}
             className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors flex-shrink-0"
           >
             <X size={18} />
           </button>
         )}
+      </div>
+
+      {/* Extra filters row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Condição */}
+        <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
+          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Condição</span>
+          {CONDITION_OPTIONS.map(opt => (
+            <button key={opt}
+              onClick={() => setFilterCondition(opt)}
+              className={['text-xs font-bold px-2 py-0.5 rounded-lg transition-colors', filterCondition === opt ? 'bg-primary text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'].join(' ')}>
+              {opt}
+            </button>
+          ))}
+        </div>
+        {/* Faixa de preço */}
+        <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
+          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap">R$</span>
+          <input type="number" placeholder="Mín" value={filterPriceMin} onChange={e => setFilterPriceMin(e.target.value)}
+            className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
+          <span className="text-neutral-300 text-xs">—</span>
+          <input type="number" placeholder="Máx" value={filterPriceMax} onChange={e => setFilterPriceMax(e.target.value)}
+            className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
+        </div>
+        {/* Export */}
+        <button
+          onClick={() => exportCSV(available)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:border-primary/30 hover:text-neutral-900 transition-colors"
+        >
+          <Download size={13} /> Exportar CSV
+        </button>
       </div>
 
       {/* Available products */}

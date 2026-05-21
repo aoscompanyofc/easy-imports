@@ -9,7 +9,10 @@ import { Button } from '../components/ui/Button';
 import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
   Calendar, TrendingUp, ArrowRight, ChevronDown, ChevronUp,
+  Target, Pencil, Check, RefreshCw,
 } from 'lucide-react';
+
+const META_KEY = 'easy-imports-meta-mensal';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { format } from 'date-fns';
@@ -127,6 +130,21 @@ function buildChannelData(sales: any[]) {
     .sort((a, b) => b.value - a.value);
 }
 
+function buildSaleTypeData(sales: any[]) {
+  let venda = 0, troca = 0, compra = 0;
+  for (const s of sales) {
+    const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+    if (t === 'troca') troca += Number(s.total_amount || 0);
+    else if (t === 'compra') compra += Number(s.total_amount || 0);
+    else venda += Number(s.total_amount || 0);
+  }
+  return [
+    { name: 'Venda',  value: Math.round(venda),  color: '#FFC107' },
+    { name: 'Troca',  value: Math.round(troca),  color: '#8B5CF6' },
+    { name: 'Compra', value: Math.round(compra), color: '#3B82F6' },
+  ].filter(d => d.value > 0);
+}
+
 function getInitials(name: string) {
   return name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 }
@@ -164,6 +182,36 @@ export const Dashboard: React.FC = () => {
   const [stockValue, setStockValue]         = useState(0);
   const [isLoading, setIsLoading]           = useState(true);
 
+  // Meta mensal
+  const [meta, setMeta] = useState<number>(() => {
+    try { return Number(localStorage.getItem(META_KEY) || '0'); } catch { return 0; }
+  });
+  const [isEditingMeta, setIsEditingMeta] = useState(false);
+  const [metaInput, setMetaInput] = useState('');
+
+  // Meta mensal helpers
+  const thisMonthRevenue = useMemo(() => {
+    const now = new Date();
+    return allSales
+      .filter(s => {
+        if (!s.created_at) return false;
+        const d = new Date(s.created_at);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      })
+      .reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+  }, [allSales]);
+
+  const metaPct = meta > 0 ? Math.min(100, Math.round((thisMonthRevenue / meta) * 100)) : 0;
+
+  const saveMeta = () => {
+    const v = Number(metaInput.replace(',', '.'));
+    if (v > 0) {
+      setMeta(v);
+      localStorage.setItem(META_KEY, String(v));
+    }
+    setIsEditingMeta(false);
+  };
+
   const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -189,7 +237,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, salesCount, netProfit, chartData, channelData, topProducts } = useMemo(() => {
+  const { filteredSales, revenue, salesCount, netProfit, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -225,6 +273,7 @@ export const Dashboard: React.FC = () => {
       chartData:     buildChartDataForRange(filtered, start, end),
       channelData:   buildChannelData(filtered),
       topProducts:   buildTopProducts(filtered),
+      saleTypeData:  buildSaleTypeData(filtered),
     };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
@@ -365,6 +414,66 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          {/* ── Meta Mensal ── */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <Target size={16} className="text-primary-700" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Meta do Mês</p>
+                  <p className="text-sm font-bold text-neutral-900">
+                    {meta > 0 ? `${formatCurrency(thisMonthRevenue)} de ${formatCurrency(meta)}` : 'Nenhuma meta definida'}
+                  </p>
+                </div>
+              </div>
+              {isEditingMeta ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Ex: 50000"
+                    value={metaInput}
+                    onChange={e => setMetaInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && saveMeta()}
+                    autoFocus
+                    className="w-32 px-3 py-1.5 text-sm border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                  />
+                  <button onClick={saveMeta} className="p-1.5 bg-primary rounded-lg text-neutral-900">
+                    <Check size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setMetaInput(String(meta || '')); setIsEditingMeta(true); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-xs font-bold transition-colors"
+                >
+                  <Pencil size={12} />
+                  {meta > 0 ? 'Alterar' : 'Definir meta'}
+                </button>
+              )}
+            </div>
+            {meta > 0 && (
+              <div className="space-y-1.5">
+                <div className="w-full h-3 bg-neutral-100 rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all duration-700',
+                      metaPct >= 100 ? 'bg-emerald-500' : metaPct >= 70 ? 'bg-primary' : metaPct >= 40 ? 'bg-amber-400' : 'bg-red-400'
+                    )}
+                    style={{ width: `${metaPct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-neutral-400">
+                  <span>{metaPct}% atingido</span>
+                  <span className={metaPct >= 100 ? 'text-emerald-600 font-bold' : ''}>
+                    {metaPct >= 100 ? '🎯 Meta batida!' : `Faltam ${formatCurrency(meta - thisMonthRevenue)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ── Charts row ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -378,7 +487,7 @@ export const Dashboard: React.FC = () => {
                 }
               />
             </div>
-            <div>
+            <div className="space-y-4">
               {channelData.length > 0 ? (
                 <ChannelChart data={channelData} />
               ) : (
@@ -389,6 +498,33 @@ export const Dashboard: React.FC = () => {
                   <div>
                     <p className="font-bold text-neutral-600 text-sm">Sem vendas no período</p>
                     <p className="text-xs text-neutral-400 mt-1">Pagamentos aparecerão aqui.</p>
+                  </div>
+                </Card>
+              )}
+              {/* Receita por tipo (venda vs troca) */}
+              {saleTypeData.length > 0 && (
+                <Card>
+                  <p className="text-sm font-black text-neutral-700 mb-3">Receita por Tipo</p>
+                  <div className="space-y-2.5">
+                    {saleTypeData.map(d => {
+                      const total = saleTypeData.reduce((a, b) => a + b.value, 0);
+                      const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+                      return (
+                        <div key={d.name} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                              <span className="font-semibold text-neutral-700">{d.name}</span>
+                            </div>
+                            <span className="font-black text-neutral-900">{pct}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: d.color }} />
+                          </div>
+                          <p className="text-[10px] text-neutral-400 text-right">{formatCurrency(d.value)}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </Card>
               )}

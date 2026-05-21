@@ -21,7 +21,7 @@ function cn(...inputs: ClassValue[]) {
 
 const PLATFORMS = [
   'Instagram Ads', 'Facebook Ads', 'Google Ads', 'TikTok Ads',
-  'YouTube Ads', 'WhatsApp', 'Pinterest Ads', 'LinkedIn Ads', 'Outros',
+  'YouTube Ads', 'WhatsApp Easy Imports', 'WhatsApp João', 'Pinterest Ads', 'LinkedIn Ads', 'Outros',
 ];
 
 const OBJECTIVES = [
@@ -30,15 +30,16 @@ const OBJECTIVES = [
 ];
 
 const PLATFORM_COLORS: Record<string, string> = {
-  'Instagram Ads': 'bg-pink-100 text-pink-700',
-  'Facebook Ads': 'bg-blue-100 text-blue-700',
-  'Google Ads': 'bg-red-100 text-red-700',
-  'TikTok Ads': 'bg-neutral-900 text-white',
-  'YouTube Ads': 'bg-red-100 text-red-700',
-  'WhatsApp': 'bg-green-100 text-green-700',
-  'Pinterest Ads': 'bg-rose-100 text-rose-700',
-  'LinkedIn Ads': 'bg-sky-100 text-sky-700',
-  'Outros': 'bg-neutral-100 text-neutral-600',
+  'Instagram Ads':        'bg-primary/10 text-primary-700',
+  'Facebook Ads':         'bg-neutral-100 text-neutral-700',
+  'Google Ads':           'bg-neutral-100 text-neutral-700',
+  'TikTok Ads':           'bg-neutral-800 text-white',
+  'YouTube Ads':          'bg-neutral-100 text-neutral-700',
+  'WhatsApp Easy Imports':'bg-primary/10 text-primary-700',
+  'WhatsApp João':        'bg-amber-50 text-amber-700',
+  'Pinterest Ads':        'bg-neutral-100 text-neutral-700',
+  'LinkedIn Ads':         'bg-neutral-100 text-neutral-700',
+  'Outros':               'bg-neutral-100 text-neutral-600',
 };
 
 const EXTRA_COLUMNS_SQL = `-- Execute no Supabase Dashboard → SQL Editor

@@ -42,13 +42,16 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
 }
 
-const SOURCES = ['Instagram','WhatsApp','Google','Indicação','Facebook','TikTok','Loja Física','Outro'];
+const SOURCES = [
+  'Instagram', 'WhatsApp Easy Imports', 'WhatsApp João',
+  'Indicação', 'Facebook', 'TikTok', 'Google', 'Loja Física', 'Outro',
+];
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
   { id: 'new',         label: 'Novo Lead',   accent: '#3B82F6' },
   { id: 'interested',  label: 'Interessado', accent: '#EAB308' },
-  { id: 'proposal',    label: 'Proposta',    accent: '#8B5CF6' },
+  { id: 'proposal',    label: 'Follow Up',   accent: '#8B5CF6' },
   { id: 'negotiating', label: 'Negociando',  accent: '#EC4899' },
   { id: 'closed',      label: 'Cliente',     accent: '#10B981' },
 ] as const;
@@ -129,6 +132,21 @@ const CardContent = ({
             )}
           </div>
         </div>
+
+        {/* Contact button — always visible when phone exists */}
+        {!isDragging && lead.phone && (
+          <a
+            href={`https://wa.me/${toWhatsApp(lead.phone)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+            className="mt-2 flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-[11px] font-bold bg-neutral-100 hover:bg-primary text-neutral-600 hover:text-neutral-900 transition-all"
+          >
+            <Phone size={11} />
+            Contatar
+          </a>
+        )}
       </div>
     </div>
   );

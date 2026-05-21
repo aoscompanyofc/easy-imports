@@ -390,6 +390,17 @@ export const Vendas: React.FC = () => {
         });
       }
 
+      // Para trocas: registra o valor do aparelho que entrou como receita
+      if (form.sale_type === 'troca' && form.incoming_name.trim() && Number(form.incoming_purchase_price) > 0) {
+        await dataService.addTransaction({
+          description: `Aparelho Recebido ${saleNumber} — ${form.incoming_name.trim()}`,
+          amount: Number(form.incoming_purchase_price),
+          type: 'income',
+          category: 'trade',
+          date: new Date(form.sale_date).toISOString().slice(0, 10),
+        });
+      }
+
       // Para produtos sem estoque: cria transações financeiras manualmente
       if (!product) {
         await dataService.addTransaction({

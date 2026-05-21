@@ -236,13 +236,16 @@ export const dataService = {
     const { data: saleRow } = await supabase
       .from('sales').select('sale_number').eq('id', id).single();
 
-    // Remove transações — formato novo (Receita/Custo #V0001 — ...)
+    // Remove transações — formato novo (Receita/Custo/Aparelho Recebido #V0001 — ...)
     if (saleRow?.sale_number) {
       await supabase.from('transactions').delete()
         .like('description', `Receita ${saleRow.sale_number} —%`)
         .eq('user_id', uid);
       await supabase.from('transactions').delete()
         .like('description', `Custo ${saleRow.sale_number} —%`)
+        .eq('user_id', uid);
+      await supabase.from('transactions').delete()
+        .like('description', `Aparelho Recebido ${saleRow.sale_number} —%`)
         .eq('user_id', uid);
     }
 

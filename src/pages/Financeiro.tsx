@@ -124,9 +124,9 @@ export const Financeiro: React.FC = () => {
   const filterTypeLabels = { all: 'Filtros', income: 'Receitas', expense: 'Despesas' };
 
   const CATEGORY_LABELS: Record<string, string> = {
-    sale: 'Venda', stock: 'Custo estoque', rent: 'Aluguel',
-    salaries: 'Salários', marketing: 'Marketing', taxes: 'Impostos',
-    utilities: 'Serviços', other: 'Outros',
+    sale: 'Venda', stock: 'Custo estoque', trade: 'Troca — Aparelho Recebido',
+    rent: 'Aluguel', salaries: 'Salários', marketing: 'Marketing',
+    taxes: 'Impostos', utilities: 'Serviços', other: 'Outros',
   };
 
   // Transações auto-geradas pelo sistema têm descrição começando em Receita/Custo + nº operação

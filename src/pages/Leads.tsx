@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Plus, Search, Phone, Calendar, Trash2, X,
-  CheckCircle2, TrendingUp, Users, Zap, ArrowRight, GripVertical,
+  Plus, Search, Phone, Mail, Calendar, Trash2, X,
+  CheckCircle2, TrendingUp, Users, Zap, ArrowRight,
+  MapPin, MessageSquare,
 } from 'lucide-react';
 import {
   DndContext, DragOverlay,
@@ -19,9 +20,7 @@ import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 function toWhatsApp(phone: string) {
   return phone.replace(/\D/g, '').replace(/^0/, '').replace(/^(\d{2})/, '55$1');
@@ -32,7 +31,7 @@ function getInitials(name: string) {
 function fmtDate(iso: string) {
   if (!iso) return '';
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 const AVATAR_COLORS = [
@@ -47,18 +46,18 @@ const SOURCES = ['Instagram','WhatsApp','Google','Indicação','Facebook','TikTo
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
-  { id:'new',         label:'Novo Lead',        accent:'#3B82F6', bar:'bg-blue-500',    count:'bg-blue-100 text-blue-700',    col:'bg-blue-50/40'    },
-  { id:'contacting',  label:'Primeiro Contato', accent:'#F97316', bar:'bg-orange-500',  count:'bg-orange-100 text-orange-700',col:'bg-orange-50/40'  },
-  { id:'interested',  label:'Interessado',      accent:'#EAB308', bar:'bg-yellow-400',  count:'bg-yellow-100 text-yellow-800',col:'bg-yellow-50/40'  },
-  { id:'proposal',    label:'Proposta',         accent:'#8B5CF6', bar:'bg-violet-500',  count:'bg-violet-100 text-violet-700',col:'bg-violet-50/40'  },
-  { id:'negotiating', label:'Negociando',       accent:'#EC4899', bar:'bg-pink-500',    count:'bg-pink-100 text-pink-700',    col:'bg-pink-50/40'    },
-  { id:'closed',      label:'Cliente',          accent:'#10B981', bar:'bg-emerald-500', count:'bg-emerald-100 text-emerald-700', col:'bg-emerald-50/40'},
+  { id:'new',         label:'Novo Lead',        accent:'#3B82F6' },
+  { id:'contacting',  label:'Primeiro Contato', accent:'#F97316' },
+  { id:'interested',  label:'Interessado',      accent:'#EAB308' },
+  { id:'proposal',    label:'Proposta',         accent:'#8B5CF6' },
+  { id:'negotiating', label:'Negociando',       accent:'#EC4899' },
+  { id:'closed',      label:'Cliente',          accent:'#10B981' },
 ] as const;
 
 type StageId = typeof STAGES[number]['id'];
 function getStage(id: string) { return STAGES.find(s => s.id === id) ?? STAGES[0]; }
 
-// ─── Card visual ──────────────────────────────────────────────────────────────
+// ─── Card ─────────────────────────────────────────────────────────────────────
 const CardContent = ({
   lead, isDragging = false, onDelete, onDetail,
 }: {
@@ -67,27 +66,24 @@ const CardContent = ({
   onDetail?: () => void;
 }) => {
   const stage = getStage(lead.status);
-  const isClient = lead.status === 'closed';
 
   return (
     <div
       onClick={!isDragging ? onDetail : undefined}
       className={cn(
-        'bg-white rounded-2xl border overflow-hidden cursor-pointer transition-all duration-150 group select-none',
+        'bg-white rounded-2xl overflow-hidden select-none transition-all duration-150 group',
         isDragging
-          ? 'shadow-2xl border-primary rotate-1 scale-[1.03] opacity-95'
-          : 'border-neutral-200 hover:border-neutral-300 hover:shadow-md',
-        isClient && !isDragging && 'border-l-4 border-l-emerald-400',
+          ? 'shadow-2xl scale-[1.04] rotate-1 opacity-95 border border-neutral-200'
+          : 'border border-neutral-150 shadow-sm hover:shadow-md hover:border-neutral-200 cursor-pointer',
       )}
+      style={{ borderLeft: `3px solid ${stage.accent}` }}
     >
-      {/* Colored accent line at top */}
-      <div className="h-[3px] w-full" style={{ backgroundColor: stage.accent }} />
+      <div className="p-3.5 space-y-2.5">
 
-      <div className="p-3.5">
-        {/* Avatar + name + grip */}
+        {/* Avatar + name row */}
         <div className="flex items-center gap-2.5">
           <div className={cn(
-            'w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0',
+            'w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black flex-shrink-0',
             avatarColor(lead.name),
           )}>
             {getInitials(lead.name)}
@@ -96,75 +92,55 @@ const CardContent = ({
           <div className="flex-1 min-w-0">
             <p className="font-bold text-neutral-900 text-sm leading-tight truncate">{lead.name}</p>
             {lead.source && (
-              <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider">{lead.source}</span>
+              <p className="text-[10px] font-semibold text-neutral-400 truncate">{lead.source}</p>
             )}
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {!isDragging && onDelete && (
-              <button
-                onPointerDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); onDelete(e); }}
-                className="p-1 opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-red-400 transition-all rounded"
-              >
-                <Trash2 size={12} />
-              </button>
-            )}
-            <div className="p-1 text-neutral-200 group-hover:text-neutral-400 transition-colors">
-              <GripVertical size={13} />
-            </div>
-          </div>
+          {!isDragging && onDelete && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onDelete(e); }}
+              className="opacity-0 group-hover:opacity-100 p-1 text-neutral-300 hover:text-red-400 transition-all rounded-lg flex-shrink-0"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
         </div>
 
-        {/* Notes */}
+        {/* Notes preview */}
         {lead.notes && (
-          <p className="mt-2.5 text-[11px] text-neutral-500 bg-neutral-50 rounded-xl px-2.5 py-2 line-clamp-2 leading-relaxed">
+          <p className="text-[11px] text-neutral-500 leading-relaxed line-clamp-2 px-0.5">
             {lead.notes}
           </p>
         )}
 
         {/* Footer */}
-        <div className="mt-2.5 flex items-center justify-between gap-2">
-          {lead.phone ? (
-            <div className="flex items-center gap-1 text-[11px] text-neutral-500 min-w-0 truncate">
-              <Phone size={11} className="text-neutral-400 flex-shrink-0" />
-              <span className="truncate">{lead.phone}</span>
-            </div>
-          ) : <div />}
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {lead.created_at && (
-              <span className="text-[10px] text-neutral-400 font-medium">{fmtDate(lead.created_at)}</span>
-            )}
-            {isClient && (
-              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
-                <CheckCircle2 size={9} />
-                Cliente
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex items-center gap-1 min-w-0">
+            {lead.phone ? (
+              <span className="text-[11px] text-neutral-400 truncate flex items-center gap-1">
+                <Phone size={10} className="flex-shrink-0" />
+                {lead.phone}
               </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {lead.status === 'closed' && (
+              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full">
+                <CheckCircle2 size={8} /> Cliente
+              </span>
+            )}
+            {lead.created_at && (
+              <span className="text-[10px] text-neutral-300 font-medium">{fmtDate(lead.created_at)}</span>
             )}
           </div>
         </div>
-
-        {/* Contact button — system identity, not WhatsApp green */}
-        {!isDragging && lead.phone && (
-          <a
-            href={`https://wa.me/${toWhatsApp(lead.phone)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onPointerDown={e => e.stopPropagation()}
-            onClick={e => e.stopPropagation()}
-            className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1.5 rounded-xl text-[11px] font-bold text-neutral-600 bg-neutral-100 hover:bg-primary hover:text-neutral-900 transition-all"
-          >
-            <Phone size={11} />
-            Contatar
-          </a>
-        )}
       </div>
     </div>
   );
 };
 
-// ─── Draggable card ────────────────────────────────────────────────────────────
+// ─── Draggable ────────────────────────────────────────────────────────────────
 const DraggableCard = ({ lead, onDelete, onDetail }: {
   lead: any;
   onDelete: (e: React.MouseEvent) => void;
@@ -173,7 +149,7 @@ const DraggableCard = ({ lead, onDelete, onDetail }: {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: lead.id });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      style={{ opacity: isDragging ? 0.25 : 1, cursor: 'grab' }}>
+      style={{ opacity: isDragging ? 0.2 : 1, cursor: isDragging ? 'grabbing' : 'grab' }}>
       <CardContent lead={lead} onDelete={onDelete} onDetail={onDetail} />
     </div>
   );
@@ -190,14 +166,17 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
-    <div className="flex-shrink-0 w-[268px] flex flex-col gap-2.5">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-0.5">
-        <div className={cn('w-2 h-2 rounded-full flex-shrink-0', stage.bar)} />
-        <p className="text-xs font-black text-neutral-700 uppercase tracking-wider flex-1 truncate">
+    <div className="flex-shrink-0 w-[256px] flex flex-col gap-2" style={{ scrollSnapAlign: 'start' }}>
+      {/* Column header */}
+      <div className="flex items-center gap-2 px-1 mb-0.5">
+        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
+        <p className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.08em] flex-1 truncate">
           {stage.label}
         </p>
-        <span className={cn('text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums', stage.count)}>
+        <span
+          className="text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums"
+          style={{ backgroundColor: stage.accent + '1A', color: stage.accent }}
+        >
           {leads.length}
         </span>
       </div>
@@ -206,26 +185,32 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
       <div
         ref={setNodeRef}
         className={cn(
-          'flex flex-col gap-2.5 rounded-2xl p-2 min-h-[500px] border-2 transition-all duration-150',
+          'flex flex-col gap-2 rounded-2xl p-2 min-h-[520px] border-2 transition-all duration-150',
           isOver
             ? 'border-primary border-dashed bg-primary/5'
-            : 'border-transparent bg-neutral-100/60',
+            : 'border-transparent bg-neutral-100/70',
         )}
       >
         {leads.map(lead => (
           <DraggableCard
             key={lead.id}
             lead={lead}
-            onDelete={(e) => { e.stopPropagation(); onDelete(lead.id, lead.name); }}
+            onDelete={e => { e.stopPropagation(); onDelete(lead.id, lead.name); }}
             onDetail={() => onDetail(lead)}
           />
         ))}
+
         {leads.length === 0 && !activeId && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-1 py-10">
-            <div className="w-8 h-8 rounded-xl bg-neutral-200 flex items-center justify-center">
-              <Plus size={14} className="text-neutral-400" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12 opacity-40">
+            <div
+              className="w-9 h-9 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: stage.accent + '22' }}
+            >
+              <Plus size={16} style={{ color: stage.accent }} />
             </div>
-            <p className="text-[11px] text-neutral-400 font-medium">Arraste para cá</p>
+            <p className="text-[11px] text-neutral-400 font-medium text-center leading-relaxed">
+              Arraste um lead<br />para cá
+            </p>
           </div>
         )}
       </div>
@@ -233,7 +218,7 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
   );
 };
 
-// ─── Detail panel ─────────────────────────────────────────────────────────────
+// ─── Detail modal (centered) ──────────────────────────────────────────────────
 const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
   lead: any;
   onClose: () => void;
@@ -245,35 +230,46 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
   const color = avatarColor(lead.name);
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
-      <div className="flex-1 bg-neutral-900/40 backdrop-blur-sm" />
-      <div
-        className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Top accent bar */}
-        <div className="h-1 w-full" style={{ backgroundColor: stage.accent }} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+        {/* Top accent */}
+        <div className="h-1.5 w-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
 
         {/* Header */}
-        <div className="px-5 py-4 flex items-center gap-3 border-b border-neutral-100">
-          <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm flex-shrink-0', color)}>
+        <div className="px-6 py-5 flex items-center gap-4 border-b border-neutral-100 flex-shrink-0">
+          <div className={cn(
+            'w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-base flex-shrink-0',
+            color,
+          )}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-black text-neutral-900 truncate">{lead.name}</h2>
+            <h2 className="font-black text-xl text-neutral-900 truncate">{lead.name}</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className={cn('w-2 h-2 rounded-full', stage.bar)} />
-              <span className="text-xs font-bold text-neutral-500">{stage.label}</span>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.accent }} />
+              <span className="text-sm font-semibold" style={{ color: stage.accent }}>{stage.label}</span>
+              {lead.created_at && (
+                <span className="text-xs text-neutral-400 ml-1">
+                  · {new Date(lead.created_at).toLocaleDateString('pt-BR', { dateStyle: 'medium' })}
+                </span>
+              )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-neutral-400 hover:bg-neutral-100 rounded-xl transition-colors flex-shrink-0">
-            <X size={18} />
+          <button
+            onClick={onClose}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors flex-shrink-0"
+          >
+            <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 p-5 space-y-5">
-          {/* Info */}
-          <div className="bg-neutral-50 rounded-2xl overflow-hidden divide-y divide-neutral-100">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+          {/* Contact info */}
+          <div className="bg-neutral-50 rounded-2xl divide-y divide-neutral-100 overflow-hidden">
             {lead.phone && (
               <div className="flex items-center gap-3 px-4 py-3">
                 <Phone size={14} className="text-neutral-400 flex-shrink-0" />
@@ -282,65 +278,63 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
             )}
             {lead.email && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <span className="text-xs text-neutral-400 flex-shrink-0">Email</span>
+                <Mail size={14} className="text-neutral-400 flex-shrink-0" />
                 <span className="text-sm font-medium text-neutral-800 truncate">{lead.email}</span>
               </div>
             )}
             {lead.source && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <Zap size={14} className="text-neutral-400 flex-shrink-0" />
+                <MapPin size={14} className="text-neutral-400 flex-shrink-0" />
                 <span className="text-sm text-neutral-600">Origem: <strong>{lead.source}</strong></span>
-              </div>
-            )}
-            {lead.created_at && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
-                <span className="text-sm text-neutral-500">
-                  {new Date(lead.created_at).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
-                </span>
               </div>
             )}
           </div>
 
+          {/* Notes */}
           {lead.notes && (
-            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
-              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1.5">Interesse / Notas</p>
+            <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare size={13} className="text-neutral-500" />
+                <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Interesse / Notas</p>
+              </div>
               <p className="text-sm text-neutral-700 leading-relaxed">{lead.notes}</p>
             </div>
           )}
 
           {/* Move stage */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mover para etapa</p>
-            {STAGES.filter(s => s.id !== lead.status).map(s => (
-              <button
-                key={s.id}
-                onClick={() => { onMove(lead.id, s.id); onClose(); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-neutral-50 hover:bg-neutral-100 text-left transition-colors group"
-              >
-                <div className={cn('w-2 h-2 rounded-full flex-shrink-0', s.bar)} />
-                <span className="text-sm font-bold text-neutral-700 flex-1">{s.label}</span>
-                <ArrowRight size={14} className="text-neutral-300 group-hover:text-neutral-500 transition-colors" />
-              </button>
-            ))}
+          <div>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3">Mover etapa</p>
+            <div className="space-y-1.5">
+              {STAGES.filter(s => s.id !== lead.status).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => { onMove(lead.id, s.id); onClose(); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-neutral-50 hover:bg-neutral-100 text-left transition-colors group"
+                >
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.accent }} />
+                  <span className="text-sm font-semibold text-neutral-700 flex-1">{s.label}</span>
+                  <ArrowRight size={13} className="text-neutral-300 group-hover:text-neutral-500 transition-colors" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-neutral-100 p-4 flex gap-2.5">
+        <div className="border-t border-neutral-100 px-6 py-4 flex gap-2.5 flex-shrink-0">
           {lead.phone && (
             <a
               href={`https://wa.me/${toWhatsApp(lead.phone)}`}
               target="_blank" rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors"
             >
-              <Phone size={16} />
+              <Phone size={15} />
               Contatar
             </a>
           )}
           <button
             onClick={() => { onDelete(lead.id, lead.name); onClose(); }}
-            className="px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 font-bold text-sm transition-colors flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 font-bold text-sm transition-colors"
           >
             <Trash2 size={16} />
           </button>
@@ -352,14 +346,13 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export const Leads: React.FC = () => {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [leads, setLeads]           = useState<any[]>([]);
+  const [isLoading, setIsLoading]   = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId]     = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<any | null>(null);
-
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isAddOpen, setIsAddOpen]   = useState(false);
+  const [isSaving, setIsSaving]     = useState(false);
   const [form, setForm] = useState({
     name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' as StageId,
   });
@@ -378,26 +371,21 @@ export const Leads: React.FC = () => {
       ]);
       const existingLeads: any[] = data || [];
 
-      // Migrate existing customers that don't have a matching closed lead
-      const toCreate = (customers || []).filter((c: any) => {
-        return !existingLeads.some((l: any) =>
+      const toCreate = (customers || []).filter((c: any) =>
+        !existingLeads.some((l: any) =>
           l.status === 'closed' && (
             (c.phone && l.phone && l.phone === c.phone) ||
             l.name?.toLowerCase() === c.name?.toLowerCase()
           )
-        );
-      });
+        )
+      );
 
       if (toCreate.length > 0) {
         await Promise.all(
           toCreate.map((c: any) =>
             dataService.addLead({
-              name: c.name,
-              phone: c.phone || '',
-              email: c.email || '',
-              source: 'Clientes',
-              notes: c.notes || '',
-              status: 'closed',
+              name: c.name, phone: c.phone || '', email: c.email || '',
+              source: 'Clientes', notes: c.notes || '', status: 'closed',
             }).catch(() => null)
           )
         );
@@ -430,19 +418,13 @@ export const Leads: React.FC = () => {
     });
   };
 
-  // ── Sync helpers ────────────────────────────────────────────────────────────
-
-  const syncCreateCustomer = useCallback(async (lead: { name: string; phone?: string; email?: string; notes?: string }) => {
+  const syncCreateCustomer = useCallback(async (lead: any) => {
     try {
       await dataService.addCustomer({
-        name: lead.name,
-        phone: lead.phone || '',
-        email: lead.email || '',
-        cpf: '',
-        city: '',
-        notes: lead.notes || '',
+        name: lead.name, phone: lead.phone || '', email: lead.email || '',
+        cpf: '', city: '', notes: lead.notes || '',
       });
-    } catch { /* ignore duplicates or schema errors */ }
+    } catch { /* ignore */ }
   }, []);
 
   const syncDeleteCustomer = useCallback(async (lead: any) => {
@@ -457,17 +439,13 @@ export const Leads: React.FC = () => {
     } catch { /* ignore */ }
   }, []);
 
-  // ── Move lead ───────────────────────────────────────────────────────────────
-
   const moveLead = useCallback(async (id: string, newStatus: string) => {
     const lead = leads.find(l => l.id === id);
     if (!lead || lead.status === newStatus) return;
-
     if (newStatus === 'closed') {
       await syncCreateCustomer(lead);
       toast.success(`${lead.name} virou cliente! 🎉`, { duration: 3000 });
     }
-
     try {
       await dataService.updateLead(id, { status: newStatus });
       fetchLeads();
@@ -475,8 +453,6 @@ export const Leads: React.FC = () => {
       toast.error('Erro ao mover lead: ' + e.message);
     }
   }, [leads, fetchLeads, syncCreateCustomer]);
-
-  // ── Delete lead ─────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(async (id: string, name: string) => {
     if (!confirm(`Remover "${name}"?`)) return;
@@ -491,18 +467,13 @@ export const Leads: React.FC = () => {
     }
   }, [leads, fetchLeads, syncDeleteCustomer]);
 
-  // ── Add lead ────────────────────────────────────────────────────────────────
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error('Informe o nome.'); return; }
     try {
       setIsSaving(true);
       await dataService.addLead({ ...form });
-      // If created directly as "Cliente", sync to Clientes
-      if (form.status === 'closed') {
-        await syncCreateCustomer(form);
-      }
+      if (form.status === 'closed') await syncCreateCustomer(form);
       toast.success('Lead adicionado!');
       setIsAddOpen(false);
       setForm({ name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' });
@@ -513,8 +484,6 @@ export const Leads: React.FC = () => {
       setIsSaving(false);
     }
   };
-
-  // ── Drag ────────────────────────────────────────────────────────────────────
 
   const handleDragStart = useCallback((e: DragStartEvent) => {
     setActiveId(String(e.active.id));
@@ -532,14 +501,12 @@ export const Leads: React.FC = () => {
 
   const activeLead = activeId ? leads.find(l => l.id === activeId) : null;
 
-  // Stats
   const totalOpen   = leads.filter(l => l.status !== 'closed').length;
   const totalClosed = leads.filter(l => l.status === 'closed').length;
   const convRate    = leads.length > 0 ? Math.round((totalClosed / leads.length) * 100) : 0;
   const thisMonth   = leads.filter(l => {
     if (!l.created_at) return false;
-    const d = new Date(l.created_at);
-    const n = new Date();
+    const d = new Date(l.created_at); const n = new Date();
     return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
   }).length;
 
@@ -547,12 +514,12 @@ export const Leads: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-5 pb-10">
-        <div className="h-8 w-48 bg-neutral-100 rounded-xl animate-pulse" />
+        <div className="h-8 w-52 bg-neutral-100 rounded-xl animate-pulse" />
         <div className="grid grid-cols-4 gap-3">
           {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
-        <div className="flex gap-4">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="flex-shrink-0 w-[268px] h-96 bg-neutral-100 rounded-2xl animate-pulse" />)}
+        <div className="flex gap-3">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="flex-shrink-0 w-[256px] h-96 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
       </div>
     );
@@ -584,18 +551,19 @@ export const Leads: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Users,       label: 'Em aberto',  value: totalOpen,        color: 'text-blue-600',    bg: 'bg-blue-50'    },
-          { icon: CheckCircle2,label: 'Clientes',    value: totalClosed,      color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { icon: TrendingUp,  label: 'Conversão',  value: `${convRate}%`,   color: 'text-violet-600',  bg: 'bg-violet-50'  },
-          { icon: Zap,         label: 'Este mês',   value: thisMonth,        color: 'text-primary-700', bg: 'bg-primary/10' },
+          { icon: Users,        label: 'Em aberto',  value: totalOpen,      color: '#3B82F6' },
+          { icon: CheckCircle2, label: 'Clientes',   value: totalClosed,    color: '#10B981' },
+          { icon: TrendingUp,   label: 'Conversão',  value: `${convRate}%`, color: '#8B5CF6' },
+          { icon: Zap,          label: 'Este mês',   value: thisMonth,      color: '#F59E0B' },
         ].map(item => (
           <div key={item.label} className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', item.bg)}>
-              <item.icon size={16} className={item.color} />
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: item.color + '18' }}>
+              <item.icon size={18} style={{ color: item.color }} />
             </div>
             <div>
               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">{item.label}</p>
-              <p className="text-xl font-black text-neutral-900 leading-none mt-0.5">{item.value}</p>
+              <p className="text-2xl font-black text-neutral-900 leading-none mt-0.5 tabular-nums">{item.value}</p>
             </div>
           </div>
         ))}
@@ -603,17 +571,18 @@ export const Leads: React.FC = () => {
 
       {/* Search */}
       <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
         <input
           type="text"
           placeholder="Buscar por nome, telefone, origem..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="w-full bg-white border border-neutral-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+          className="w-full bg-white border border-neutral-200 rounded-2xl pl-10 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
         />
         {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700">
-            <X size={16} />
+          <button onClick={() => setSearchTerm('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
+            <X size={12} />
           </button>
         )}
       </div>
@@ -625,17 +594,19 @@ export const Leads: React.FC = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4" style={{ scrollSnapType: 'x mandatory' }}>
+        <div
+          className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4"
+          style={{ scrollSnapType: 'x mandatory' }}
+        >
           {STAGES.map(stage => (
-            <div key={stage.id} style={{ scrollSnapAlign: 'start' }}>
-              <KanbanColumn
-                stage={stage}
-                leads={getByStage(stage.id)}
-                activeId={activeId}
-                onDelete={handleDelete}
-                onDetail={setDetailLead}
-              />
-            </div>
+            <KanbanColumn
+              key={stage.id}
+              stage={stage}
+              leads={getByStage(stage.id)}
+              activeId={activeId}
+              onDelete={handleDelete}
+              onDetail={setDetailLead}
+            />
           ))}
         </div>
 
@@ -648,31 +619,33 @@ export const Leads: React.FC = () => {
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Novo Lead" maxWidth="md">
         <form onSubmit={handleSave} className="space-y-4">
           <Input label="Nome Completo *" placeholder="Ex: João da Silva" required
-            value={form.name} onChange={e => setForm({...form, name: e.target.value})} autoComplete="off" />
+            value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="off" />
           <div className="grid grid-cols-2 gap-3">
             <Input label="WhatsApp" placeholder="(11) 99999-9999"
-              value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} autoComplete="off" />
+              value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} autoComplete="off" />
             <Input label="Email" type="email" placeholder="email@..."
-              value={form.email} onChange={e => setForm({...form, email: e.target.value})} autoComplete="off" />
+              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} autoComplete="off" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-neutral-700 mb-1.5">Origem</label>
-              <select className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                value={form.source} onChange={e => setForm({...form, source: e.target.value})}>
+              <select
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-bold text-neutral-700 mb-1.5">Etapa inicial</label>
-              <select className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                value={form.status} onChange={e => setForm({...form, status: e.target.value as StageId})}>
+              <select
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={form.status} onChange={e => setForm({ ...form, status: e.target.value as StageId })}>
                 {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
           </div>
           <Input label="Interesse / Notas" placeholder="Ex: Interessado no iPhone 16 Pro 256GB"
-            value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} autoComplete="off" />
+            value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} autoComplete="off" />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth type="button" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit">Criar Lead</Button>

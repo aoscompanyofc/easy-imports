@@ -554,8 +554,10 @@ export const Vendas: React.FC = () => {
     if (!deleteSale) return;
     setIsDeletingSale(true);
     try {
+      const allProds = await dataService.getProducts();
+
       if (choice === 'restore') {
-        const allProds = await dataService.getProducts();
+        // Restaura o aparelho que SAIU do estoque (o que a Easy Imports vendeu)
         const found = allProds.find((p: any) => {
           if (deleteSale.product_imei && p.imei) return p.imei === deleteSale.product_imei;
           return p.name === deleteSale.product_name && p.stock_quantity <= 0;
@@ -575,8 +577,22 @@ export const Vendas: React.FC = () => {
           toast('Produto não localizado automaticamente — ajuste o estoque manualmente se necessário.', { icon: '⚠️', duration: 5000 });
         }
       }
+
+      // Se era troca: remove o aparelho que ENTROU do cliente (foi adicionado ao estoque na hora da troca)
+      const isTradeType = deleteSale.sale_type === 'troca' || deleteSale.incoming_name?.trim();
+      if (isTradeType && deleteSale.incoming_name?.trim()) {
+        const incoming = allProds.find((p: any) => {
+          if (deleteSale.incoming_imei && p.imei) return p.imei === deleteSale.incoming_imei && p.stock_quantity > 0;
+          return p.name === deleteSale.incoming_name?.trim() && p.stock_quantity > 0;
+        });
+        if (incoming) {
+          await dataService.deleteProduct(incoming.id);
+          toast.success('Aparelho entrante removido do estoque.');
+        }
+      }
+
       await dataService.deleteSale(deleteSale.id);
-      toast.success('Venda cancelada e removida.');
+      toast.success('Operação cancelada e removida.');
       setDeleteSale(null);
       fetchData();
     } catch (error: any) {

@@ -46,12 +46,11 @@ const SOURCES = ['Instagram','WhatsApp','Google','Indicação','Facebook','TikTo
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
-  { id:'new',         label:'Novo Lead',        accent:'#3B82F6' },
-  { id:'contacting',  label:'Primeiro Contato', accent:'#F97316' },
-  { id:'interested',  label:'Interessado',      accent:'#EAB308' },
-  { id:'proposal',    label:'Proposta',         accent:'#8B5CF6' },
-  { id:'negotiating', label:'Negociando',       accent:'#EC4899' },
-  { id:'closed',      label:'Cliente',          accent:'#10B981' },
+  { id:'new',         label:'Novo Lead',   accent:'#3B82F6' },
+  { id:'interested',  label:'Interessado', accent:'#EAB308' },
+  { id:'proposal',    label:'Proposta',    accent:'#8B5CF6' },
+  { id:'negotiating', label:'Negociando',  accent:'#EC4899' },
+  { id:'closed',      label:'Cliente',     accent:'#10B981' },
 ] as const;
 
 type StageId = typeof STAGES[number]['id'];

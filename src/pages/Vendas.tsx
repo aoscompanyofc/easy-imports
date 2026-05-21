@@ -326,6 +326,10 @@ export const Vendas: React.FC = () => {
         setCustomers((prev) => [created, ...prev]);
       }
 
+      // Resolve customer fields — new customer form takes priority over existing customer data
+      const resolvedCpf = newCustomer.cpf.trim() || form.customer_cpf || selectedCustomerData?.cpf || '';
+      const resolvedCity = newCustomer.address.trim() || form.customer_city || selectedCustomerData?.city || '';
+
       const savedSale = await dataService.addSale(
         {
           customer_id: customerId,
@@ -345,8 +349,8 @@ export const Vendas: React.FC = () => {
           seller_address: form.seller_address,
           seller_email: form.seller_email,
           customer_phone: customerPhone,
-          customer_cpf: newCustomer.cpf || form.customer_cpf,
-          customer_city: form.customer_city || selectedCustomerData?.city || '',
+          customer_cpf: resolvedCpf,
+          customer_city: resolvedCity,
           product_capacity: form.product_capacity,
           product_color: form.product_color,
           product_condition: form.product_condition,
@@ -417,9 +421,9 @@ export const Vendas: React.FC = () => {
         seller_address: '',
         seller_email: getCompanyInfo().email,
         customer_name: customerName,
-        customer_phone: form.customer_phone || selectedCustomerData?.phone || '',
-        customer_cpf: form.customer_cpf,
-        customer_city: form.customer_city || selectedCustomerData?.city || '',
+        customer_phone: customerPhone || '',
+        customer_cpf: resolvedCpf,
+        customer_city: resolvedCity,
         product_name: productName || '',
         product_capacity: form.product_capacity,
         product_color: form.product_color,

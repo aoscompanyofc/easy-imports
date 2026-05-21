@@ -42,7 +42,7 @@ export const Estoque: React.FC = () => {
   const [filterCondition, setFilterCondition] = useState('Todas');
   const [filterPriceMin, setFilterPriceMin] = useState('');
   const [filterPriceMax, setFilterPriceMax] = useState('');
-  const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo', 'Usado'];
+  const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo'];
 
   const exportCSV = (list: any[]) => {
     const header = ['Nome','Categoria','Condição','IMEI','Custo','Preço Venda','Garantia','Entrada'];
@@ -241,7 +241,7 @@ export const Estoque: React.FC = () => {
       const matchCat = filterCategory === 'Todas' || p.category === filterCategory;
       const matchDateFrom = !filterDateFrom || (p.entry_date && p.entry_date >= filterDateFrom);
       const matchDateTo   = !filterDateTo   || (p.entry_date && p.entry_date <= filterDateTo);
-      const matchCondition = filterCondition === 'Todas' || (p.product_condition || '').toLowerCase().includes(filterCondition.toLowerCase());
+      const matchCondition = filterCondition === 'Todas' || (p.product_condition || '').toLowerCase().startsWith(filterCondition.toLowerCase());
       const price = Number(p.sale_price) || 0;
       const matchPriceMin = !filterPriceMin || price >= Number(filterPriceMin);
       const matchPriceMax = !filterPriceMax || price <= Number(filterPriceMax);

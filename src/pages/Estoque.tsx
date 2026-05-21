@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
@@ -230,6 +231,7 @@ export const Estoque: React.FC = () => {
   };
 
   const STALE_DAYS = 45;
+  const [detailProduct, setDetailProduct] = useState<any | null>(null);
 
   const applyFilters = (list: any[]) =>
     list.filter(p => {
@@ -251,111 +253,220 @@ export const Estoque: React.FC = () => {
   const available = applyFilters(products.filter(p => p.stock_quantity > 0));
   const sold = applyFilters(products.filter(p => p.stock_quantity <= 0));
 
-  const ProductCard = ({ p, isSoldView = false }: { p: any; isSoldView?: boolean }) => {
-    const profit = p.sale_price - p.purchase_price;
-    const margin = p.sale_price > 0 ? (profit / p.sale_price) * 100 : 0;
+  // ── Detail side panel ─────────────────────────────────────────────────────
+  const DetailPanel = ({ p }: { p: any }) => {
+    const profit = (Number(p.sale_price) || 0) - (Number(p.purchase_price) || 0);
+    const margin = Number(p.sale_price) > 0 ? (profit / Number(p.sale_price)) * 100 : 0;
+    const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
+    const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
+    const isStale = daysInStock >= STALE_DAYS;
+    const condBase = (p.product_condition || '').replace(/ · Bateria:.*/, '');
+    const battery = (p.product_condition || '').match(/Bateria: (.+)/)?.[1];
+
+    const InfoRow = ({ icon, label, value, valueClass = '' }: { icon: React.ReactNode; label: string; value: string; valueClass?: string }) => (
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 last:border-0">
+        <div className="w-5 flex-shrink-0 text-neutral-400">{icon}</div>
+        <p className="text-xs text-neutral-400 w-24 flex-shrink-0">{label}</p>
+        <p className={`text-sm font-semibold text-neutral-800 flex-1 ${valueClass}`}>{value || '—'}</p>
+      </div>
+    );
+
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailProduct(null)}>
+        <div className="flex-1" />
+        <div className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-neutral-100 px-5 py-4 flex items-start gap-3 z-10">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Package size={18} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-black text-base text-neutral-900 leading-tight">{p.name}</h2>
+              <p className="text-xs text-neutral-400 mt-0.5">{p.category}</p>
+            </div>
+            <button onClick={() => setDetailProduct(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex-shrink-0">
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Price summary */}
+          <div className="grid grid-cols-3 gap-0 border-b border-neutral-100">
+            <div className="p-4 text-center border-r border-neutral-100">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Custo</p>
+              <p className="text-base font-black text-neutral-700 mt-1">{formatCurrency(Number(p.purchase_price))}</p>
+            </div>
+            <div className="p-4 text-center border-r border-neutral-100">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Venda</p>
+              <p className="text-base font-black text-neutral-900 mt-1">{Number(p.sale_price) > 0 ? formatCurrency(Number(p.sale_price)) : '—'}</p>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</p>
+              <p className={`text-base font-black mt-1 ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {Number(p.sale_price) > 0 ? `${formatCurrency(profit)} (${margin.toFixed(0)}%)` : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="flex-1">
+            <div className="bg-neutral-50 rounded-none">
+              {p.imei && <InfoRow icon={<Hash size={14} />} label={p.imei.length === 15 && /^\d+$/.test(p.imei) ? 'IMEI' : 'Nº de Série'} value={p.imei} valueClass="font-mono text-xs" />}
+              {condBase && <InfoRow icon={<Tag size={14} />} label="Condição" value={condBase} />}
+              {battery && <InfoRow icon={<Cpu size={14} />} label="Bateria" value={battery} />}
+              {p.product_warranty && p.product_warranty !== 'Sem garantia' && <InfoRow icon={<Shield size={14} />} label="Garantia" value={p.product_warranty} valueClass="text-green-700" />}
+              {p.product_origin && <InfoRow icon={<MapPin size={14} />} label="Origem" value={p.product_origin} />}
+              {entryDate && (
+                <InfoRow
+                  icon={<Calendar size={14} />}
+                  label="Entrada"
+                  value={entryDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                />
+              )}
+              <InfoRow
+                icon={<AlertTriangle size={14} />}
+                label="Dias parado"
+                value={`${daysInStock} dia${daysInStock !== 1 ? 's' : ''}${isStale ? ' ⚠️' : ''}`}
+                valueClass={isStale ? 'text-amber-600' : ''}
+              />
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div className="sticky bottom-0 bg-white border-t border-neutral-100 px-5 py-4 flex gap-3">
+            <button
+              onClick={() => { setDetailProduct(null); handleOpenEdit(p); }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors"
+            >
+              <Edit2 size={15} /> Editar
+            </button>
+            <button
+              onClick={() => { setDetailProduct(null); handleDelete(p.id); }}
+              className="w-12 flex items-center justify-center rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  // ── Table row ──────────────────────────────────────────────────────────────
+  const ProductRow = ({ p, isSoldView = false }: { p: any; isSoldView?: boolean }) => {
+    const profit = (Number(p.sale_price) || 0) - (Number(p.purchase_price) || 0);
+    const margin = Number(p.sale_price) > 0 ? (profit / Number(p.sale_price)) * 100 : 0;
     const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
     const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
     const isStale = !isSoldView && daysInStock >= STALE_DAYS;
-    return (
-      <div className={[
-        'flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
-        isSoldView
-          ? 'bg-neutral-50 border-neutral-200 opacity-55'
-          : isStale
-          ? 'bg-amber-50 border-amber-200 hover:border-amber-300 hover:shadow-sm'
-          : 'bg-white border-neutral-200 hover:border-primary/30 hover:shadow-sm',
-      ].join(' ')}>
 
-        {/* Date badge — far left */}
-        <div className={[
-          'flex-shrink-0 rounded-lg text-center py-1.5 px-2.5',
-          isSoldView ? 'bg-neutral-300' : 'bg-neutral-900',
-        ].join(' ')}>
-          {entryDate ? (
-            <div className={['text-[11px] font-black tabular-nums leading-none whitespace-nowrap', isSoldView ? 'text-neutral-600' : 'text-white'].join(' ')}>
-              {String(entryDate.getDate()).padStart(2, '0')}/
-              {String(entryDate.getMonth() + 1).padStart(2, '0')}/
-              {entryDate.getFullYear()}
+    return (
+      <tr
+        className={[
+          'group border-b border-neutral-100 last:border-0 transition-colors cursor-pointer',
+          isSoldView ? 'opacity-50 hover:opacity-70 bg-neutral-50' : isStale ? 'bg-amber-50/60 hover:bg-amber-50' : 'bg-white hover:bg-neutral-50',
+        ].join(' ')}
+        onClick={() => !isSoldView && setDetailProduct(p)}
+      >
+        {/* Nome */}
+        <td className="pl-4 pr-2 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : isStale ? 'bg-amber-400' : 'bg-primary'}`} />
+            <div className="min-w-0">
+              <p className={`text-sm font-bold truncate max-w-[260px] ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>{p.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-px rounded">{p.category}</span>
+                {p.imei && <span className="text-[10px] font-mono text-neutral-400">{p.imei.length === 15 && /^\d+$/.test(p.imei) ? 'IMEI' : 'S/N'}: {p.imei}</span>}
+                {isSoldView && <span className="text-[10px] font-bold text-neutral-400 bg-neutral-200 px-1.5 py-px rounded">Vendido</span>}
+                {isStale && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-px rounded flex items-center gap-0.5"><AlertTriangle size={9} />{daysInStock}d</span>}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        {/* Custo */}
+        <td className="px-3 py-3 text-right whitespace-nowrap">
+          <span className="text-sm font-semibold text-neutral-500">{formatCurrency(Number(p.purchase_price))}</span>
+        </td>
+
+        {/* Venda */}
+        <td className="px-3 py-3 text-right whitespace-nowrap">
+          <span className={`text-sm font-bold ${Number(p.sale_price) > 0 ? 'text-neutral-900' : 'text-neutral-300'}`}>
+            {Number(p.sale_price) > 0 ? formatCurrency(Number(p.sale_price)) : '—'}
+          </span>
+        </td>
+
+        {/* Lucro */}
+        <td className="px-3 py-3 text-right whitespace-nowrap">
+          {Number(p.sale_price) > 0 ? (
+            <div className="text-right">
+              <span className={`text-sm font-black ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrency(profit)}</span>
+              <span className="text-[10px] text-neutral-400 ml-1">({margin.toFixed(0)}%)</span>
             </div>
           ) : (
-            <div className="text-[9px] text-neutral-400 font-bold">—</div>
+            <span className="text-neutral-300 text-sm">—</span>
           )}
-        </div>
+        </td>
 
-        {/* Icon */}
-        <div className={[
-          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-          isSoldView ? 'bg-neutral-200' : 'bg-primary/10',
-        ].join(' ')}>
-          {isSoldView
-            ? <CheckCircle2 size={15} className="text-neutral-400" />
-            : <Package size={15} className="text-primary" />}
-        </div>
-
-        {/* Name + meta — single compact line */}
-        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-          <span className={['text-sm font-bold truncate', isSoldView ? 'text-neutral-500' : 'text-neutral-900'].join(' ')}>
-            {p.name}
-          </span>
-          {p.imei && (
-            <span className="text-xs text-neutral-400 font-mono">IMEI: {p.imei}</span>
-          )}
-          <span className="text-[11px] px-1.5 py-px rounded-full bg-neutral-100 text-neutral-500 font-medium leading-tight">{p.category}</span>
-          {isSoldView && (
-            <span className="text-[11px] px-1.5 py-px rounded-full bg-neutral-200 text-neutral-500 font-bold leading-tight">Vendido</span>
-          )}
-          {p.product_warranty && p.product_warranty !== 'Sem garantia' && (
-            <span className="text-[11px] px-1.5 py-px rounded-full bg-green-100 text-green-700 font-bold leading-tight">
-              {p.product_warranty}
+        {/* Dias */}
+        <td className="px-3 py-3 text-center whitespace-nowrap">
+          {entryDate ? (
+            <span className={`text-xs font-bold px-2 py-1 rounded-full ${isStale ? 'bg-amber-100 text-amber-700' : 'bg-neutral-100 text-neutral-500'}`}>
+              {daysInStock}d
             </span>
-          )}
-          <span className="text-xs text-neutral-400">Custo: <strong className="text-neutral-600">{formatCurrency(p.purchase_price)}</strong></span>
-          <span className="text-xs text-neutral-400">Venda: <strong className={p.sale_price > 0 ? 'text-primary-700' : 'text-neutral-400'}>{formatCurrency(p.sale_price)}</strong></span>
-          {!isSoldView && p.sale_price > 0 && (
-            <span className="text-xs text-neutral-400">Lucro: <strong className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{formatCurrency(profit)} ({margin.toFixed(0)}%)</strong></span>
-          )}
-          {p.product_origin && (
-            <span className="text-xs text-neutral-400">Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
-          )}
-          {isStale && (
-            <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">
-              <AlertTriangle size={10} /> {daysInStock}d parado
-            </span>
-          )}
-        </div>
+          ) : <span className="text-neutral-300 text-xs">—</span>}
+        </td>
 
-        {/* Actions */}
+        {/* Ações */}
         {!isSoldView && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <td className="pr-4 pl-2 py-3">
+            <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={e => { e.stopPropagation(); handleOpenEdit(p); }}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Editar"
+              >
+                <Edit2 size={13} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Remover"
+              >
+                <Trash2 size={13} />
+              </button>
+              <ChevronRight size={13} className="text-neutral-300 ml-0.5" />
+            </div>
+          </td>
+        )}
+        {isSoldView && (
+          <td className="pr-4 pl-2 py-3">
             <button
-              onClick={() => handleOpenEdit(p)}
-              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-primary hover:border-primary/30 transition-colors"
-              title="Editar"
-            >
-              <Edit2 size={13} />
-            </button>
-            <button
-              onClick={() => handleDelete(p.id)}
-              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-red-500 hover:border-red-300 transition-colors"
-              title="Remover"
+              onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
+              className="p-1.5 rounded-lg text-neutral-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+              title="Remover do histórico"
             >
               <Trash2 size={13} />
             </button>
-          </div>
+          </td>
         )}
-        {isSoldView && (
-          <button
-            onClick={() => handleDelete(p.id)}
-            className="p-1.5 rounded-lg border border-neutral-200 text-neutral-300 hover:text-red-400 hover:border-red-300 transition-colors flex-shrink-0"
-            title="Remover do histórico"
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
-      </div>
+      </tr>
     );
   };
+
+  const TableHeader = () => (
+    <thead>
+      <tr className="border-b-2 border-neutral-100">
+        <th className="pl-4 pr-2 py-2.5 text-left text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho</th>
+        <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Custo</th>
+        <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Venda</th>
+        <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
+        <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Dias</th>
+        <th className="pr-4 pl-2 py-2.5" />
+      </tr>
+    </thead>
+  );
 
   return (
     <div className="space-y-6 pb-10">
@@ -506,10 +617,13 @@ export const Estoque: React.FC = () => {
         </button>
       </div>
 
-      {/* Available products */}
+      {/* Detail panel */}
+      {detailProduct && <DetailPanel p={detailProduct} />}
+
+      {/* Available products — table */}
       {isLoading ? (
-        <div className="space-y-1.5">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-neutral-100 rounded-xl animate-pulse" />)}
+        <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-14 bg-neutral-50 border-b border-neutral-100 animate-pulse" />)}
         </div>
       ) : available.length === 0 ? (
         <div className="py-16 flex flex-col items-center text-center gap-4 bg-white rounded-2xl border border-neutral-200">
@@ -525,8 +639,21 @@ export const Estoque: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {available.map(p => <ProductCard key={p.id} p={p} />)}
+        <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col className="w-auto" />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-32" />
+              <col className="w-16" />
+              <col className="w-20" />
+            </colgroup>
+            <TableHeader />
+            <tbody>
+              {available.map(p => <ProductRow key={p.id} p={p} />)}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -541,8 +668,21 @@ export const Estoque: React.FC = () => {
             {showSold ? 'Ocultar' : 'Ver'} histórico de vendidos ({sold.length} aparelho{sold.length !== 1 ? 's' : ''})
           </button>
           {showSold && (
-            <div className="space-y-1.5">
-              {sold.map(p => <ProductCard key={p.id} p={p} isSoldView />)}
+            <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  <col className="w-auto" />
+                  <col className="w-28" />
+                  <col className="w-28" />
+                  <col className="w-32" />
+                  <col className="w-16" />
+                  <col className="w-20" />
+                </colgroup>
+                <TableHeader />
+                <tbody>
+                  {sold.map(p => <ProductRow key={p.id} p={p} isSoldView />)}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

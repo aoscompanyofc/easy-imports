@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Package, Menu } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Users, Menu } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -17,6 +17,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
     { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
     { icon: ShoppingCart, label: 'Vendas', path: '/vendas' },
     { icon: Package, label: 'Estoque', path: '/estoque' },
+    { icon: Users, label: 'Clientes', path: '/clientes' },
   ];
 
   return (

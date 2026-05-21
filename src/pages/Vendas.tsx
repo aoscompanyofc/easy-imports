@@ -816,28 +816,32 @@ export const Vendas: React.FC = () => {
       )}
 
       {/* Search & Filters */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, produto, IMEI, número..."
-            className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-          />
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={18} />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por cliente, produto, IMEI..."
+              className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+            />
+          </div>
+          {(searchTerm || dateFrom || dateTo) && (
+            <button onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
+              className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-danger hover:border-danger transition-colors flex-shrink-0">
+              <X size={18} />
+            </button>
+          )}
         </div>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-          className="px-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-          title="De" />
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-          className="px-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-          title="Até" />
-        {(searchTerm || dateFrom || dateTo) && (
-          <button onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
-            className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-danger hover:border-danger transition-colors">
-            <X size={18} />
-          </button>
-        )}
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-2">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+            title="De" />
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+            title="Até" />
+        </div>
       </div>
 
       {/* Summary bar */}
@@ -912,16 +916,14 @@ export const Vendas: React.FC = () => {
                       const saleProfit = type === 'troca' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
 
                       return (
-                        <div key={sale.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-neutral-50 transition-colors">
-                          {/* Number */}
-                          <div className="w-20 flex-shrink-0">
-                            <span className="text-xs font-mono font-bold text-neutral-600">{num}</span>
+                        <div key={sale.id} className="flex items-center gap-2 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-neutral-50 transition-colors">
+                          {/* Number + type badge stacked on mobile */}
+                          <div className="flex-shrink-0 flex flex-col items-start gap-0.5 min-w-0">
+                            <span className="text-[10px] font-mono font-bold text-neutral-500">{num}</span>
+                            <span className={cn('px-1.5 py-px rounded-full text-[9px] font-bold', TYPE_COLORS[type])}>
+                              {TYPE_LABELS[type]}
+                            </span>
                           </div>
-
-                          {/* Type badge */}
-                          <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0', TYPE_COLORS[type])}>
-                            {TYPE_LABELS[type]}
-                          </span>
 
                           {/* Name + product */}
                           <div className="flex-1 min-w-0">

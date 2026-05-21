@@ -342,13 +342,13 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Period pills */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {PERIODS.map((p) => (
             <button
               key={p.id}
               onClick={() => handlePeriodClick(p.id)}
               className={cn(
-                'px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all border',
+                'flex-shrink-0 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all border whitespace-nowrap',
                 period === p.id
                   ? 'bg-primary border-primary/60 text-neutral-900 shadow-sm'
                   : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary/40 hover:text-neutral-900'

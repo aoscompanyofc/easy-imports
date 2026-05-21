@@ -44,6 +44,7 @@ export const Estoque: React.FC = () => {
   const [filterPriceMin, setFilterPriceMin] = useState('');
   const [filterPriceMax, setFilterPriceMax] = useState('');
   const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo'];
+  const [showFilters, setShowFilters] = useState(false);
 
   const exportCSV = (list: any[]) => {
     const header = ['Nome','Categoria','Condição','IMEI','Custo','Preço Venda','Garantia','Entrada'];
@@ -252,6 +253,11 @@ export const Estoque: React.FC = () => {
 
   const available = applyFilters(products.filter(p => p.stock_quantity > 0));
   const sold = applyFilters(products.filter(p => p.stock_quantity <= 0));
+  const activeFilterCount = [
+    filterCategory !== 'Todas', filterCondition !== 'Todas',
+    !!(filterDateFrom || filterDateTo), !!(filterPriceMin || filterPriceMax),
+  ].filter(Boolean).length;
+  const hasAnyFilter = !!(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo || filterCondition !== 'Todas' || filterPriceMin || filterPriceMax);
 
   // ── Detail side panel ─────────────────────────────────────────────────────
   const DetailPanel = ({ p }: { p: any }) => {
@@ -273,8 +279,8 @@ export const Estoque: React.FC = () => {
 
     return createPortal(
       <div className="fixed inset-0 z-[9999] flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailProduct(null)}>
-        <div className="flex-1" />
-        <div className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="hidden sm:flex flex-1" />
+        <div className="w-full sm:max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-neutral-100 px-5 py-4 flex items-start gap-3 z-10">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -493,6 +499,86 @@ export const Estoque: React.FC = () => {
     );
   };
 
+  // ── Mobile card (one per product) ─────────────────────────────────────────
+  const ProductMobileCard = ({ p, isSoldView = false }: { p: any; isSoldView?: boolean }) => {
+    const profit = (Number(p.sale_price) || 0) - (Number(p.purchase_price) || 0);
+    const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
+    const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
+    const isStale = !isSoldView && daysInStock >= STALE_DAYS;
+    const condBase = (p.product_condition || '').replace(/ · Bateria:.*/, '').trim();
+    const condLower = condBase.toLowerCase();
+    const isNovo = condLower.startsWith('novo');
+    const isSemi = condLower.startsWith('seminovo');
+
+    return (
+      <div
+        onClick={() => !isSoldView && setDetailProduct(p)}
+        className={[
+          'flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 last:border-0 transition-colors',
+          isSoldView ? 'opacity-60 bg-neutral-50/80' : isStale ? 'bg-amber-50/60' : 'bg-white',
+          !isSoldView ? 'cursor-pointer active:bg-neutral-50' : '',
+        ].join(' ')}
+      >
+        {/* Date badge */}
+        <div className={`rounded-xl px-2 py-1.5 min-w-[44px] text-center flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : 'bg-neutral-900'}`}>
+          {entryDate ? (
+            <>
+              <div className={`text-[11px] font-black tabular-nums leading-none ${isSoldView ? 'text-neutral-600' : 'text-white'}`}>
+                {String(entryDate.getDate()).padStart(2,'0')}/{String(entryDate.getMonth()+1).padStart(2,'0')}
+              </div>
+              <div className={`text-[9px] font-bold tabular-nums leading-none mt-0.5 ${isSoldView ? 'text-neutral-400' : 'text-neutral-400'}`}>
+                {entryDate.getFullYear()}
+              </div>
+            </>
+          ) : (
+            <span className="text-[9px] text-neutral-400 font-bold">—</span>
+          )}
+        </div>
+
+        {/* Main info */}
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-bold leading-tight ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>{p.name}</p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">{p.category}</span>
+            {condBase && (
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                isNovo ? 'bg-green-100 text-green-700' : isSemi ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-500'
+              }`}>
+                {isNovo ? 'Novo' : isSemi ? 'Seminovo' : condBase.split(' ')[0]}
+              </span>
+            )}
+            {isStale && (
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <AlertTriangle size={9} /> {daysInStock}d
+              </span>
+            )}
+            {isSoldView && <span className="text-[10px] font-bold text-neutral-400 bg-neutral-200 px-1.5 py-0.5 rounded">Vendido</span>}
+          </div>
+        </div>
+
+        {/* Price */}
+        <div className="text-right flex-shrink-0">
+          {Number(p.sale_price) > 0 ? (
+            <>
+              <p className={`text-sm font-black ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>
+                {formatCurrency(Number(p.sale_price))}
+              </p>
+              <p className={`text-[10px] font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {profit >= 0 ? '+' : ''}{formatCurrency(profit)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-neutral-500">{formatCurrency(Number(p.purchase_price))}</p>
+              <p className="text-[10px] text-neutral-300">Sem preço venda</p>
+            </>
+          )}
+        </div>
+        {!isSoldView && <ChevronRight size={14} className="text-neutral-300 flex-shrink-0 ml-1" />}
+      </div>
+    );
+  };
+
   const TableHeader = () => (
     <thead>
       <tr className="border-b-2 border-neutral-100">
@@ -563,10 +649,10 @@ export const Estoque: React.FC = () => {
         );
       })()}
 
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* ── Barra de busca ─────────────────────────────────────────────── */}
+      <div className="flex gap-2">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={18} />
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -574,51 +660,26 @@ export const Estoque: React.FC = () => {
             className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
           />
         </div>
-        <div className="relative">
-          <Button
-            variant={filterCategory !== 'Todas' ? 'primary' : 'secondary'}
-            leftIcon={<Filter size={18} />}
-            onClick={() => setIsCategoryOpen(v => !v)}
-          >
-            {filterCategory !== 'Todas' ? filterCategory : 'Categoria'}
-            <ChevronDown size={14} className="ml-1" />
-          </Button>
-          {isCategoryOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
-              {FILTER_CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-neutral-50 ${filterCategory === cat ? 'font-bold text-primary' : 'text-neutral-700'}`}
-                  onClick={() => { setFilterCategory(cat); setIsCategoryOpen(false); }}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+        {/* Filtros — mobile only */}
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          className={[
+            'md:hidden relative flex items-center gap-1.5 px-3 py-2.5 border rounded-xl text-sm font-bold transition-colors flex-shrink-0',
+            showFilters || activeFilterCount > 0
+              ? 'bg-neutral-900 border-neutral-900 text-white'
+              : 'border-neutral-200 bg-neutral-50 text-neutral-600',
+          ].join(' ')}
+        >
+          <Filter size={16} />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full text-[9px] font-black text-neutral-900 flex items-center justify-center">
+              {activeFilterCount}
+            </span>
           )}
-        </div>
-        {/* Filtro por data de entrada — pill compacto */}
-        <div className="flex items-center gap-1.5 border border-neutral-200 rounded-xl bg-neutral-50 px-3 py-1.5">
-          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap flex-shrink-0">Entrada</span>
-          <input
-            type="date"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-            title="Entrada a partir de"
-            className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]"
-          />
-          <span className="text-neutral-300 text-xs flex-shrink-0">—</span>
-          <input
-            type="date"
-            value={filterDateTo}
-            onChange={(e) => setFilterDateTo(e.target.value)}
-            title="Entrada até"
-            className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]"
-          />
-        </div>
-        {(searchTerm || filterCategory !== 'Todas' || filterDateFrom || filterDateTo || filterCondition !== 'Todas' || filterPriceMin || filterPriceMax) && (
+        </button>
+        {hasAnyFilter && (
           <button
-            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); setFilterCondition('Todas'); setFilterPriceMin(''); setFilterPriceMax(''); }}
+            onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); setFilterCondition('Todas'); setFilterPriceMin(''); setFilterPriceMax(''); setShowFilters(false); }}
             className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors flex-shrink-0"
           >
             <X size={18} />
@@ -626,35 +687,132 @@ export const Estoque: React.FC = () => {
         )}
       </div>
 
-      {/* Extra filters row */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Condição */}
-        <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
-          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Condição</span>
-          {CONDITION_OPTIONS.map(opt => (
-            <button key={opt}
-              onClick={() => setFilterCondition(opt)}
-              className={['text-xs font-bold px-2 py-0.5 rounded-lg transition-colors', filterCondition === opt ? 'bg-primary text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'].join(' ')}>
-              {opt}
+      {/* ── Painel de filtros — mobile ─────────────────────────────────── */}
+      {showFilters && (
+        <div className="md:hidden space-y-4 p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm">
+          {/* Categoria */}
+          <div>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Categoria</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {FILTER_CATEGORIES.map(cat => (
+                <button key={cat}
+                  onClick={() => setFilterCategory(cat)}
+                  className={['flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors',
+                    filterCategory === cat ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'].join(' ')}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Condição */}
+          <div>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Condição</p>
+            <div className="flex gap-2">
+              {CONDITION_OPTIONS.map(opt => (
+                <button key={opt}
+                  onClick={() => setFilterCondition(opt)}
+                  className={['flex-1 text-xs font-bold py-2 rounded-xl transition-colors',
+                    filterCondition === opt ? 'bg-primary text-neutral-900' : 'bg-neutral-100 text-neutral-600'].join(' ')}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Data de entrada */}
+          <div>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Data de entrada</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl text-sm bg-neutral-50 outline-none focus:ring-2 focus:ring-primary/25" />
+              <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl text-sm bg-neutral-50 outline-none focus:ring-2 focus:ring-primary/25" />
+            </div>
+          </div>
+          {/* Preço */}
+          <div>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Faixa de preço (R$)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" placeholder="Mínimo" value={filterPriceMin} onChange={e => setFilterPriceMin(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl text-sm bg-neutral-50 outline-none focus:ring-2 focus:ring-primary/25" />
+              <input type="number" placeholder="Máximo" value={filterPriceMax} onChange={e => setFilterPriceMax(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl text-sm bg-neutral-50 outline-none focus:ring-2 focus:ring-primary/25" />
+            </div>
+          </div>
+          {/* Export */}
+          <button onClick={() => exportCSV(available)}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:bg-neutral-100 transition-colors">
+            <Download size={14} /> Exportar CSV
+          </button>
+        </div>
+      )}
+
+      {/* ── Filtros avançados — desktop ────────────────────────────────── */}
+      <div className="hidden md:flex flex-col gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative">
+            <Button
+              variant={filterCategory !== 'Todas' ? 'primary' : 'secondary'}
+              leftIcon={<Filter size={18} />}
+              onClick={() => setIsCategoryOpen(v => !v)}
+            >
+              {filterCategory !== 'Todas' ? filterCategory : 'Categoria'}
+              <ChevronDown size={14} className="ml-1" />
+            </Button>
+            {isCategoryOpen && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
+                {FILTER_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-neutral-50 ${filterCategory === cat ? 'font-bold text-primary' : 'text-neutral-700'}`}
+                    onClick={() => { setFilterCategory(cat); setIsCategoryOpen(false); }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 border border-neutral-200 rounded-xl bg-neutral-50 px-3 py-1.5">
+            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap flex-shrink-0">Entrada</span>
+            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} title="A partir de"
+              className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]" />
+            <span className="text-neutral-300 text-xs flex-shrink-0">—</span>
+            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} title="Até"
+              className="text-xs outline-none bg-transparent text-neutral-600 cursor-pointer w-[116px]" />
+          </div>
+          {hasAnyFilter && (
+            <button
+              onClick={() => { setSearchTerm(''); setFilterCategory('Todas'); setFilterDateFrom(''); setFilterDateTo(''); setFilterCondition('Todas'); setFilterPriceMin(''); setFilterPriceMax(''); }}
+              className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-red-500 transition-colors flex-shrink-0"
+            >
+              <X size={18} />
             </button>
-          ))}
+          )}
         </div>
-        {/* Faixa de preço */}
-        <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
-          <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap">R$</span>
-          <input type="number" placeholder="Mín" value={filterPriceMin} onChange={e => setFilterPriceMin(e.target.value)}
-            className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
-          <span className="text-neutral-300 text-xs">—</span>
-          <input type="number" placeholder="Máx" value={filterPriceMax} onChange={e => setFilterPriceMax(e.target.value)}
-            className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
+            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Condição</span>
+            {CONDITION_OPTIONS.map(opt => (
+              <button key={opt}
+                onClick={() => setFilterCondition(opt)}
+                className={['text-xs font-bold px-2 py-0.5 rounded-lg transition-colors', filterCondition === opt ? 'bg-primary text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'].join(' ')}>
+                {opt}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-xl px-3 py-1.5">
+            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider whitespace-nowrap">R$</span>
+            <input type="number" placeholder="Mín" value={filterPriceMin} onChange={e => setFilterPriceMin(e.target.value)}
+              className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
+            <span className="text-neutral-300 text-xs">—</span>
+            <input type="number" placeholder="Máx" value={filterPriceMax} onChange={e => setFilterPriceMax(e.target.value)}
+              className="w-20 text-xs outline-none bg-transparent text-neutral-600 placeholder:text-neutral-300" />
+          </div>
+          <button onClick={() => exportCSV(available)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:border-primary/30 hover:text-neutral-900 transition-colors">
+            <Download size={13} /> Exportar CSV
+          </button>
         </div>
-        {/* Export */}
-        <button
-          onClick={() => exportCSV(available)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:border-primary/30 hover:text-neutral-900 transition-colors"
-        >
-          <Download size={13} /> Exportar CSV
-        </button>
       </div>
 
       {/* Detail panel */}
@@ -680,22 +838,29 @@ export const Estoque: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col className="w-[72px]" />
-              <col className="w-auto" />
-              <col className="w-28" />
-              <col className="w-28" />
-              <col className="w-32" />
-              <col className="w-16" />
-              <col className="w-24" />
-              <col className="w-20" />
-            </colgroup>
-            <TableHeader />
-            <tbody>
-              {available.map(p => <ProductRow key={p.id} p={p} />)}
-            </tbody>
-          </table>
+          {/* Mobile: card list */}
+          <div className="md:hidden divide-y divide-neutral-100">
+            {available.map(p => <ProductMobileCard key={p.id} p={p} />)}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[72px]" />
+                <col className="w-auto" />
+                <col className="w-28" />
+                <col className="w-28" />
+                <col className="w-32" />
+                <col className="w-16" />
+                <col className="w-24" />
+                <col className="w-20" />
+              </colgroup>
+              <TableHeader />
+              <tbody>
+                {available.map(p => <ProductRow key={p.id} p={p} />)}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -711,20 +876,29 @@ export const Estoque: React.FC = () => {
           </button>
           {showSold && (
             <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-              <table className="w-full table-fixed">
-                <colgroup>
-                  <col className="w-auto" />
-                  <col className="w-28" />
-                  <col className="w-28" />
-                  <col className="w-32" />
-                  <col className="w-16" />
-                  <col className="w-20" />
-                </colgroup>
-                <TableHeader />
-                <tbody>
-                  {sold.map(p => <ProductRow key={p.id} p={p} isSoldView />)}
-                </tbody>
-              </table>
+              {/* Mobile */}
+              <div className="md:hidden divide-y divide-neutral-100">
+                {sold.map(p => <ProductMobileCard key={p.id} p={p} isSoldView />)}
+              </div>
+              {/* Desktop */}
+              <div className="hidden md:block">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col className="w-[72px]" />
+                    <col className="w-auto" />
+                    <col className="w-28" />
+                    <col className="w-28" />
+                    <col className="w-32" />
+                    <col className="w-16" />
+                    <col className="w-24" />
+                    <col className="w-20" />
+                  </colgroup>
+                  <TableHeader />
+                  <tbody>
+                    {sold.map(p => <ProductRow key={p.id} p={p} isSoldView />)}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

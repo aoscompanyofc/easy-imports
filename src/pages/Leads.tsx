@@ -655,11 +655,13 @@ export const Leads: React.FC = () => {
     return (
       <div className="space-y-5 pb-10">
         <div className="h-8 w-52 bg-neutral-100 rounded-xl animate-pulse" />
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
-        <div className="grid grid-cols-5 gap-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-[560px] bg-neutral-100 rounded-2xl animate-pulse" />)}
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-5 gap-3 min-w-[700px] sm:min-w-0">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-[560px] bg-neutral-100 rounded-2xl animate-pulse" />)}
+          </div>
         </div>
       </div>
     );
@@ -734,17 +736,19 @@ export const Leads: React.FC = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-5 gap-3">
-          {STAGES.map(stage => (
-            <KanbanColumn
-              key={stage.id}
-              stage={stage}
-              leads={getByStage(stage.id)}
-              activeId={activeId}
-              onDelete={handleDelete}
-              onDetail={setDetailLead}
-            />
-          ))}
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="grid grid-cols-5 gap-3 min-w-[700px] sm:min-w-0">
+            {STAGES.map(stage => (
+              <KanbanColumn
+                key={stage.id}
+                stage={stage}
+                leads={getByStage(stage.id)}
+                activeId={activeId}
+                onDelete={handleDelete}
+                onDetail={setDetailLead}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay dropAnimation={{ duration: 160, easing: 'cubic-bezier(0.18,0.67,0.6,1.22)' }}>

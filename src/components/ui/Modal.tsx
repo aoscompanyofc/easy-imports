@@ -51,21 +51,22 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
       <div
         className="absolute inset-0 bg-neutral-900/50 backdrop-blur-md"
         onClick={onClose}
       />
       <div
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl flex flex-col',
+          'relative w-full bg-white shadow-2xl flex flex-col',
+          'rounded-t-3xl sm:rounded-2xl',
           maxWidths[maxWidth],
-          'max-h-[calc(100vh-2rem)]'
+          'max-h-[92vh] sm:max-h-[calc(100vh-2rem)]'
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 flex-shrink-0">
-            <h3 className="text-lg font-bold text-neutral-900">{title}</h3>
+          <div className="flex items-center justify-between px-5 py-4 sm:px-6 border-b border-neutral-100 flex-shrink-0">
+            <h3 className="text-base sm:text-lg font-bold text-neutral-900">{title}</h3>
             <button
               onClick={onClose}
               className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-all"
@@ -74,7 +75,7 @@ export const Modal: React.FC<ModalProps> = ({
             </button>
           </div>
         )}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="px-5 py-4 sm:p-6 overflow-y-auto flex-1">
           {children}
         </div>
       </div>

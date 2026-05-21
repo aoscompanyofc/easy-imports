@@ -436,9 +436,9 @@ export const Clientes: React.FC = () => {
 
     return createPortal(
       <div className="fixed inset-0 z-[9999] flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailCustomer(null)}>
-        <div className="flex-1" />
+        <div className="hidden sm:flex flex-1" />
         <div
-          className="w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
+          className="w-full sm:max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
           onClick={e => e.stopPropagation()}
         >
           <div className="sticky top-0 bg-white border-b border-neutral-100 px-6 py-4 flex items-center gap-4 z-10">
@@ -611,7 +611,7 @@ export const Clientes: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="h-8 w-32 bg-neutral-100 rounded-xl animate-pulse" />
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -642,49 +642,49 @@ export const Clientes: React.FC = () => {
 
       {/* Stats — 4 cards */}
       {customers.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Users size={18} className="text-blue-600" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Users size={16} className="text-blue-600" />
             </div>
-            <div>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Total</p>
-              <p className="text-2xl font-black text-neutral-900 leading-none">{customers.length}</p>
-              <p className="text-xs text-neutral-400">{activeCustomers} com compras</p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={18} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Faturamento</p>
-              <p className="text-2xl font-black text-neutral-900 leading-none">{formatCurrency(totalRevenue)}</p>
-              <p className="text-xs text-neutral-400">gerado pelos clientes</p>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">Total</p>
+              <p className="text-xl sm:text-2xl font-black text-neutral-900 leading-none">{customers.length}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{activeCustomers} com compras</p>
             </div>
           </div>
 
-          <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <ShoppingBag size={18} className="text-primary-700" />
+          <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={16} className="text-emerald-600" />
             </div>
-            <div>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Ticket médio</p>
-              <p className="text-2xl font-black text-neutral-900 leading-none">{formatCurrency(avgPerCustomer)}</p>
-              <p className="text-xs text-neutral-400">por cliente</p>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">Faturamento</p>
+              <p className="text-base sm:text-xl font-black text-neutral-900 leading-none">{formatCurrency(totalRevenue)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">clientes</p>
             </div>
           </div>
 
-          <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <RepeatIcon size={18} className="text-violet-600" />
+          <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <ShoppingBag size={16} className="text-primary-700" />
             </div>
-            <div>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">LTV</p>
-              <p className="text-2xl font-black text-neutral-900 leading-none">{formatLtv(ltvDays)}</p>
-              <p className="text-xs text-neutral-400">
-                {ltvDays !== null ? 'retorno médio' : 'dados insuficientes'}
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">Ticket</p>
+              <p className="text-base sm:text-xl font-black text-neutral-900 leading-none">{formatCurrency(avgPerCustomer)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">por cliente</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <RepeatIcon size={16} className="text-violet-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">LTV</p>
+              <p className="text-xl sm:text-2xl font-black text-neutral-900 leading-none">{formatLtv(ltvDays)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">
+                {ltvDays !== null ? 'retorno médio' : 'insuficiente'}
               </p>
             </div>
           </div>
@@ -692,8 +692,8 @@ export const Clientes: React.FC = () => {
       )}
 
       {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-2">
+        <div className="relative">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           <input
             type="text"
@@ -709,37 +709,39 @@ export const Clientes: React.FC = () => {
             </button>
           )}
         </div>
-        <button
-          onClick={() => setShowInactive(v => !v)}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-bold transition-all whitespace-nowrap',
-            showInactive
-              ? 'bg-amber-100 border-amber-300 text-amber-800'
-              : 'bg-white border-neutral-200 text-neutral-600 hover:border-amber-300'
-          )}
-        >
-          <Clock size={15} />
-          Inativos {inactiveCustomers.length > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 text-[11px]">{inactiveCustomers.length}</span>}
-        </button>
-        <button
-          onClick={() => setShowMassModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-neutral-200 bg-white text-sm font-bold text-neutral-600 hover:border-primary/40 hover:text-neutral-900 transition-all whitespace-nowrap"
-        >
-          <Send size={15} />
-          Mensagem em Massa
-        </button>
-        <button
-          onClick={() => setShowBirthdayModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-200 bg-amber-50 text-sm font-bold text-amber-700 hover:bg-amber-100 transition-all whitespace-nowrap relative"
-        >
-          <Cake size={15} />
-          Aniversariantes
-          {birthdayCustomers.length > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
-              {birthdayCustomers.length}
-            </span>
-          )}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowInactive(v => !v)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm font-bold transition-all whitespace-nowrap',
+              showInactive
+                ? 'bg-amber-100 border-amber-300 text-amber-800'
+                : 'bg-white border-neutral-200 text-neutral-600 hover:border-amber-300'
+            )}
+          >
+            <Clock size={14} />
+            Inativos {inactiveCustomers.length > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 text-[11px]">{inactiveCustomers.length}</span>}
+          </button>
+          <button
+            onClick={() => setShowMassModal(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-neutral-200 bg-white text-sm font-bold text-neutral-600 hover:border-primary/40 hover:text-neutral-900 transition-all whitespace-nowrap"
+          >
+            <Send size={14} />
+            <span className="hidden sm:inline">Mensagem em </span>Massa
+          </button>
+          <button
+            onClick={() => setShowBirthdayModal(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-amber-200 bg-amber-50 text-sm font-bold text-amber-700 hover:bg-amber-100 transition-all whitespace-nowrap relative"
+          >
+            <Cake size={14} />
+            Aniversariantes
+            {birthdayCustomers.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                {birthdayCustomers.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Cards grid — alphabetical */}

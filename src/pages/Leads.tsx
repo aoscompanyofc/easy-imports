@@ -372,8 +372,40 @@ export const Leads: React.FC = () => {
   const fetchLeads = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await dataService.getLeads();
-      setLeads(data || []);
+      const [data, customers] = await Promise.all([
+        dataService.getLeads(),
+        dataService.getCustomers(),
+      ]);
+      const existingLeads: any[] = data || [];
+
+      // Migrate existing customers that don't have a matching closed lead
+      const toCreate = (customers || []).filter((c: any) => {
+        return !existingLeads.some((l: any) =>
+          l.status === 'closed' && (
+            (c.phone && l.phone && l.phone === c.phone) ||
+            l.name?.toLowerCase() === c.name?.toLowerCase()
+          )
+        );
+      });
+
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map((c: any) =>
+            dataService.addLead({
+              name: c.name,
+              phone: c.phone || '',
+              email: c.email || '',
+              source: 'Clientes',
+              notes: c.notes || '',
+              status: 'closed',
+            }).catch(() => null)
+          )
+        );
+        const updated = await dataService.getLeads();
+        setLeads(updated || []);
+      } else {
+        setLeads(existingLeads);
+      }
     } catch (e: any) {
       toast.error('Erro ao carregar leads: ' + e.message);
     } finally {

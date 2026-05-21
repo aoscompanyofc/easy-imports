@@ -3,8 +3,8 @@ import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
   RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw, Pencil,
-  Smartphone, Watch, Tablet, Laptop, Headphones,
 } from 'lucide-react';
+import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -33,113 +33,16 @@ const PAYMENT_METHODS = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de D
 
 const CONDITIONS = ['Novo', 'Seminovo', 'Usado — Bom Estado', 'Usado — Com Marcas', 'Para Retirada de Peças'];
 
-const DEVICE_CATEGORIES = [
-  { key: 'Smartphones', label: 'Smartphone', Icon: Smartphone },
-  { key: 'Smartwatches', label: 'Smartwatch', Icon: Watch },
-  { key: 'Tablets', label: 'Tablet', Icon: Tablet },
-  { key: 'Notebooks', label: 'Notebook', Icon: Laptop },
-  { key: 'Acessórios', label: 'Acessório', Icon: Headphones },
-];
-
-const DEVICE_MODELS: Record<string, string[]> = {
-  Smartphones: [
-    'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
-    'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
-    'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
-    'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13 mini', 'iPhone 13',
-    'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12 mini', 'iPhone 12',
-    'iPhone 11 Pro Max', 'iPhone 11 Pro', 'iPhone 11',
-    'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
-    'iPhone SE (3ª geração)', 'iPhone SE (2ª geração)',
-    'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24+', 'Samsung Galaxy S24',
-    'Samsung Galaxy S23 Ultra', 'Samsung Galaxy S23+', 'Samsung Galaxy S23',
-    'Samsung Galaxy S22 Ultra', 'Samsung Galaxy S22+', 'Samsung Galaxy S22',
-    'Samsung Galaxy Z Fold6', 'Samsung Galaxy Z Flip6',
-    'Samsung Galaxy Z Fold5', 'Samsung Galaxy Z Flip5',
-    'Samsung Galaxy A55', 'Samsung Galaxy A54', 'Samsung Galaxy A35',
-    'Motorola Edge 50 Pro', 'Motorola Edge 40 Pro', 'Motorola Moto G84',
-  ],
-  Smartwatches: [
-    'Apple Watch Ultra 2', 'Apple Watch Ultra',
-    'Apple Watch Series 10', 'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
-    'Apple Watch SE (2ª geração)', 'Apple Watch SE',
-    'Samsung Galaxy Watch 7', 'Samsung Galaxy Watch 6 Classic', 'Samsung Galaxy Watch 6',
-    'Samsung Galaxy Watch Ultra', 'Samsung Galaxy Watch 5 Pro',
-  ],
-  Tablets: [
-    'iPad Pro 13" (M4)', 'iPad Pro 11" (M4)', 'iPad Pro 12.9" (M2)', 'iPad Pro 11" (M2)',
-    'iPad Air 13" (M2)', 'iPad Air 11" (M2)', 'iPad Air (5ª geração)',
-    'iPad mini (6ª geração)', 'iPad (10ª geração)', 'iPad (9ª geração)',
-    'Samsung Galaxy Tab S9 Ultra', 'Samsung Galaxy Tab S9+', 'Samsung Galaxy Tab S9',
-  ],
-  Notebooks: [
-    'MacBook Pro 16" (M3 Max)', 'MacBook Pro 16" (M3 Pro)', 'MacBook Pro 16" (M3)',
-    'MacBook Pro 14" (M3 Max)', 'MacBook Pro 14" (M3 Pro)', 'MacBook Pro 14" (M3)',
-    'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)',
-    'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)',
-  ],
-  Acessórios: [
-    'AirPods Pro (2ª geração)', 'AirPods (4ª geração)', 'AirPods (3ª geração)', 'AirPods Max',
-    'Apple TV 4K', 'HomePod mini', 'HomePod (2ª geração)',
-  ],
-};
-
-const DEVICE_COLORS_BY_CAT: Record<string, { name: string; hex: string }[]> = {
-  Smartphones: [
-    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Branco', hex: '#F0EEE8' },
-    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Verde', hex: '#4A8C6A' },
-    { name: 'Amarelo', hex: '#F0C040' }, { name: 'Rosa', hex: '#F0A0B0' },
-    { name: 'Roxo', hex: '#7B5EA7' }, { name: 'Vermelho', hex: '#C0392B' },
-    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Meia-Noite', hex: '#1C2036' },
-    { name: 'Titânio Natural', hex: '#C0B8A8' }, { name: 'Titânio Preto', hex: '#3C3C3C' },
-    { name: 'Titânio Azul', hex: '#6B8CAE' }, { name: 'Titânio Deserto', hex: '#C8A882' },
-    { name: 'Titânio Branco', hex: '#E8E4DC' }, { name: 'Prata', hex: '#A8A9AD' },
-    { name: 'Cinza Espacial', hex: '#515154' },
-  ],
-  Smartwatches: [
-    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Prata', hex: '#A8A9AD' },
-    { name: 'Ouro', hex: '#D4AC0D' }, { name: 'Dourado Rosa', hex: '#C8887A' },
-    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Vermelho', hex: '#C0392B' },
-    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Meia-Noite', hex: '#1C2036' },
-    { name: 'Titânio Natural', hex: '#C0B8A8' }, { name: 'Titânio Preto', hex: '#3C3C3C' },
-  ],
-  Tablets: [
-    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Prata', hex: '#A8A9AD' },
-    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Roxo', hex: '#7B5EA7' },
-    { name: 'Amarelo', hex: '#F0C040' },
-  ],
-  Notebooks: [
-    { name: 'Prata', hex: '#A8A9AD' }, { name: 'Cinza Espacial', hex: '#515154' },
-    { name: 'Meia-Noite', hex: '#1C2036' }, { name: 'Estelar', hex: '#F0E8DC' },
-    { name: 'Preto', hex: '#1C1C1E' },
-  ],
-  Acessórios: [
-    { name: 'Branco', hex: '#F0EEE8' }, { name: 'Preto', hex: '#1C1C1E' },
-    { name: 'Prata', hex: '#A8A9AD' }, { name: 'Meia-Noite', hex: '#1C2036' },
-    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Azul', hex: '#4A7CB4' },
-  ],
-};
-
-const BATTERY_HEALTH_OPTIONS = [
-  '', '100%', '99%', '98%', '97%', '96%', '95%', '94%', '93%', '92%',
-  '91%', '90%', '89%', '88%', '87%', '86%', '85%', '84%', '83%', '82%',
-  '81%', '80%', 'Abaixo de 80%',
-];
-
-const CAPACITY_QUICK = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
-
-interface IncomingDevice {
-  name: string; imei: string; serial: string; email: string;
-  category: string; capacity: string; color: string;
-  condition: string; battery_health: string;
-  purchase_price: string; sale_price: string;
+// Extended DeviceFormData for trade-in (adds serial + account email for PDF/stock)
+interface TradeInDevice extends DeviceFormData {
+  serial: string;
+  account_email: string;
 }
 
-const emptyDevice = (): IncomingDevice => ({
-  name: '', imei: '', serial: '', email: '',
-  category: 'Smartphones', capacity: '', color: '',
-  condition: 'Seminovo', battery_health: '',
-  purchase_price: '', sale_price: '',
+const emptyTradeInDevice = (): TradeInDevice => ({
+  ...emptyDeviceForm(),
+  serial: '',
+  account_email: '',
 });
 
 const TYPE_COLORS: Record<string, string> = {
@@ -247,7 +150,7 @@ export const Vendas: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [sellers, setSellers] = useState<any[]>([]);
-  const [incomingDevices, setIncomingDevices] = useState<IncomingDevice[]>([emptyDevice()]);
+  const [incomingDevices, setIncomingDevices] = useState<TradeInDevice[]>([emptyTradeInDevice()]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -450,7 +353,7 @@ export const Vendas: React.FC = () => {
       const resolvedCpf = newCustomer.cpf.trim() || form.customer_cpf || selectedCustomerData?.cpf || '';
       const resolvedCity = newCustomer.address.trim() || form.customer_city || selectedCustomerData?.city || '';
 
-      const primaryDevice = incomingDevices[0] || emptyDevice();
+      const primaryDevice = incomingDevices[0] || emptyTradeInDevice();
       const repSeller = sellers.find((s) => s.id === form.rep_id);
       const savedSale = await dataService.addSale(
         {
@@ -478,10 +381,10 @@ export const Vendas: React.FC = () => {
           product_condition: form.product_condition,
           product_imei: form.product_imei || selectedProductData?.imei || '',
           product_accessories: form.product_accessories,
-          incoming_name: primaryDevice.name || '',
+          incoming_name: deviceFormToProductName(primaryDevice) || primaryDevice.model || '',
           incoming_imei: primaryDevice.imei || '',
           incoming_serial: primaryDevice.serial || '',
-          incoming_email: primaryDevice.email || '',
+          incoming_email: primaryDevice.account_email || '',
           incoming_capacity: primaryDevice.capacity || '',
           incoming_color: primaryDevice.color || '',
           incoming_condition: primaryDevice.condition || '',
@@ -490,8 +393,8 @@ export const Vendas: React.FC = () => {
           pdf_type: form.pdf_type || 'seminovo',
           rep_seller_id: repSeller?.id || null,
           rep_seller_name: repSeller?.name || '',
-          incoming_devices_json: incomingDevices.filter((d) => d.name.trim()).length > 0
-            ? JSON.stringify(incomingDevices.filter((d) => d.name.trim()))
+          incoming_devices_json: incomingDevices.filter((d) => d.model.trim()).length > 0
+            ? JSON.stringify(incomingDevices.filter((d) => d.model.trim()))
             : null,
         },
         product
@@ -502,24 +405,27 @@ export const Vendas: React.FC = () => {
       // For troca: add ALL incoming devices to stock
       if (form.sale_type === 'troca') {
         for (const device of incomingDevices) {
-          if (!device.name.trim()) continue;
+          const deviceName = deviceFormToProductName(device) || device.model;
+          if (!deviceName.trim()) continue;
           const batteryNote = device.battery_health ? ` · Bateria: ${device.battery_health}` : '';
           await dataService.addProduct({
-            name: device.name.trim(),
-            category: device.category || 'Smartphones',
+            name: deviceName.trim(),
+            category: device.category || 'iPhone',
             purchase_price: Number(device.purchase_price) || 0,
             sale_price: Number(device.sale_price) || 0,
             stock_quantity: 1,
             status: 'available',
             imei: device.imei || '',
-            product_capacity: device.capacity || '',
+            product_capacity: device.capacity !== '—' ? device.capacity : '',
             product_color: device.color || '',
-            product_condition: (device.condition || 'Seminovo') + batteryNote,
-            entry_date: new Date(form.sale_date).toISOString().split('T')[0],
+            product_condition: (device.condition || 'Seminovo — Excelente') + batteryNote,
+            product_warranty: device.warranty || 'Sem garantia',
+            product_origin: device.origin || '',
+            entry_date: device.entry_date || new Date(form.sale_date).toISOString().split('T')[0],
           });
           if (Number(device.purchase_price) > 0) {
             await dataService.addTransaction({
-              description: `Aparelho Recebido ${saleNumber} — ${device.name.trim()}`,
+              description: `Aparelho Recebido ${saleNumber} — ${deviceName.trim()}`,
               amount: Number(device.purchase_price),
               type: 'income',
               category: 'trade',
@@ -592,10 +498,10 @@ export const Vendas: React.FC = () => {
         payment_method: resolvedPaymentMethod,
         installments: form.split_payment ? 1 : form.installments,
         // Aparelho entrante (troca) — PDF mostra o primeiro aparelho
-        incoming_name: primaryDevice.name || undefined,
+        incoming_name: (deviceFormToProductName(primaryDevice) || primaryDevice.model) || undefined,
         incoming_imei: primaryDevice.imei || undefined,
         incoming_serial: primaryDevice.serial || undefined,
-        incoming_email: primaryDevice.email || undefined,
+        incoming_email: primaryDevice.account_email || undefined,
         incoming_capacity: primaryDevice.capacity || undefined,
         incoming_color: primaryDevice.color || undefined,
         incoming_condition: primaryDevice.condition || undefined,
@@ -646,7 +552,7 @@ export const Vendas: React.FC = () => {
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
       setForm(emptyForm());
-      setIncomingDevices([emptyDevice()]);
+      setIncomingDevices([emptyTradeInDevice()]);
       setShowNewCustomer(false);
       setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
       fetchData();
@@ -889,7 +795,7 @@ export const Vendas: React.FC = () => {
           <button onClick={() => setShowSQL(!showSQL)} className="text-xs text-neutral-400 hover:text-neutral-700 underline">
             SQL campos extras
           </button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
             Nova Operação
           </Button>
         </div>
@@ -1485,258 +1391,74 @@ export const Vendas: React.FC = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setIncomingDevices((prev) => [...prev, emptyDevice()])}
+                  onClick={() => setIncomingDevices((prev) => [...prev, emptyTradeInDevice()])}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
                 >
                   <Plus size={13} /> Adicionar aparelho
                 </button>
               </div>
 
-              {incomingDevices.map((device, idx) => {
-                const colorsForCat = DEVICE_COLORS_BY_CAT[device.category] || DEVICE_COLORS_BY_CAT['Smartphones'];
-                const modelsForCat = DEVICE_MODELS[device.category] || [];
-                const updateDevice = (field: keyof IncomingDevice, value: string) =>
-                  setIncomingDevices((prev) =>
-                    prev.map((d, i) => i === idx ? { ...d, [field]: value } : d)
-                  );
-
-                return (
-                  <div key={idx} className="border border-purple-200 bg-purple-50/40 rounded-2xl p-4 space-y-4">
-                    {/* Card header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center">
-                          <span className="text-xs font-black text-purple-700">{idx + 1}</span>
-                        </div>
-                        <p className="text-xs font-bold text-purple-700">
-                          {device.name || 'Aparelho sem nome'}
-                        </p>
+              {incomingDevices.map((device, idx) => (
+                <div key={idx} className="border border-purple-200 bg-purple-50/30 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-black text-purple-700">{idx + 1}</span>
                       </div>
-                      {incomingDevices.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setIncomingDevices((prev) => prev.filter((_, i) => i !== idx))}
-                          className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remover aparelho"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
+                      <p className="text-xs font-bold text-purple-700">
+                        {deviceFormToProductName(device) || device.model || 'Aparelho sem modelo'}
+                      </p>
                     </div>
-
-                    {/* Category selector */}
-                    <div>
-                      <p className="text-xs font-bold text-neutral-600 mb-2">Categoria</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {DEVICE_CATEGORIES.map(({ key, label, Icon }) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                              setIncomingDevices((prev) =>
-                                prev.map((d, i) => i === idx ? { ...d, category: key, name: '', color: '' } : d)
-                              );
-                            }}
-                            className={cn(
-                              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 text-xs font-bold transition-all',
-                              device.category === key
-                                ? 'border-purple-400 bg-purple-100 text-purple-800'
-                                : 'border-neutral-200 text-neutral-500 hover:border-purple-200 hover:text-purple-600'
-                            )}
-                          >
-                            <Icon size={13} /> {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Model selector */}
-                    <div>
-                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">
-                        Modelo *
-                      </label>
-                      <div className="relative">
-                        <input
-                          list={`models-${idx}`}
-                          placeholder="Digite ou selecione o modelo..."
-                          value={device.name}
-                          onChange={(e) => updateDevice('name', e.target.value)}
-                          className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                          autoComplete="off"
-                        />
-                        <datalist id={`models-${idx}`}>
-                          {modelsForCat.map((m) => <option key={m} value={m} />)}
-                        </datalist>
-                      </div>
-                      {/* Quick model chips */}
-                      {device.category === 'Smartphones' && (
-                        <div className="flex gap-1.5 flex-wrap mt-2">
-                          {['iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 13', 'iPhone 12'].map((m) => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => updateDevice('name', m)}
-                              className={cn(
-                                'px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
-                                device.name === m
-                                  ? 'bg-purple-600 text-white border-purple-600'
-                                  : 'border-neutral-200 text-neutral-500 hover:border-purple-300 hover:text-purple-600'
-                              )}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Capacity */}
-                      <div>
-                        <label className="block text-sm font-bold text-neutral-700 mb-2">Capacidade</label>
-                        <div className="flex gap-1.5 flex-wrap mb-2">
-                          {CAPACITY_QUICK.map((cap) => (
-                            <button
-                              key={cap}
-                              type="button"
-                              onClick={() => updateDevice('capacity', device.capacity === cap ? '' : cap)}
-                              className={cn(
-                                'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-all',
-                                device.capacity === cap
-                                  ? 'border-purple-500 bg-purple-500 text-white'
-                                  : 'border-neutral-200 text-neutral-500 hover:border-purple-300'
-                              )}
-                            >
-                              {cap}
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          placeholder="Outra capacidade"
-                          value={CAPACITY_QUICK.includes(device.capacity) ? '' : device.capacity}
-                          onChange={(e) => updateDevice('capacity', e.target.value)}
-                          className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                        />
-                      </div>
-
-                      {/* Condition */}
-                      <div>
-                        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
-                        <select
-                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                          value={device.condition}
-                          onChange={(e) => updateDevice('condition', e.target.value)}
-                        >
-                          {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Color swatches */}
-                    <div>
-                      <label className="block text-sm font-bold text-neutral-700 mb-2">Cor</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {colorsForCat.map(({ name, hex }) => (
-                          <button
-                            key={name}
-                            type="button"
-                            title={name}
-                            onClick={() => updateDevice('color', device.color === name ? '' : name)}
-                            className={cn(
-                              'w-7 h-7 rounded-full border-2 transition-all flex-shrink-0',
-                              device.color === name
-                                ? 'border-neutral-900 scale-110 shadow-md'
-                                : 'border-transparent hover:scale-105 hover:border-neutral-300'
-                            )}
-                            style={{ backgroundColor: hex }}
-                          />
-                        ))}
-                      </div>
-                      {device.color && (
-                        <p className="text-xs text-neutral-500 mt-1.5">Cor: <span className="font-bold">{device.color}</span></p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Battery health */}
-                      <div>
-                        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
-                        <select
-                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                          value={device.battery_health}
-                          onChange={(e) => updateDevice('battery_health', e.target.value)}
-                        >
-                          <option value="">Não verificado</option>
-                          {BATTERY_HEALTH_OPTIONS.filter(Boolean).map((h) => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* IMEI */}
-                      <div>
-                        <Input
-                          label="IMEI"
-                          placeholder="352XXXXXXXXXXXX"
-                          value={device.imei}
-                          onChange={(e) => updateDevice('imei', e.target.value)}
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {/* iCloud/Google account */}
-                      <div>
-                        <Input
-                          label="E-mail da Conta (iCloud/Google)"
-                          placeholder="Ex: joao@icloud.com"
-                          value={device.email}
-                          onChange={(e) => updateDevice('email', e.target.value)}
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {/* Serial */}
-                      <div>
-                        <Input
-                          label="Número de Série"
-                          placeholder="Ex: C02XG2YJHV2Q"
-                          value={device.serial}
-                          onChange={(e) => updateDevice('serial', e.target.value)}
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {/* Purchase price */}
-                      <div>
-                        <Input
-                          label="Valor dado ao cliente (R$) *"
-                          type="number"
-                          step="any"
-                          inputMode="decimal"
-                          placeholder="Quanto você avaliou o aparelho"
-                          value={device.purchase_price}
-                          onChange={(e) => updateDevice('purchase_price', e.target.value)}
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      {/* Sale price estimate */}
-                      <div>
-                        <Input
-                          label="Previsão de revenda (R$)"
-                          type="number"
-                          step="any"
-                          inputMode="decimal"
-                          placeholder="Quanto pretende vender depois"
-                          value={device.sale_price}
-                          onChange={(e) => updateDevice('sale_price', e.target.value)}
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
+                    {incomingDevices.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setIncomingDevices((prev) => prev.filter((_, i) => i !== idx))}
+                        className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remover aparelho"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
-                );
-              })}
+
+                  <DeviceForm
+                    value={device}
+                    onChange={(v) =>
+                      setIncomingDevices((prev) =>
+                        prev.map((d, i) => i === idx ? { ...d, ...v } : d)
+                      )
+                    }
+                    purchasePriceLabel="Valor dado ao cliente (R$)"
+                    purchasePriceRequired={false}
+                    salePriceLabel="Previsão de revenda (R$) — opcional"
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-purple-100">
+                    <Input
+                      label="Número de Série"
+                      placeholder="Ex: C02XG2YJHV2Q"
+                      value={device.serial}
+                      onChange={(e) =>
+                        setIncomingDevices((prev) =>
+                          prev.map((d, i) => i === idx ? { ...d, serial: e.target.value } : d)
+                        )
+                      }
+                      autoComplete="off"
+                    />
+                    <Input
+                      label="E-mail da Conta (iCloud/Google)"
+                      placeholder="Ex: joao@icloud.com"
+                      value={device.account_email}
+                      onChange={(e) =>
+                        setIncomingDevices((prev) =>
+                          prev.map((d, i) => i === idx ? { ...d, account_email: e.target.value } : d)
+                        )
+                      }
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              ))}
 
               <p className="text-xs text-purple-500 pl-1">
                 Todos os aparelhos serão adicionados automaticamente ao seu estoque.

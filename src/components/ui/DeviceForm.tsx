@@ -47,11 +47,13 @@ interface Props {
   onChange: (v: DeviceFormData) => void;
   showSalePrice?: boolean;
   salePriceLabel?: string;
+  purchasePriceLabel?: string;
+  purchasePriceRequired?: boolean;
 }
 
 const S = 'w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary';
 
-export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = true, salePriceLabel }) => {
+export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = true, salePriceLabel, purchasePriceLabel, purchasePriceRequired = true }) => {
   const set = (field: keyof DeviceFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     onChange({ ...value, [field]: e.target.value });
   };
@@ -281,12 +283,12 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
       {/* Prices */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="Preço de Custo (R$) *"
+          label={purchasePriceLabel || 'Preço de Custo (R$) *'}
           type="number"
           step="any"
           inputMode="decimal"
           placeholder="Ex: 9000"
-          required
+          required={purchasePriceRequired}
           value={value.purchase_price}
           onChange={set('purchase_price')}
           autoComplete="off"

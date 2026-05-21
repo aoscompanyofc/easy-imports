@@ -392,7 +392,7 @@ export const Estoque: React.FC = () => {
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : isStale ? 'bg-amber-400' : 'bg-primary'}`} />
             <div className="min-w-0">
-              <p className={`text-sm font-bold truncate max-w-[260px] ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>{p.name}</p>
+              <p className={`text-sm font-bold ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>{p.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-px rounded">{p.category}</span>
                 {p.imei && <span className="text-[10px] font-mono text-neutral-400">{p.imei.length === 15 && /^\d+$/.test(p.imei) ? 'IMEI' : 'S/N'}: {p.imei}</span>}
@@ -434,6 +434,26 @@ export const Estoque: React.FC = () => {
               {daysInStock}d
             </span>
           ) : <span className="text-neutral-300 text-xs">—</span>}
+        </td>
+
+        {/* Condição */}
+        <td className="px-3 py-3 text-center whitespace-nowrap">
+          {(() => {
+            const cond = (p.product_condition || '').replace(/ · Bateria:.*/, '').trim();
+            const lower = cond.toLowerCase();
+            const isNovo = lower.startsWith('novo');
+            const isSemi = lower.startsWith('seminovo');
+            if (!cond) return <span className="text-neutral-300 text-xs">—</span>;
+            return (
+              <span className={`text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap ${
+                isNovo ? 'bg-green-100 text-green-700' :
+                isSemi ? 'bg-blue-100 text-blue-700' :
+                'bg-neutral-100 text-neutral-500'
+              }`}>
+                {isNovo ? 'Novo' : isSemi ? 'Seminovo' : cond.split(' ')[0]}
+              </span>
+            );
+          })()}
         </td>
 
         {/* Ações */}
@@ -482,6 +502,7 @@ export const Estoque: React.FC = () => {
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Venda</th>
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
         <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Dias</th>
+        <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Condição</th>
         <th className="pr-4 pl-2 py-2.5" />
       </tr>
     </thead>
@@ -667,6 +688,7 @@ export const Estoque: React.FC = () => {
               <col className="w-28" />
               <col className="w-32" />
               <col className="w-16" />
+              <col className="w-24" />
               <col className="w-20" />
             </colgroup>
             <TableHeader />

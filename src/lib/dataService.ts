@@ -282,37 +282,37 @@ export const dataService = {
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
     const uid = await getUid();
-    const { name, email, phone, cpf, city, notes } = customer;
+    const { name, email, phone, cpf, city, notes, source, birthday } = customer;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
-    const { data, error } = await supabase
-      .from('customers')
-      .insert([{ name, email, phone, cpf, city, notes, user_id: uid }])
-      .select();
+    const payload: any = { name, email, phone, cpf, city, notes, user_id: uid };
+    if (source) payload.source = source;
+    if (birthday) payload.birthday = birthday || null;
+    const { data, error } = await supabase.from('customers').insert([payload]).select();
     if (!error) return data![0];
     if (!isColErr(error)) throw error;
-    // Colunas cpf/city/notes não existem no banco → salva básico e avisa
-    const { data: d2, error: e2 } = await supabase
-      .from('customers')
-      .insert([{ name, email, phone, user_id: uid }])
-      .select();
+    // Fallback: colunas extras ainda não existem → salva básico
+    const base: any = { name, email, phone, user_id: uid };
+    const { data: d2, error: e2 } = await supabase.from('customers').insert([base]).select();
     if (e2) throw e2;
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
     return d2![0];
   },
   async updateCustomer(id: string, updates: any) {
     if (useMock) return updates;
-    const { name, email, phone, cpf, city, notes } = updates;
+    const { name, email, phone, cpf, city, notes, source, birthday } = updates;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
     const full: any = { name };
-    if (email !== undefined) full.email = email;
-    if (phone !== undefined) full.phone = phone;
-    if (cpf  !== undefined) full.cpf  = cpf;
-    if (city !== undefined) full.city = city;
-    if (notes !== undefined) full.notes = notes;
+    if (email    !== undefined) full.email    = email;
+    if (phone    !== undefined) full.phone    = phone;
+    if (cpf      !== undefined) full.cpf      = cpf;
+    if (city     !== undefined) full.city     = city;
+    if (notes    !== undefined) full.notes    = notes;
+    if (source   !== undefined) full.source   = source;
+    if (birthday !== undefined) full.birthday = birthday || null;
     const { data, error } = await supabase.from('customers').update(full).eq('id', id).select();
     if (!error) return data![0];
     if (!isColErr(error)) throw error;
-    // Colunas cpf/city/notes não existem → salva básico e avisa
+    // Fallback: colunas extras não existem → salva básico
     await supabase.from('customers').update({ name, email, phone }).eq('id', id);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
     return { name };

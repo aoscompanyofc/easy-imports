@@ -116,7 +116,8 @@ export const Clientes: React.FC = () => {
   const [showMassModal, setShowMassModal] = useState(false);
   const [massMessage, setMassMessage] = useState('Olá {nome}! Temos novidades incríveis aqui na Easy Imports. Faz tempo que não te vemos por aqui! 😊');
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
-  const [birthdayMessage, setBirthdayMessage] = useState('🎂 Feliz aniversário, {nome}! Aqui é a equipe da Easy Imports desejando um dia muito especial pra você! 🥳 Aproveite seu dia e conte com a gente sempre! 😊');
+  const [birthdayMessage, setBirthdayMessage] = useState('🎂 Feliz aniversário, {nome}! Aqui é a equipe da Easy Imports desejando um dia muito especial pra você! 🥳\n\nComo presente de aniversário, preparamos um cupom exclusivo de 5% de desconto na sua próxima compra aqui na nossa loja! 🎁\n\nBasta mencionar este contato na hora da compra. Aproveite! 😊');
+  const [birthdayMonthOffset, setBirthdayMonthOffset] = useState(0);
 
   const fetchAll = async () => {
     try {
@@ -208,16 +209,41 @@ export const Clientes: React.FC = () => {
     return count > 0 ? Math.round(total / count) : null;
   }, [enriched]);
 
-  const currentMonth = new Date().getMonth() + 1;
+  function getBirthdayMonth(birthday: string): number | null {
+    if (!birthday) return null;
+    // Suporta YYYY-MM-DD e DD/MM/YYYY
+    if (birthday.includes('-')) {
+      const parts = birthday.split('-');
+      if (parts.length >= 2) return parseInt(parts[1], 10);
+    }
+    if (birthday.includes('/')) {
+      const parts = birthday.split('/');
+      if (parts.length >= 2) return parseInt(parts[1], 10);
+    }
+    return null;
+  }
+  function getBirthdayDay(birthday: string): number {
+    if (!birthday) return 0;
+    if (birthday.includes('-')) return parseInt(birthday.split('-')[2] || '0', 10);
+    if (birthday.includes('/')) return parseInt(birthday.split('/')[0] || '0', 10);
+    return 0;
+  }
+
+  const targetDate = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + birthdayMonthOffset);
+    return d;
+  }, [birthdayMonthOffset]);
+  const targetMonth = targetDate.getMonth() + 1;
+
   const birthdayCustomers = useMemo(() =>
     customers
       .filter(c => {
-        if (!c.birthday) return false;
-        const month = parseInt(c.birthday.split('-')[1], 10);
-        return month === currentMonth;
+        const month = getBirthdayMonth(c.birthday);
+        return month !== null && month === targetMonth;
       })
-      .sort((a, b) => parseInt(a.birthday.split('-')[2], 10) - parseInt(b.birthday.split('-')[2], 10)),
-    [customers, currentMonth]
+      .sort((a, b) => getBirthdayDay(a.birthday) - getBirthdayDay(b.birthday)),
+    [customers, targetMonth]
   );
 
   function formatLtv(days: number | null): string {
@@ -764,20 +790,45 @@ export const Clientes: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)} />
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between flex-shrink-0 bg-amber-50">
-              <div>
+            <div className="px-6 py-5 border-b border-neutral-100 flex-shrink-0 bg-amber-50">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Cake size={18} className="text-amber-500" />
-                  <h2 className="font-black text-lg text-neutral-900">Aniversariantes do Mês</h2>
+                  <h2 className="font-black text-lg text-neutral-900">Aniversariantes</h2>
                 </div>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  {new Date().toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())} · {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
-                </p>
+                <button onClick={() => { setShowBirthdayModal(false); setBirthdayMonthOffset(0); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
+                  <X size={16} />
+                </button>
               </div>
-              <button onClick={() => setShowBirthdayModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
-                <X size={16} />
-              </button>
+              {/* Month navigation */}
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={() => setBirthdayMonthOffset(o => o - 1)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-black"
+                >
+                  ‹
+                </button>
+                <div className="flex-1 text-center">
+                  <p className="font-black text-sm text-amber-800 capitalize">
+                    {targetDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
+                    {birthdayMonthOffset !== 0 && (
+                      <button onClick={() => setBirthdayMonthOffset(0)} className="ml-2 underline text-amber-500">
+                        voltar ao atual
+                      </button>
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setBirthdayMonthOffset(o => o + 1)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-black"
+                >
+                  ›
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
@@ -806,10 +857,9 @@ export const Clientes: React.FC = () => {
                   </p>
                   <div className="space-y-1.5">
                     {birthdayCustomers.map(c => {
-                      const [, , day] = c.birthday.split('-');
-                      const dayNum = parseInt(day, 10);
-                      const today = new Date().getDate();
-                      const isToday = dayNum === today;
+                      const dayNum = getBirthdayDay(c.birthday);
+                      const now = new Date();
+                      const isToday = birthdayMonthOffset === 0 && dayNum === now.getDate();
                       return (
                         <div key={c.id} className={cn(
                           'flex items-center gap-3 rounded-xl px-4 py-2.5 border',

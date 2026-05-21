@@ -847,27 +847,6 @@ export const Clientes: React.FC = () => {
                 <p className="text-[10px] text-neutral-400 mt-1">Use {'{nome}'} para personalizar com o primeiro nome</p>
               </div>
 
-              {/* SQL migration hint */}
-              {customers.every(c => !c.birthday) && customers.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-bold text-amber-800">
-                    ⚠️ Coluna birthday ainda não existe no Supabase. Execute o SQL abaixo uma vez:
-                  </p>
-                  <code className="block text-[11px] bg-neutral-900 text-green-400 rounded-lg px-3 py-2 font-mono">
-                    ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText('ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;');
-                      toast.success('SQL copiado!');
-                    }}
-                    className="text-xs font-bold text-amber-700 underline hover:text-amber-900"
-                  >
-                    Copiar SQL
-                  </button>
-                </div>
-              )}
 
               {birthdayCustomers.length === 0 ? (
                 <div className="py-8 flex flex-col items-center gap-3 text-center">

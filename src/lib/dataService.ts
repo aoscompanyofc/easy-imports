@@ -284,43 +284,36 @@ export const dataService = {
     const uid = await getUid();
     const { name, email, phone, cpf, city, notes, source, birthday } = customer;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
-    const payload: any = { name, email, phone, cpf, city, notes, user_id: uid };
-    if (source) payload.source = source;
-    if (birthday) payload.birthday = birthday;
-    const { data, error } = await supabase.from('customers').insert([payload]).select();
-    if (!error) return data![0];
-    if (!isColErr(error)) throw error;
-    // Fallback: cpf/city/notes/source podem não existir → salva sem eles mas mantém birthday
     const base: any = { name, email, phone, user_id: uid };
-    if (birthday) base.birthday = birthday;
-    const { data: d2, error: e2 } = await supabase.from('customers').insert([base]).select();
-    if (e2) throw e2;
+    // Nível 1: tudo; Nível 2: sem cpf/city/notes/source mas com birthday; Nível 3: mínimo absoluto
+    const result = await tryInsert('customers', [
+      { ...base, cpf, city, notes, ...(source ? { source } : {}), ...(birthday ? { birthday } : {}) },
+      { ...base, ...(birthday ? { birthday } : {}) },
+      base,
+    ]);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return d2![0];
+    return result;
   },
   async updateCustomer(id: string, updates: any) {
     if (useMock) return updates;
     const { name, email, phone, cpf, city, notes, source, birthday } = updates;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
-    const full: any = { name };
-    if (email    !== undefined) full.email    = email;
-    if (phone    !== undefined) full.phone    = phone;
+    const base: any = { name };
+    if (email    !== undefined) base.email    = email;
+    if (phone    !== undefined) base.phone    = phone;
+    if (birthday !== undefined) base.birthday = birthday || null;
+    const full: any = { ...base };
     if (cpf      !== undefined) full.cpf      = cpf;
     if (city     !== undefined) full.city     = city;
     if (notes    !== undefined) full.notes    = notes;
     if (source   !== undefined) full.source   = source;
-    if (birthday !== undefined) full.birthday = birthday || null;
-    const { data, error } = await supabase.from('customers').update(full).eq('id', id).select();
-    if (!error) return data![0];
-    if (!isColErr(error)) throw error;
-    // Fallback: colunas extras não existem → salva básico mas mantém birthday
-    const baseUpdate: any = { name };
-    if (email    !== undefined) baseUpdate.email    = email;
-    if (phone    !== undefined) baseUpdate.phone    = phone;
-    if (birthday !== undefined) baseUpdate.birthday = birthday || null;
-    await supabase.from('customers').update(baseUpdate).eq('id', id);
+    // Nível 1: tudo; Nível 2: sem cpf/city/notes/source mas com birthday; Nível 3: sem birthday
+    const baseNoBirthday: any = { name };
+    if (email !== undefined) baseNoBirthday.email = email;
+    if (phone !== undefined) baseNoBirthday.phone = phone;
+    const result = await tryUpdate('customers', id, [full, base, baseNoBirthday]);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return baseUpdate;
+    return result;
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);

@@ -363,6 +363,15 @@ export const dataService = {
       { description, amount, type, user_id: uid },
     ]);
   },
+  async updateTransaction(id: string, updates: { description: string; amount: number; type: string; category: string; date: string }) {
+    if (useMock) return;
+    const { description, amount, type, category, date } = updates;
+    const { error } = await supabase.from('transactions')
+      .update({ description, amount, type, category, date })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  },
   async deleteTransaction(id: string) {
     if (useMock) return mockDataService.deleteTransaction(id);
     const { error } = await supabase.from('transactions').delete().eq('id', id);

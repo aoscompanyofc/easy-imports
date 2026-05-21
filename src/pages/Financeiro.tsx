@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp, Filter, Calendar, PieChart as PieChartIcon, Trash2, X } from 'lucide-react';
+import { DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp, Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -22,6 +22,9 @@ export const Financeiro: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ description: '', amount: '', type: 'expense', category: 'rent', date: '' });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
@@ -82,6 +85,41 @@ export const Financeiro: React.FC = () => {
       } catch (error: any) {
         toast.error('Erro ao remover: ' + error.message);
       }
+    }
+  };
+
+  const handleOpenEdit = (t: any) => {
+    setEditTransaction(t);
+    setEditForm({
+      description: t.description || '',
+      amount: String(t.amount || ''),
+      type: t.type || 'expense',
+      category: t.category || 'other',
+      date: t.date || new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTransaction) return;
+    const amount = Number(editForm.amount);
+    if (!amount || amount <= 0) { toast.error('Informe um valor maior que zero.'); return; }
+    try {
+      setIsSavingEdit(true);
+      await dataService.updateTransaction(editTransaction.id, {
+        description: editForm.description,
+        amount,
+        type: editForm.type,
+        category: editForm.category,
+        date: editForm.date,
+      });
+      toast.success('Lançamento atualizado!');
+      setEditTransaction(null);
+      fetchTransactions();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -158,9 +196,14 @@ export const Financeiro: React.FC = () => {
       </Badge>
     )},
     { header: 'Ações', accessor: (t: any) => (
-      <Button variant="danger" size="sm" iconOnly onClick={() => handleDeleteTransaction(t.id, t.description)}>
-        <Trash2 size={14} />
-      </Button>
+      <div className="flex items-center gap-1.5">
+        <Button variant="secondary" size="sm" iconOnly onClick={() => handleOpenEdit(t)} title="Editar">
+          <Pencil size={14} />
+        </Button>
+        <Button variant="danger" size="sm" iconOnly onClick={() => handleDeleteTransaction(t.id, t.description)} title="Remover">
+          <Trash2 size={14} />
+        </Button>
+      </div>
     )},
   ];
 
@@ -352,6 +395,89 @@ export const Financeiro: React.FC = () => {
             </Button>
             <Button fullWidth loading={isSaving} type="submit">
               Confirmar Lançamento
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal de Edição */}
+      <Modal
+        isOpen={!!editTransaction}
+        onClose={() => setEditTransaction(null)}
+        title="Editar Lançamento"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <Input
+            label="Descrição"
+            required
+            value={editForm.description}
+            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            autoComplete="off"
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Valor (R$)"
+              type="number"
+              step="any"
+              inputMode="decimal"
+              required
+              value={editForm.amount}
+              onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+            />
+            <Input
+              label="Data"
+              type="date"
+              required
+              value={editForm.date}
+              onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Tipo</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ value: 'income', label: 'Entrada' }, { value: 'expense', label: 'Saída' }].map((opt) => (
+                <label key={opt.value} className={cn(
+                  'flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all',
+                  editForm.type === opt.value
+                    ? opt.value === 'income' ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
+                    : 'border-neutral-200 hover:border-neutral-300'
+                )}>
+                  <input type="radio" className="hidden" value={opt.value} checked={editForm.type === opt.value}
+                    onChange={() => setEditForm({ ...editForm, type: opt.value })} />
+                  <div className={cn('w-3.5 h-3.5 rounded-full border-2 flex-shrink-0',
+                    editForm.type === opt.value
+                      ? opt.value === 'income' ? 'border-green-500 bg-green-500' : 'border-red-500 bg-red-500'
+                      : 'border-neutral-300'
+                  )} />
+                  <span className="text-sm font-bold text-neutral-800">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
+            <select
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+              value={editForm.category}
+              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+            >
+              <option value="sale">Venda de Produto</option>
+              <option value="trade">Troca — Aparelho Recebido</option>
+              <option value="rent">Aluguel</option>
+              <option value="salaries">Salários / Pro-labore</option>
+              <option value="marketing">Marketing (Ads)</option>
+              <option value="stock">Compra de Estoque</option>
+              <option value="taxes">Impostos</option>
+              <option value="utilities">Água/Luz/Internet</option>
+              <option value="other">Outros</option>
+            </select>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" fullWidth onClick={() => setEditTransaction(null)} type="button">
+              Cancelar
+            </Button>
+            <Button fullWidth loading={isSavingEdit} type="submit">
+              Salvar Alterações
             </Button>
           </div>
         </form>

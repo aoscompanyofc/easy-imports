@@ -335,6 +335,7 @@ export const Financeiro: React.FC = () => {
               onChange={(e) => setFormData({...formData, category: e.target.value})}
             >
               <option value="sale">Venda de Produto</option>
+              <option value="trade">Troca — Aparelho Recebido</option>
               <option value="rent">Aluguel</option>
               <option value="salaries">Salários / Pro-labore</option>
               <option value="marketing">Marketing (Ads)</option>

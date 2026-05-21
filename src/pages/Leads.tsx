@@ -39,24 +39,24 @@ const AVATAR_COLORS = [
   'bg-amber-500','bg-cyan-500','bg-fuchsia-500','bg-teal-500',
 ];
 function avatarColor(name: string) {
-  return AVATAR_COLORS[((name||'').charCodeAt(0)||0) % AVATAR_COLORS.length];
+  return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
 }
 
 const SOURCES = ['Instagram','WhatsApp','Google','Indicação','Facebook','TikTok','Loja Física','Outro'];
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
-  { id:'new',         label:'Novo Lead',   accent:'#3B82F6' },
-  { id:'interested',  label:'Interessado', accent:'#EAB308' },
-  { id:'proposal',    label:'Proposta',    accent:'#8B5CF6' },
-  { id:'negotiating', label:'Negociando',  accent:'#EC4899' },
-  { id:'closed',      label:'Cliente',     accent:'#10B981' },
+  { id: 'new',         label: 'Novo Lead',   accent: '#3B82F6' },
+  { id: 'interested',  label: 'Interessado', accent: '#EAB308' },
+  { id: 'proposal',    label: 'Proposta',    accent: '#8B5CF6' },
+  { id: 'negotiating', label: 'Negociando',  accent: '#EC4899' },
+  { id: 'closed',      label: 'Cliente',     accent: '#10B981' },
 ] as const;
 
 type StageId = typeof STAGES[number]['id'];
 function getStage(id: string) { return STAGES.find(s => s.id === id) ?? STAGES[0]; }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+// ─── Lead Card ────────────────────────────────────────────────────────────────
 const CardContent = ({
   lead, isDragging = false, onDelete, onDetail,
 }: {
@@ -70,67 +70,62 @@ const CardContent = ({
     <div
       onClick={!isDragging ? onDetail : undefined}
       className={cn(
-        'bg-white rounded-2xl overflow-hidden select-none transition-all duration-150 group',
+        'bg-white rounded-xl overflow-hidden select-none transition-all duration-150 group',
         isDragging
-          ? 'shadow-2xl scale-[1.04] rotate-1 opacity-95 border border-neutral-200'
-          : 'border border-neutral-150 shadow-sm hover:shadow-md hover:border-neutral-200 cursor-pointer',
+          ? 'shadow-2xl scale-[1.04] rotate-1 opacity-95'
+          : 'shadow-sm hover:shadow-md cursor-pointer border border-neutral-100 hover:border-neutral-200',
       )}
       style={{ borderLeft: `3px solid ${stage.accent}` }}
     >
-      <div className="p-3.5 space-y-2.5">
-
-        {/* Avatar + name row */}
-        <div className="flex items-center gap-2.5">
+      <div className="p-3 space-y-2">
+        {/* Avatar + name */}
+        <div className="flex items-start gap-2.5">
           <div className={cn(
-            'w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black flex-shrink-0',
+            'w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0 mt-0.5',
             avatarColor(lead.name),
           )}>
             {getInitials(lead.name)}
           </div>
-
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-neutral-900 text-sm leading-tight truncate">{lead.name}</p>
+            <p className="font-bold text-neutral-900 text-[13px] leading-tight truncate">{lead.name}</p>
             {lead.source && (
-              <p className="text-[10px] font-semibold text-neutral-400 truncate">{lead.source}</p>
+              <p className="text-[10px] text-neutral-400 truncate">{lead.source}</p>
             )}
           </div>
-
           {!isDragging && onDelete && (
             <button
               onPointerDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); onDelete(e); }}
-              className="opacity-0 group-hover:opacity-100 p-1 text-neutral-300 hover:text-red-400 transition-all rounded-lg flex-shrink-0"
+              className="opacity-0 group-hover:opacity-100 p-0.5 text-neutral-300 hover:text-red-400 transition-all rounded flex-shrink-0"
             >
-              <Trash2 size={12} />
+              <Trash2 size={11} />
             </button>
           )}
         </div>
 
-        {/* Notes preview */}
+        {/* Notes */}
         {lead.notes && (
-          <p className="text-[11px] text-neutral-500 leading-relaxed line-clamp-2 px-0.5">
+          <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2 pl-0.5">
             {lead.notes}
           </p>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 pt-0.5">
-          <div className="flex items-center gap-1 min-w-0">
-            {lead.phone ? (
-              <span className="text-[11px] text-neutral-400 truncate flex items-center gap-1">
-                <Phone size={10} className="flex-shrink-0" />
-                {lead.phone}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center justify-between gap-1 pt-0.5">
+          {lead.phone ? (
+            <span className="flex items-center gap-1 text-[10px] text-neutral-400 truncate">
+              <Phone size={9} className="flex-shrink-0" />
+              {lead.phone}
+            </span>
+          ) : <div />}
+          <div className="flex items-center gap-1 flex-shrink-0">
             {lead.status === 'closed' && (
-              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full">
+              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                 <CheckCircle2 size={8} /> Cliente
               </span>
             )}
             {lead.created_at && (
-              <span className="text-[10px] text-neutral-300 font-medium">{fmtDate(lead.created_at)}</span>
+              <span className="text-[10px] text-neutral-300 whitespace-nowrap">{fmtDate(lead.created_at)}</span>
             )}
           </div>
         </div>
@@ -147,14 +142,16 @@ const DraggableCard = ({ lead, onDelete, onDetail }: {
 }) => {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: lead.id });
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes}
-      style={{ opacity: isDragging ? 0.2 : 1, cursor: isDragging ? 'grabbing' : 'grab' }}>
+    <div
+      ref={setNodeRef} {...listeners} {...attributes}
+      style={{ opacity: isDragging ? 0.15 : 1, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+    >
       <CardContent lead={lead} onDelete={onDelete} onDetail={onDetail} />
     </div>
   );
 };
 
-// ─── Column ───────────────────────────────────────────────────────────────────
+// ─── Kanban Column Card ───────────────────────────────────────────────────────
 const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
   stage: typeof STAGES[number];
   leads: any[];
@@ -165,16 +162,24 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
-    <div className="flex-shrink-0 w-[256px] flex flex-col gap-2" style={{ scrollSnapAlign: 'start' }}>
+    <div className="flex flex-col bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden min-h-[560px]">
       {/* Column header */}
-      <div className="flex items-center gap-2 px-1 mb-0.5">
-        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
-        <p className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.08em] flex-1 truncate">
-          {stage.label}
-        </p>
+      <div
+        className="px-4 py-3.5 flex items-center justify-between flex-shrink-0"
+        style={{
+          background: `linear-gradient(135deg, ${stage.accent}14 0%, ${stage.accent}08 100%)`,
+          borderBottom: `1.5px solid ${stage.accent}28`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
+          <span className="text-[11px] font-black uppercase tracking-[0.09em] text-neutral-600">
+            {stage.label}
+          </span>
+        </div>
         <span
-          className="text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums"
-          style={{ backgroundColor: stage.accent + '1A', color: stage.accent }}
+          className="text-xs font-black tabular-nums min-w-[22px] h-[22px] flex items-center justify-center rounded-full"
+          style={{ backgroundColor: stage.accent + '20', color: stage.accent }}
         >
           {leads.length}
         </span>
@@ -184,10 +189,8 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
       <div
         ref={setNodeRef}
         className={cn(
-          'flex flex-col gap-2 rounded-2xl p-2 min-h-[520px] border-2 transition-all duration-150',
-          isOver
-            ? 'border-primary border-dashed bg-primary/5'
-            : 'border-transparent bg-neutral-100/70',
+          'flex-1 flex flex-col gap-2 p-2.5 transition-all duration-150',
+          isOver ? 'bg-primary/5 ring-2 ring-inset ring-primary/30' : 'bg-transparent',
         )}
       >
         {leads.map(lead => (
@@ -200,15 +203,15 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
         ))}
 
         {leads.length === 0 && !activeId && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12 opacity-40">
+          <div className="flex-1 flex flex-col items-center justify-center gap-2.5 py-10 opacity-35">
             <div
-              className="w-9 h-9 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: stage.accent + '22' }}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: stage.accent + '20' }}
             >
-              <Plus size={16} style={{ color: stage.accent }} />
+              <Plus size={18} style={{ color: stage.accent }} />
             </div>
-            <p className="text-[11px] text-neutral-400 font-medium text-center leading-relaxed">
-              Arraste um lead<br />para cá
+            <p className="text-xs text-neutral-400 font-medium text-center leading-relaxed">
+              Arraste um lead<br />para esta etapa
             </p>
           </div>
         )}
@@ -232,16 +235,11 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-
-        {/* Top accent */}
         <div className="h-1.5 w-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
 
         {/* Header */}
         <div className="px-6 py-5 flex items-center gap-4 border-b border-neutral-100 flex-shrink-0">
-          <div className={cn(
-            'w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-base flex-shrink-0',
-            color,
-          )}>
+          <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-base flex-shrink-0', color)}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -266,8 +264,6 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
-          {/* Contact info */}
           <div className="bg-neutral-50 rounded-2xl divide-y divide-neutral-100 overflow-hidden">
             {lead.phone && (
               <div className="flex items-center gap-3 px-4 py-3">
@@ -287,9 +283,16 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
                 <span className="text-sm text-neutral-600">Origem: <strong>{lead.source}</strong></span>
               </div>
             )}
+            {lead.created_at && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
+                <span className="text-sm text-neutral-500">
+                  {new Date(lead.created_at).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Notes */}
           {lead.notes && (
             <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -300,7 +303,6 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
             </div>
           )}
 
-          {/* Move stage */}
           <div>
             <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3">Mover etapa</p>
             <div className="space-y-1.5">
@@ -509,7 +511,6 @@ export const Leads: React.FC = () => {
     return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
   }).length;
 
-  // ── Skeleton ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="space-y-5 pb-10">
@@ -517,14 +518,13 @@ export const Leads: React.FC = () => {
         <div className="grid grid-cols-4 gap-3">
           {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
-        <div className="flex gap-3">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="flex-shrink-0 w-[256px] h-96 bg-neutral-100 rounded-2xl animate-pulse" />)}
+        <div className="grid grid-cols-5 gap-3">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-[560px] bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
       </div>
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 pb-10">
       {detailLead && (
@@ -550,10 +550,10 @@ export const Leads: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Users,        label: 'Em aberto',  value: totalOpen,      color: '#3B82F6' },
-          { icon: CheckCircle2, label: 'Clientes',   value: totalClosed,    color: '#10B981' },
-          { icon: TrendingUp,   label: 'Conversão',  value: `${convRate}%`, color: '#8B5CF6' },
-          { icon: Zap,          label: 'Este mês',   value: thisMonth,      color: '#F59E0B' },
+          { icon: Users,        label: 'Em aberto', value: totalOpen,      color: '#3B82F6' },
+          { icon: CheckCircle2, label: 'Clientes',  value: totalClosed,    color: '#10B981' },
+          { icon: TrendingUp,   label: 'Conversão', value: `${convRate}%`, color: '#8B5CF6' },
+          { icon: Zap,          label: 'Este mês',  value: thisMonth,      color: '#F59E0B' },
         ].map(item => (
           <div key={item.label} className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -586,17 +586,14 @@ export const Leads: React.FC = () => {
         )}
       </div>
 
-      {/* Kanban */}
+      {/* Kanban — grid, sem scroll lateral */}
       <DndContext
         sensors={sensors}
         collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div
-          className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
+        <div className="grid grid-cols-5 gap-3">
           {STAGES.map(stage => (
             <KanbanColumn
               key={stage.id}

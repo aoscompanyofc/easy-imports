@@ -802,31 +802,36 @@ export const Clientes: React.FC = () => {
                 </button>
               </div>
               {/* Month navigation */}
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-3 mt-3">
                 <button
                   onClick={() => setBirthdayMonthOffset(o => o - 1)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-black"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors font-black text-base flex-shrink-0"
                 >
-                  ‹
+                  ←
                 </button>
                 <div className="flex-1 text-center">
-                  <p className="font-black text-sm text-amber-800 capitalize">
-                    {targetDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                  <p className="font-black text-sm text-amber-800">
+                    {targetDate.toLocaleString('pt-BR', { month: 'long' }).replace(/^./, c => c.toUpperCase())} {targetDate.getFullYear()}
                   </p>
-                  <p className="text-xs text-amber-600">
-                    {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
+                  <div className="flex items-center justify-center gap-2 mt-0.5">
+                    <span className="text-xs text-amber-600">
+                      {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
+                    </span>
                     {birthdayMonthOffset !== 0 && (
-                      <button onClick={() => setBirthdayMonthOffset(0)} className="ml-2 underline text-amber-500">
-                        voltar ao atual
+                      <button
+                        onClick={() => setBirthdayMonthOffset(0)}
+                        className="text-[10px] font-bold text-amber-500 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        mês atual
                       </button>
                     )}
-                  </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setBirthdayMonthOffset(o => o + 1)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-black"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors font-black text-base flex-shrink-0"
                 >
-                  ›
+                  →
                 </button>
               </div>
             </div>
@@ -842,12 +847,34 @@ export const Clientes: React.FC = () => {
                 <p className="text-[10px] text-neutral-400 mt-1">Use {'{nome}'} para personalizar com o primeiro nome</p>
               </div>
 
+              {/* SQL migration hint */}
+              {customers.every(c => !c.birthday) && customers.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-amber-800">
+                    ⚠️ Coluna birthday ainda não existe no Supabase. Execute o SQL abaixo uma vez:
+                  </p>
+                  <code className="block text-[11px] bg-neutral-900 text-green-400 rounded-lg px-3 py-2 font-mono">
+                    ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText('ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;');
+                      toast.success('SQL copiado!');
+                    }}
+                    className="text-xs font-bold text-amber-700 underline hover:text-amber-900"
+                  >
+                    Copiar SQL
+                  </button>
+                </div>
+              )}
+
               {birthdayCustomers.length === 0 ? (
-                <div className="py-10 flex flex-col items-center gap-3 text-center">
+                <div className="py-8 flex flex-col items-center gap-3 text-center">
                   <Cake size={36} className="text-neutral-200" />
                   <div>
-                    <p className="font-bold text-neutral-500">Nenhum aniversariante este mês</p>
-                    <p className="text-xs text-neutral-400 mt-1">Cadastre a data de nascimento dos clientes para aparecerem aqui.</p>
+                    <p className="font-bold text-neutral-500">Nenhum aniversariante em {targetDate.toLocaleString('pt-BR', { month: 'long' })}</p>
+                    <p className="text-xs text-neutral-400 mt-1">Edite os clientes e preencha a data de nascimento para aparecerem aqui.</p>
                   </div>
                 </div>
               ) : (

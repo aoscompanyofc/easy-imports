@@ -14,7 +14,7 @@
   .btn-primary {
     @apply bg-primary text-neutral-900 font-semibold px-4 py-2 rounded-lg transition-all duration-200 hover:bg-primary-600 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
   }
-  
+
   .card {
     @apply bg-white border border-neutral-200 rounded-lg shadow-card transition-shadow duration-200 hover:shadow-card-hover;
   }
@@ -38,3 +38,148 @@
 .recharts-responsive-container {
   @apply !h-[320px];
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE — Apple-inspired palette
+   System colors: #000000 → #1C1C1E → #2C2C2E → #3A3A3C → #48484A
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dark {
+  color-scheme: dark;
+}
+
+/* ── Page & surface backgrounds ─────────────────────────────────────────── */
+.dark body                    { background-color: #000000; color: #F5F5F7; }
+.dark .bg-neutral-50          { background-color: #000000; }
+.dark .bg-white               { background-color: #1C1C1E; }
+.dark .bg-neutral-100         { background-color: #2C2C2E; }
+.dark .bg-neutral-200         { background-color: #3A3A3C; }
+.dark .bg-neutral-300         { background-color: #48484A; }
+
+/* ── Elevated / inverted dark surfaces (date badges, modal headers, FAB) ─ */
+.dark .bg-neutral-900         { background-color: #2C2C2E; }
+.dark .bg-neutral-800         { background-color: #3A3A3C; }
+.dark .bg-neutral-700         { background-color: #48484A; }
+
+/* ── Text ───────────────────────────────────────────────────────────────── */
+.dark .text-neutral-900       { color: #F5F5F7; }
+.dark .text-neutral-800       { color: rgba(245,245,247,0.88); }
+.dark .text-neutral-700       { color: rgba(245,245,247,0.76); }
+.dark .text-neutral-600       { color: rgba(245,245,247,0.65); }
+.dark .text-neutral-500       { color: rgba(245,245,247,0.52); }
+.dark .text-neutral-400       { color: rgba(245,245,247,0.40); }
+.dark .text-neutral-300       { color: rgba(245,245,247,0.30); }
+
+/* ── Borders ────────────────────────────────────────────────────────────── */
+.dark .border-neutral-50      { border-color: #1C1C1E; }
+.dark .border-neutral-100     { border-color: #2C2C2E; }
+.dark .border-neutral-200     { border-color: #38383A; }
+.dark .border-neutral-300     { border-color: #48484A; }
+
+/* ── Divide utilities (table rows, sections) ────────────────────────────── */
+.dark .divide-neutral-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2C2C2E; }
+.dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: #38383A; }
+
+/* ── Hover states ───────────────────────────────────────────────────────── */
+.dark .hover\:bg-neutral-50:hover   { background-color: #2C2C2E; }
+.dark .hover\:bg-neutral-100:hover  { background-color: #3A3A3C; }
+.dark .hover\:bg-neutral-800:hover  { background-color: #3A3A3C; }
+.dark .hover\:bg-neutral-900:hover  { background-color: #3A3A3C; }
+.dark .hover\:border-neutral-200:hover { border-color: #48484A; }
+
+/* ── Status / semantic backgrounds (muted in dark mode) ─────────────────── */
+.dark .bg-green-50            { background-color: rgba(48,209,88,0.12); }
+.dark .bg-green-100           { background-color: rgba(48,209,88,0.18); }
+.dark .bg-red-50              { background-color: rgba(255,69,58,0.12); }
+.dark .bg-red-100             { background-color: rgba(255,69,58,0.18); }
+.dark .bg-amber-50            { background-color: rgba(255,193,7,0.12); }
+.dark .bg-amber-100           { background-color: rgba(255,193,7,0.18); }
+.dark .bg-blue-50             { background-color: rgba(10,132,255,0.12); }
+.dark .bg-blue-100            { background-color: rgba(10,132,255,0.18); }
+.dark .bg-purple-50           { background-color: rgba(191,90,242,0.12); }
+.dark .bg-purple-100          { background-color: rgba(191,90,242,0.18); }
+.dark .bg-emerald-50          { background-color: rgba(48,209,88,0.12); }
+.dark .bg-emerald-100         { background-color: rgba(48,209,88,0.18); }
+.dark .bg-orange-50           { background-color: rgba(255,159,10,0.12); }
+.dark .bg-orange-100          { background-color: rgba(255,159,10,0.18); }
+.dark .bg-indigo-50           { background-color: rgba(94,92,230,0.12); }
+.dark .bg-indigo-100          { background-color: rgba(94,92,230,0.18); }
+.dark .bg-yellow-50           { background-color: rgba(255,214,10,0.12); }
+.dark .bg-yellow-100          { background-color: rgba(255,214,10,0.18); }
+
+/* ── Status text — brighter for dark bg readability ────────────────────── */
+.dark .text-green-600         { color: #30D158; }
+.dark .text-green-700         { color: #30D158; }
+.dark .text-red-500           { color: #FF453A; }
+.dark .text-red-600           { color: #FF453A; }
+.dark .text-red-700           { color: #FF6961; }
+.dark .text-amber-700         { color: #FFD60A; }
+.dark .text-blue-600          { color: #0A84FF; }
+.dark .text-blue-700          { color: #0A84FF; }
+.dark .text-purple-700        { color: #BF5AF2; }
+.dark .text-emerald-700       { color: #30D158; }
+.dark .text-orange-700        { color: #FF9F0A; }
+
+/* ── Border status colors ───────────────────────────────────────────────── */
+.dark .border-green-100       { border-color: rgba(48,209,88,0.25); }
+.dark .border-green-200       { border-color: rgba(48,209,88,0.35); }
+.dark .border-red-100         { border-color: rgba(255,69,58,0.25); }
+.dark .border-red-200         { border-color: rgba(255,69,58,0.35); }
+.dark .border-amber-200       { border-color: rgba(255,193,7,0.35); }
+.dark .border-blue-200        { border-color: rgba(10,132,255,0.35); }
+
+/* ── Primary / brand color adjustments ─────────────────────────────────── */
+.dark .bg-primary-50          { background-color: rgba(255,193,7,0.15); }
+.dark .bg-primary-100         { background-color: rgba(255,193,7,0.2); }
+.dark .bg-primary\/5          { background-color: rgba(255,193,7,0.07); }
+.dark .bg-primary\/10         { background-color: rgba(255,193,7,0.12); }
+
+/* ── Form inputs ────────────────────────────────────────────────────────── */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark textarea,
+.dark select {
+  background-color: #2C2C2E;
+  border-color: #38383A;
+  color: #F5F5F7;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgba(245,245,247,0.35);
+}
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #FFC107;
+  background-color: #2C2C2E;
+}
+
+/* ── Shadows softer in dark mode ────────────────────────────────────────── */
+.dark .shadow-sm              { box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.dark .shadow-md              { box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+.dark .shadow-xl              { box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+.dark .shadow-2xl             { box-shadow: 0 16px 48px rgba(0,0,0,0.7); }
+
+/* ── Scrollbar in dark ───────────────────────────────────────────────────── */
+.dark ::-webkit-scrollbar-thumb       { background-color: #48484A; }
+.dark ::-webkit-scrollbar-thumb:hover { background-color: #636366; }
+
+/* ── Backdrop / overlay ─────────────────────────────────────────────────── */
+.dark .backdrop-blur-sm { backdrop-filter: blur(8px); }
+
+/* ── Specific component overrides ───────────────────────────────────────── */
+
+/* Sidebar active item */
+.dark .border-l-4.border-primary { border-left-color: #FFC107; }
+
+/* Recharts tooltip */
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #2C2C2E !important;
+  border-color: #38383A !important;
+  color: #F5F5F7 !important;
+}
+.dark .recharts-cartesian-axis-tick-value { fill: rgba(245,245,247,0.45); }
+.dark .recharts-cartesian-grid-horizontal line,
+.dark .recharts-cartesian-grid-vertical line { stroke: #2C2C2E; }
+
+/* Toaster in dark mode */
+.dark .hot-toast { background-color: #2C2C2E !important; color: #F5F5F7 !important; }

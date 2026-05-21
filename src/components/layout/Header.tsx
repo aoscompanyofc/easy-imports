@@ -3,8 +3,9 @@ import {
   Bell, Search, Menu, LogOut, Settings,
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, LucideIcon,
-  User, Loader2,
+  User, Loader2, Sun, Moon,
 } from 'lucide-react';
+import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useProfileStore } from '../../stores/profileStore';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -218,6 +219,7 @@ const TYPE_LABELS: Record<string, string> = {
 export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => {
   const { logout } = useAuthStore();
   const { name, cargo, avatar } = useProfileStore();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -437,6 +439,18 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
+        {/* Dark mode toggle */}
+        <button
+          onClick={toggleTheme}
+          title={isDark ? 'Modo claro' : 'Modo escuro'}
+          className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-all duration-300"
+        >
+          {isDark
+            ? <Sun size={20} className="text-primary" />
+            : <Moon size={20} />
+          }
+        </button>
+
         <button className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors relative">
           <Bell size={20} />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-danger rounded-full border-2 border-white" />

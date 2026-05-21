@@ -3,14 +3,24 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppRoutes } from './routes';
 import { useAuthStore } from './stores/authStore';
+import { useThemeStore } from './stores/themeStore';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { checkAuth } = useAuthStore();
+  const { isDark } = useThemeStore();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   return (
     <ErrorBoundary>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, Search, Phone, Mail, Trash2, Edit2, X,
   ShoppingBag, TrendingUp, Users, RepeatIcon,
@@ -433,8 +434,8 @@ export const Clientes: React.FC = () => {
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    return (
-      <div className="fixed inset-0 z-50 flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailCustomer(null)}>
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailCustomer(null)}>
         <div className="flex-1" />
         <div
           className="w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
@@ -597,7 +598,8 @@ export const Clientes: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -789,9 +791,9 @@ export const Clientes: React.FC = () => {
       </Modal>
 
       {/* Modal Aniversariantes do Mês */}
-      {showBirthdayModal && (
+      {showBirthdayModal && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
           onClick={() => { setShowBirthdayModal(false); setBirthdayMonthOffset(0); }}
         >
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
@@ -912,13 +914,14 @@ export const Clientes: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Mensagem em Massa */}
-      {showMassModal && (
+      {showMassModal && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
           onClick={() => setShowMassModal(false)}
         >
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
@@ -974,7 +977,8 @@ export const Clientes: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

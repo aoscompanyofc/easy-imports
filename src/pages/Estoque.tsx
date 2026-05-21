@@ -369,8 +369,26 @@ export const Estoque: React.FC = () => {
         ].join(' ')}
         onClick={() => !isSoldView && setDetailProduct(p)}
       >
+        {/* Data de entrada */}
+        <td className="pl-4 pr-1 py-3 whitespace-nowrap">
+          <div className={`inline-flex flex-col items-center justify-center rounded-lg px-2.5 py-1.5 min-w-[52px] ${isSoldView ? 'bg-neutral-300' : 'bg-neutral-900'}`}>
+            {entryDate ? (
+              <>
+                <span className={`text-[11px] font-black tabular-nums leading-none ${isSoldView ? 'text-neutral-600' : 'text-white'}`}>
+                  {String(entryDate.getDate()).padStart(2,'0')}/{String(entryDate.getMonth()+1).padStart(2,'0')}
+                </span>
+                <span className={`text-[9px] font-bold tabular-nums leading-none mt-0.5 ${isSoldView ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                  {entryDate.getFullYear()}
+                </span>
+              </>
+            ) : (
+              <span className="text-[9px] text-neutral-400 font-bold">—</span>
+            )}
+          </div>
+        </td>
+
         {/* Nome */}
-        <td className="pl-4 pr-2 py-3">
+        <td className="pl-2 pr-2 py-3">
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : isStale ? 'bg-amber-400' : 'bg-primary'}`} />
             <div className="min-w-0">
@@ -458,7 +476,8 @@ export const Estoque: React.FC = () => {
   const TableHeader = () => (
     <thead>
       <tr className="border-b-2 border-neutral-100">
-        <th className="pl-4 pr-2 py-2.5 text-left text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho</th>
+        <th className="pl-4 pr-1 py-2.5 text-left text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entrada</th>
+        <th className="pl-2 pr-2 py-2.5 text-left text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho</th>
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Custo</th>
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Venda</th>
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
@@ -642,6 +661,7 @@ export const Estoque: React.FC = () => {
         <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
           <table className="w-full table-fixed">
             <colgroup>
+              <col className="w-[72px]" />
               <col className="w-auto" />
               <col className="w-28" />
               <col className="w-28" />

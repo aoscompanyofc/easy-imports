@@ -2120,6 +2120,40 @@ export const Vendas: React.FC = () => {
               <span className="ml-auto text-2xl font-black text-neutral-900">{formatCurrency(Number(detailSale.total_amount))}</span>
             </div>
 
+            {/* Custo + Lucro */}
+            {(() => {
+              const dtype = detailSale.sale_type || (detailSale.incoming_name?.trim() ? 'troca' : 'venda');
+              const dcost = costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
+              const dprofit = dtype === 'troca' ? null : (dcost !== null ? Number(detailSale.total_amount) - dcost : null);
+              const dmargin = dprofit !== null && Number(detailSale.total_amount) > 0
+                ? Math.round((dprofit / Number(detailSale.total_amount)) * 100)
+                : null;
+              if (dcost === null && dprofit === null) return null;
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-center">
+                    <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Venda</p>
+                    <p className="text-sm font-black text-neutral-900 mt-0.5">{formatCurrency(Number(detailSale.total_amount))}</p>
+                  </div>
+                  {dcost !== null && (
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
+                      <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(dcost)}</p>
+                    </div>
+                  )}
+                  {dprofit !== null && (
+                    <div className={cn('border rounded-xl p-3 text-center', dprofit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100')}>
+                      <p className={cn('text-[10px] font-black uppercase tracking-wide', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>Lucro</p>
+                      <p className={cn('text-sm font-black mt-0.5', dprofit >= 0 ? 'text-green-600' : 'text-red-600')}>{formatCurrency(dprofit)}</p>
+                      {dmargin !== null && (
+                        <p className={cn('text-[10px] font-bold', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>{dmargin}%</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
                 ['Número', detailSale.sale_number],

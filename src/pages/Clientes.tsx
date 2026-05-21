@@ -852,17 +852,6 @@ export const Clientes: React.FC = () => {
                 <p className="text-[10px] text-neutral-400 mt-1">Use {'{nome}'} para personalizar com o primeiro nome</p>
               </div>
 
-
-              {/* Debug: mostra clientes com birthday no banco */}
-              {customersWithBirthday.length > 0 && birthdayCustomers.length === 0 && (
-                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs text-neutral-500 space-y-1">
-                  <p className="font-bold text-neutral-700">{customersWithBirthday.length} cliente(s) com data cadastrada — nenhum em {targetDate.toLocaleString('pt-BR', { month: 'long' })}:</p>
-                  {customersWithBirthday.map(c => (
-                    <p key={c.id}><span className="font-semibold">{c.name}</span> → <code className="bg-neutral-200 px-1 rounded">{String(c.birthday)}</code> (mês {getBirthdayMonth(c.birthday)})</p>
-                  ))}
-                </div>
-              )}
-
               {birthdayCustomers.length === 0 ? (
                 <div className="py-8 flex flex-col items-center gap-3 text-center">
                   <Cake size={36} className="text-neutral-200" />

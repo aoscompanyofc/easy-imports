@@ -313,10 +313,14 @@ export const dataService = {
     const { data, error } = await supabase.from('customers').update(full).eq('id', id).select();
     if (!error) return data![0];
     if (!isColErr(error)) throw error;
-    // Fallback: colunas extras não existem → salva básico
-    await supabase.from('customers').update({ name, email, phone }).eq('id', id);
+    // Fallback: colunas extras não existem → salva básico mas mantém birthday
+    const baseUpdate: any = { name };
+    if (email    !== undefined) baseUpdate.email    = email;
+    if (phone    !== undefined) baseUpdate.phone    = phone;
+    if (birthday !== undefined) baseUpdate.birthday = birthday || null;
+    await supabase.from('customers').update(baseUpdate).eq('id', id);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return { name };
+    return baseUpdate;
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);

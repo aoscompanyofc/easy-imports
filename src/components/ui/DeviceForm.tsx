@@ -194,7 +194,9 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
       {/* Row 2: Capacity + Color */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-bold text-neutral-700 mb-1.5">Capacidade / Armazenamento</label>
+          <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+            {value.category === 'Watch' ? 'Tamanho (Case)' : 'Capacidade / Armazenamento'}
+          </label>
           {catalogCapacities.length > 0 ? (
             <select className={S} value={isCustom.capacity ? '__custom' : value.capacity} onChange={(e) => handleCapacity(e.target.value)}>
               <option value="">Selecione...</option>

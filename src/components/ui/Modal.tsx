@@ -53,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-neutral-900/50 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-neutral-900/50 backdrop-blur-md"
         onClick={onClose}
       />
       <div

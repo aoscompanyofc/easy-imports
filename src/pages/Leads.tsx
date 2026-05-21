@@ -300,9 +300,8 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete, onUpdate }: {
   const saveFollowUp = () => onUpdate(lead.id, { follow_up_date: followUpDate || null });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md" onClick={onClose}>
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="h-1.5 w-full flex-shrink-0" style={{ backgroundColor: stage.accent }} />
 
         {/* Header */}

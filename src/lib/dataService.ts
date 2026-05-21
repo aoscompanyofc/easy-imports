@@ -286,12 +286,13 @@ export const dataService = {
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
     const payload: any = { name, email, phone, cpf, city, notes, user_id: uid };
     if (source) payload.source = source;
-    if (birthday) payload.birthday = birthday || null;
+    if (birthday) payload.birthday = birthday;
     const { data, error } = await supabase.from('customers').insert([payload]).select();
     if (!error) return data![0];
     if (!isColErr(error)) throw error;
-    // Fallback: colunas extras ainda não existem → salva básico
+    // Fallback: cpf/city/notes/source podem não existir → salva sem eles mas mantém birthday
     const base: any = { name, email, phone, user_id: uid };
+    if (birthday) base.birthday = birthday;
     const { data: d2, error: e2 } = await supabase.from('customers').insert([base]).select();
     if (e2) throw e2;
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');

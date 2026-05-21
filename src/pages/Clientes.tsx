@@ -431,8 +431,8 @@ export const Clientes: React.FC = () => {
     );
 
     return (
-      <div className="fixed inset-0 z-50 flex" onClick={() => setDetailCustomer(null)}>
-        <div className="flex-1 bg-neutral-900/40 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-50 flex bg-neutral-900/40 backdrop-blur-md" onClick={() => setDetailCustomer(null)}>
+        <div className="flex-1" />
         <div
           className="w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
           onClick={e => e.stopPropagation()}
@@ -787,9 +787,11 @@ export const Clientes: React.FC = () => {
 
       {/* Modal Aniversariantes do Mês */}
       {showBirthdayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
+          onClick={() => { setShowBirthdayModal(false); setBirthdayMonthOffset(0); }}
+        >
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-neutral-100 flex-shrink-0 bg-amber-50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -909,9 +911,11 @@ export const Clientes: React.FC = () => {
 
       {/* Modal Mensagem em Massa */}
       {showMassModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={() => setShowMassModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-md"
+          onClick={() => setShowMassModal(false)}
+        >
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="font-black text-lg text-neutral-900">Mensagem em Massa</h2>

@@ -403,36 +403,36 @@ export const Dashboard: React.FC = () => {
           {/* ── Metric Cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {/* Faturamento */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Faturamento</p>
-              <p className="text-lg sm:text-2xl font-black text-neutral-900">{formatCurrency(revenue)}</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Vendas */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Vendas</p>
-              <p className="text-lg sm:text-2xl font-black text-neutral-900">{salesCount}</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Vendas</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900">{salesCount}</p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Lucro Líquido */}
             <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1',
+              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
               netProfit >= 0 ? 'bg-white border-neutral-200' : 'bg-red-50 border-red-200',
             )}>
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Lucro Líquido</p>
-              <p className={cn('text-lg sm:text-2xl font-black', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro</p>
+              <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                 {formatCurrency(netProfit)}
               </p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Estoque — sempre total */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Valor em Estoque</p>
-              <p className="text-lg sm:text-2xl font-black text-neutral-900">{formatCurrency(stockValue)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400">Total disponível</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockValue)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">Total</p>
             </div>
           </div>
 
@@ -716,20 +716,20 @@ export const Dashboard: React.FC = () => {
           )}
 
           {/* ── Summary strip ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { label: `Faturamento — ${periodLabel}`, value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
-              { label: 'Vendas no período',             value: `${salesCount} vendas`,    icon: ShoppingCart, color: 'text-blue-600'    },
-              { label: 'Lucro líquido',                 value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
-              { label: 'Valor em estoque',              value: formatCurrency(stockValue),icon: Package,     color: 'text-purple-600'   },
+              { label: 'Faturamento',   value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
+              { label: 'Vendas',        value: `${salesCount}`,            icon: ShoppingCart, color: 'text-blue-600'    },
+              { label: 'Lucro',         value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
+              { label: 'Estoque',       value: formatCurrency(stockValue),icon: Package,     color: 'text-purple-600'   },
             ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 p-4 bg-white rounded-xl border border-neutral-100 shadow-sm">
-                <div className={cn('p-2 bg-neutral-50 rounded-lg', item.color)}>
-                  <item.icon size={18} />
+              <div key={item.label} className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-neutral-100 shadow-sm min-w-0 overflow-hidden">
+                <div className={cn('p-1.5 sm:p-2 bg-neutral-50 rounded-lg flex-shrink-0', item.color)}>
+                  <item.icon size={16} />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-neutral-400 font-medium truncate">{item.label}</p>
-                  <p className="text-sm font-black text-neutral-900">{item.value}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] sm:text-[10px] text-neutral-400 font-medium truncate">{item.label}</p>
+                  <p className="text-xs sm:text-sm font-black text-neutral-900 truncate">{item.value}</p>
                 </div>
               </div>
             ))}

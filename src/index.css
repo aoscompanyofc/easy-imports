@@ -5,8 +5,14 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   body {
     @apply bg-white text-neutral-900 font-sans antialiased;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 }
 
@@ -36,7 +42,7 @@
 }
 
 .recharts-responsive-container {
-  @apply !h-[320px];
+  @apply !h-full;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

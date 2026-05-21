@@ -658,8 +658,8 @@ export const Leads: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
         </div>
-        <div className="overflow-x-auto">
-          <div className="grid grid-cols-5 gap-3 min-w-[700px] sm:min-w-0">
+        <div className="overflow-x-auto pb-2">
+          <div className="grid grid-cols-5 gap-3 min-w-[680px]">
             {[1,2,3,4,5].map(i => <div key={i} className="h-[560px] bg-neutral-100 rounded-2xl animate-pulse" />)}
           </div>
         </div>
@@ -736,8 +736,8 @@ export const Leads: React.FC = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="grid grid-cols-5 gap-3 min-w-[700px] sm:min-w-0">
+        <div className="overflow-x-auto pb-2">
+          <div className="grid grid-cols-5 gap-3 min-w-[680px]">
             {STAGES.map(stage => (
               <KanbanColumn
                 key={stage.id}

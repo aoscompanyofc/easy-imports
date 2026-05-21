@@ -834,13 +834,19 @@ export const Vendas: React.FC = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:flex md:flex-row gap-2">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-            title="De" />
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-            title="Até" />
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">De</span>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">Até</span>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </div>
         </div>
       </div>
 

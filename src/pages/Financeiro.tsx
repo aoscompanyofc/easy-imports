@@ -317,25 +317,31 @@ export const Financeiro: React.FC = () => {
             )}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[340px]">
+              <colgroup>
+                <col className="w-[40%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-neutral-100">
-                  <th className="text-left px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mês</th>
-                  <th className="text-right px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entradas</th>
-                  <th className="text-right px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Saídas</th>
-                  <th className="text-right px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
+                  <th className="text-left px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mês</th>
+                  <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entr.</th>
+                  <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Saíd.</th>
+                  <th className="text-right px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
                 {monthlyFlow.slice(0, 6).map(m => (
                   <tr key={m.key} className={cn('hover:bg-neutral-50 transition-colors', m.key === thisMonthKey && 'bg-primary/5')}>
-                    <td className="px-5 py-3 font-semibold text-neutral-800 capitalize">
+                    <td className="px-3 sm:px-5 py-3 font-semibold text-neutral-800 capitalize text-xs sm:text-sm">
                       {fmtMonth(m.key)}
-                      {m.key === thisMonthKey && <span className="ml-2 text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
+                      {m.key === thisMonthKey && <span className="ml-1.5 text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatCurrency(m.income)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-500">{formatCurrency(m.expense)}</td>
-                    <td className={cn('px-5 py-3 text-right font-black', m.profit >= 0 ? 'text-neutral-900' : 'text-red-600')}>
+                    <td className="px-2 sm:px-4 py-3 text-right font-bold text-emerald-600 text-xs sm:text-sm">{formatCurrency(m.income)}</td>
+                    <td className="px-2 sm:px-4 py-3 text-right font-bold text-red-500 text-xs sm:text-sm">{formatCurrency(m.expense)}</td>
+                    <td className={cn('px-3 sm:px-5 py-3 text-right font-black text-xs sm:text-sm', m.profit >= 0 ? 'text-neutral-900' : 'text-red-600')}>
                       {m.profit >= 0 ? '+' : ''}{formatCurrency(m.profit)}
                     </td>
                   </tr>
@@ -346,34 +352,36 @@ export const Financeiro: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
-        <div className="flex-1">
-          <Input
-            placeholder="Buscar transação..."
-            leftIcon={<Search size={20} />}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <Button
-          variant={filterType !== 'all' ? 'primary' : 'secondary'}
-          leftIcon={<Filter size={20} />}
-          onClick={cycleFilterType}
-        >
-          {filterTypeLabels[filterType]}
-        </Button>
-        <Button
-          variant={dateFrom || dateTo ? 'primary' : 'secondary'}
-          leftIcon={<Calendar size={20} />}
-          onClick={() => setIsPeriodModalOpen(true)}
-        >
-          {dateFrom || dateTo ? 'Período ativo' : 'Período'}
-        </Button>
-        {hasActiveFilters && (
-          <Button variant="secondary" iconOnly onClick={clearFilters}>
-            <X size={20} />
+      <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
+        <Input
+          placeholder="Buscar transação..."
+          leftIcon={<Search size={20} />}
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Button
+            className="flex-1"
+            variant={filterType !== 'all' ? 'primary' : 'secondary'}
+            leftIcon={<Filter size={18} />}
+            onClick={cycleFilterType}
+          >
+            {filterTypeLabels[filterType]}
           </Button>
-        )}
+          <Button
+            className="flex-1"
+            variant={dateFrom || dateTo ? 'primary' : 'secondary'}
+            leftIcon={<Calendar size={18} />}
+            onClick={() => setIsPeriodModalOpen(true)}
+          >
+            {dateFrom || dateTo ? 'Período ativo' : 'Período'}
+          </Button>
+          {hasActiveFilters && (
+            <Button variant="secondary" iconOnly onClick={clearFilters}>
+              <X size={18} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {hasActiveFilters && (

@@ -737,6 +737,28 @@ export const Vendas: React.FC = () => {
 
   const totalRevenue = filteredSales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
 
+  const exportMonthCSV = (monthSales: any[], monthKey: string) => {
+    const header = ['Nº', 'Tipo', 'Cliente', 'Produto', 'IMEI', 'Valor (R$)', 'Pagamento', 'Data'];
+    const rows = monthSales.map(s => [
+      s.sale_number || '',
+      TYPE_LABELS[s.sale_type || 'venda'] || 'Venda',
+      s.customer_name || '',
+      s.product_name || '',
+      s.product_imei || '',
+      String(Number(s.total_amount || 0).toFixed(2)),
+      s.payment_method || '',
+      s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '',
+    ]);
+    const csv = '﻿' + [header, ...rows].map(r =>
+      r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `vendas-${monthKey}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
@@ -840,9 +862,18 @@ export const Vendas: React.FC = () => {
                       <p className="text-xs text-neutral-400">{monthSales.length} operaç{monthSales.length === 1 ? 'ão' : 'ões'}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-neutral-900">{formatCurrency(monthTotal)}</p>
-                    <p className="text-xs text-neutral-400">total do mês</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={e => { e.stopPropagation(); exportMonthCSV(monthSales, monthKey); }}
+                      className="p-1.5 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0"
+                      title="Exportar CSV do mês"
+                    >
+                      <Download size={15} />
+                    </button>
+                    <div className="text-right">
+                      <p className="font-black text-neutral-900">{formatCurrency(monthTotal)}</p>
+                      <p className="text-xs text-neutral-400">total do mês</p>
+                    </div>
                   </div>
                 </button>
 

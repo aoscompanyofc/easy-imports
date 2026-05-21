@@ -9,10 +9,11 @@ import { Button } from '../components/ui/Button';
 import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
   Calendar, TrendingUp, ArrowRight, ChevronDown, ChevronUp,
-  Target, Pencil, Check, RefreshCw,
+  Target, Pencil, Check, RefreshCw, CheckCircle2, XCircle, Trash2,
 } from 'lucide-react';
 
-const META_KEY = 'easy-imports-meta-mensal';
+const META_KEY       = 'easy-imports-meta-mensal';
+const META_MONTH_KEY = 'easy-imports-meta-month';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { format } from 'date-fns';
@@ -182,12 +183,32 @@ export const Dashboard: React.FC = () => {
   const [stockValue, setStockValue]         = useState(0);
   const [isLoading, setIsLoading]           = useState(true);
 
-  // Meta mensal
+  // Meta mensal — auto-reset quando muda o mês
   const [meta, setMeta] = useState<number>(() => {
-    try { return Number(localStorage.getItem(META_KEY) || '0'); } catch { return 0; }
+    try {
+      const storedMonth = localStorage.getItem(META_MONTH_KEY) || '';
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      if (storedMonth !== currentMonth) {
+        localStorage.removeItem(META_KEY);
+        localStorage.setItem(META_MONTH_KEY, currentMonth);
+        return 0;
+      }
+      return Number(localStorage.getItem(META_KEY) || '0');
+    } catch { return 0; }
   });
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState('');
+
+  const clearMeta = () => {
+    setMeta(0);
+    localStorage.removeItem(META_KEY);
+  };
+
+  const isLastDayOfMonth = (() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return now.getDate() === lastDay;
+  })();
 
   // Meta mensal helpers
   const thisMonthRevenue = useMemo(() => {
@@ -208,6 +229,7 @@ export const Dashboard: React.FC = () => {
     if (v > 0) {
       setMeta(v);
       localStorage.setItem(META_KEY, String(v));
+      localStorage.setItem(META_MONTH_KEY, new Date().toISOString().slice(0, 7));
     }
     setIsEditingMeta(false);
   };
@@ -428,30 +450,46 @@ export const Dashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              {isEditingMeta ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="Ex: 50000"
-                    value={metaInput}
-                    onChange={e => setMetaInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveMeta()}
-                    autoFocus
-                    className="w-32 px-3 py-1.5 text-sm border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                  />
-                  <button onClick={saveMeta} className="p-1.5 bg-primary rounded-lg text-neutral-900">
-                    <Check size={14} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setMetaInput(String(meta || '')); setIsEditingMeta(true); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-xs font-bold transition-colors"
-                >
-                  <Pencil size={12} />
-                  {meta > 0 ? 'Alterar' : 'Definir meta'}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {isEditingMeta ? (
+                  <>
+                    <input
+                      type="number"
+                      placeholder="Ex: 50000"
+                      value={metaInput}
+                      onChange={e => setMetaInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveMeta()}
+                      autoFocus
+                      className="w-28 px-3 py-1.5 text-sm border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    />
+                    <button onClick={saveMeta} className="p-1.5 bg-primary rounded-lg text-neutral-900">
+                      <Check size={14} />
+                    </button>
+                    <button onClick={() => setIsEditingMeta(false)} className="p-1.5 bg-neutral-100 rounded-lg text-neutral-500">
+                      <XCircle size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setMetaInput(String(meta || '')); setIsEditingMeta(true); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-xs font-bold transition-colors"
+                    >
+                      <Pencil size={12} />
+                      {meta > 0 ? 'Alterar' : 'Definir'}
+                    </button>
+                    {meta > 0 && (
+                      <button
+                        onClick={clearMeta}
+                        title="Zerar meta"
+                        className="p-1.5 rounded-xl bg-neutral-100 hover:bg-red-50 hover:text-red-500 text-neutral-400 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             {meta > 0 && (
               <div className="space-y-1.5">
@@ -464,11 +502,27 @@ export const Dashboard: React.FC = () => {
                     style={{ width: `${metaPct}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span>{metaPct}% atingido</span>
-                  <span className={metaPct >= 100 ? 'text-emerald-600 font-bold' : ''}>
-                    {metaPct >= 100 ? '🎯 Meta batida!' : `Faltam ${formatCurrency(meta - thisMonthRevenue)}`}
-                  </span>
+                <div className="flex items-center justify-between text-xs text-neutral-500">
+                  <span className="font-bold">{metaPct}% atingido</span>
+                  {isLastDayOfMonth ? (
+                    metaPct >= 100 ? (
+                      <span className="flex items-center gap-1 text-emerald-600 font-black">
+                        <CheckCircle2 size={12} /> Meta atingida!
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-red-500 font-black">
+                        <XCircle size={12} /> Meta não atingida
+                      </span>
+                    )
+                  ) : (
+                    metaPct >= 100 ? (
+                      <span className="flex items-center gap-1 text-emerald-600 font-black">
+                        <CheckCircle2 size={12} /> Meta batida!
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400">Faltam {formatCurrency(meta - thisMonthRevenue)}</span>
+                    )
+                  )}
                 </div>
               </div>
             )}

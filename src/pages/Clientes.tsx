@@ -3,6 +3,7 @@ import {
   Plus, Search, Phone, Mail, Trash2, Edit2, X,
   ShoppingBag, TrendingUp, Users, RepeatIcon,
   ChevronRight, Calendar, MapPin, FileText, CreditCard,
+  Send, Clock,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -21,6 +22,12 @@ const SOURCES = [
   'Instagram', 'WhatsApp Easy Imports', 'WhatsApp João',
   'Indicação', 'Facebook', 'TikTok', 'Google', 'Loja Física', 'Outro',
 ];
+
+const INACTIVE_MONTHS = 3;
+
+function daysSince(dateStr: string) {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
 
 type FormData = { name: string; email: string; phone: string; cpf: string; city: string; notes: string; source: string; birthday: string };
 const emptyForm = (): FormData => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '', source: 'Instagram', birthday: '' });
@@ -105,6 +112,9 @@ export const Clientes: React.FC = () => {
   const [editForm, setEditForm] = useState<FormData>(emptyForm());
 
   const [detailCustomer, setDetailCustomer] = useState<any | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [showMassModal, setShowMassModal] = useState(false);
+  const [massMessage, setMassMessage] = useState('Olá {nome}! Temos novidades incríveis aqui na Easy Imports. Faz tempo que não te vemos por aqui! 😊');
 
   const fetchAll = async () => {
     try {
@@ -160,7 +170,12 @@ export const Clientes: React.FC = () => {
       .sort((a, b) => norm(a.name).localeCompare(norm(b.name)));
   }, [customers, salesByCustomer]);
 
-  const filtered = enriched.filter(c =>
+  const inactiveCustomers = enriched.filter(c =>
+    c._sales.length === 0 ||
+    (c._lastSale && daysSince(c._lastSale.created_at) > INACTIVE_MONTHS * 30)
+  );
+
+  const filtered = (showInactive ? inactiveCustomers : enriched).filter(c =>
     norm(c.name).includes(norm(searchTerm)) ||
     (c.phone || '').includes(searchTerm) ||
     norm(c.email || '').includes(norm(searchTerm)) ||
@@ -631,22 +646,43 @@ export const Clientes: React.FC = () => {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Buscar por nome, telefone, e-mail ou CPF..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="w-full bg-white border border-neutral-200 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-        />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
-            <X size={13} />
-          </button>
-        )}
+      {/* Search + Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar por nome, telefone, e-mail ou CPF..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full bg-white border border-neutral-200 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowInactive(v => !v)}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-bold transition-all whitespace-nowrap',
+            showInactive
+              ? 'bg-amber-100 border-amber-300 text-amber-800'
+              : 'bg-white border-neutral-200 text-neutral-600 hover:border-amber-300'
+          )}
+        >
+          <Clock size={15} />
+          Inativos {inactiveCustomers.length > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 text-[11px]">{inactiveCustomers.length}</span>}
+        </button>
+        <button
+          onClick={() => setShowMassModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-neutral-200 bg-white text-sm font-bold text-neutral-600 hover:border-primary/40 hover:text-neutral-900 transition-all whitespace-nowrap"
+        >
+          <Send size={15} />
+          Mensagem em Massa
+        </button>
       </div>
 
       {/* Cards grid — alphabetical */}
@@ -696,6 +732,66 @@ export const Clientes: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Modal Mensagem em Massa */}
+      {showMassModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={() => setShowMassModal(false)} />
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="font-black text-lg text-neutral-900">Mensagem em Massa</h2>
+                <p className="text-xs text-neutral-400 mt-0.5">Use {'{nome}'} para personalizar com o nome do cliente</p>
+              </div>
+              <button onClick={() => setShowMassModal(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Mensagem</label>
+                <textarea
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary resize-none"
+                  rows={4}
+                  value={massMessage}
+                  onChange={e => setMassMessage(e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
+                  Clientes com WhatsApp ({filtered.filter(c => c.phone).length})
+                </p>
+                <div className="space-y-1.5">
+                  {filtered.filter(c => c.phone).map(c => (
+                    <div key={c.id} className="flex items-center gap-3 bg-neutral-50 rounded-xl px-4 py-2.5">
+                      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black flex-shrink-0', avatarColor(c.name))}>
+                        {getInitials(c.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-neutral-900 truncate">{c.name}</p>
+                        <p className="text-xs text-neutral-400">{c.phone}</p>
+                      </div>
+                      <a
+                        href={`https://wa.me/${toWhatsApp(c.phone)}?text=${encodeURIComponent(massMessage.replace(/\{nome\}/g, c.name.split(' ')[0]))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold transition-colors flex-shrink-0"
+                      >
+                        <Send size={11} />
+                        Enviar
+                      </a>
+                    </div>
+                  ))}
+                  {filtered.filter(c => c.phone).length === 0 && (
+                    <p className="text-sm text-neutral-400 text-center py-4">Nenhum cliente com telefone cadastrado.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

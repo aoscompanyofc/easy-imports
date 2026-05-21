@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp, Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp, Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil, BarChart3 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -161,6 +161,33 @@ export const Financeiro: React.FC = () => {
 
   const filterTypeLabels = { all: 'Filtros', income: 'Receitas', expense: 'Despesas' };
 
+  const monthlyFlow = useMemo(() => {
+    const map: Record<string, { income: number; expense: number }> = {};
+    for (const t of transactions) {
+      const key = (t.date || '').slice(0, 7);
+      if (!key) continue;
+      if (!map[key]) map[key] = { income: 0, expense: 0 };
+      if (t.type === 'income') map[key].income += Number(t.amount || 0);
+      else map[key].expense += Number(t.amount || 0);
+    }
+    return Object.entries(map)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, v]) => ({ key, ...v, profit: v.income - v.expense }));
+  }, [transactions]);
+
+  const thisMonthKey = new Date().toISOString().slice(0, 7);
+  const dayOfMonth = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const thisMonthData = monthlyFlow.find(m => m.key === thisMonthKey);
+  const projectedIncome = thisMonthData && dayOfMonth < daysInMonth
+    ? Math.round((thisMonthData.income / dayOfMonth) * daysInMonth)
+    : null;
+
+  function fmtMonth(key: string) {
+    const [y, m] = key.split('-');
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }
+
   const CATEGORY_LABELS: Record<string, string> = {
     sale: 'Venda', stock: 'Custo estoque', trade: 'Troca — Aparelho Recebido',
     rent: 'Aluguel', salaries: 'Salários', marketing: 'Marketing',
@@ -276,6 +303,48 @@ export const Financeiro: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Fluxo de Caixa Mensal */}
+      {monthlyFlow.length > 0 && (
+        <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-neutral-100 flex items-center gap-2">
+            <BarChart3 size={16} className="text-neutral-400" />
+            <p className="font-black text-sm text-neutral-700 uppercase tracking-widest">Fluxo de Caixa Mensal</p>
+            {projectedIncome !== null && (
+              <span className="ml-auto text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                Projeção mês atual: {formatCurrency(projectedIncome)}
+              </span>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-100">
+                  <th className="text-left px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mês</th>
+                  <th className="text-right px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entradas</th>
+                  <th className="text-right px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Saídas</th>
+                  <th className="text-right px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-50">
+                {monthlyFlow.slice(0, 6).map(m => (
+                  <tr key={m.key} className={cn('hover:bg-neutral-50 transition-colors', m.key === thisMonthKey && 'bg-primary/5')}>
+                    <td className="px-5 py-3 font-semibold text-neutral-800 capitalize">
+                      {fmtMonth(m.key)}
+                      {m.key === thisMonthKey && <span className="ml-2 text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatCurrency(m.income)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-500">{formatCurrency(m.expense)}</td>
+                    <td className={cn('px-5 py-3 text-right font-black', m.profit >= 0 ? 'text-neutral-900' : 'text-red-600')}>
+                      {m.profit >= 0 ? '+' : ''}{formatCurrency(m.profit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <div className="flex-1">

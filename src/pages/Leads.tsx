@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Phone, Mail, Calendar, Trash2, X,
   CheckCircle2, TrendingUp, Users, Zap, ArrowRight,
-  MapPin, MessageSquare,
+  MapPin, MessageSquare, Tag, Clock,
 } from 'lucide-react';
 import {
   DndContext, DragOverlay,
@@ -40,6 +40,17 @@ const AVATAR_COLORS = [
 ];
 function avatarColor(name: string) {
   return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
+}
+
+const TAG_PALETTE = [
+  'bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700',
+  'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700',
+  'bg-rose-100 text-rose-700', 'bg-cyan-100 text-cyan-700',
+];
+function tagColor(tag: string) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) % TAG_PALETTE.length;
+  return TAG_PALETTE[Math.abs(h)];
 }
 
 const SOURCES = [
@@ -111,6 +122,28 @@ const CardContent = ({
           <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2 pl-0.5">
             {lead.notes}
           </p>
+        )}
+
+        {/* Tags */}
+        {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pl-0.5">
+            {lead.tags.map((tag: string) => (
+              <span key={tag} className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-full', tagColor(tag))}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Follow-up date */}
+        {lead.follow_up_date && (
+          <div className={cn(
+            'flex items-center gap-1 text-[10px] font-bold pl-0.5',
+            new Date(lead.follow_up_date + 'T00:00:00') <= new Date() ? 'text-red-500' : 'text-amber-600'
+          )}>
+            <Clock size={9} />
+            Follow-up: {new Date(lead.follow_up_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+          </div>
         )}
 
         {/* Footer */}
@@ -239,15 +272,32 @@ const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
 };
 
 // ─── Detail modal (centered) ──────────────────────────────────────────────────
-const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
+const LeadDetail = ({ lead, onClose, onMove, onDelete, onUpdate }: {
   lead: any;
   onClose: () => void;
   onMove: (id: string, status: string) => void;
   onDelete: (id: string, name: string) => void;
+  onUpdate: (id: string, data: any) => void;
 }) => {
   const stage = getStage(lead.status);
   const initials = getInitials(lead.name);
   const color = avatarColor(lead.name);
+  const [tagInput, setTagInput] = useState('');
+  const [localTags, setLocalTags] = useState<string[]>(Array.isArray(lead.tags) ? lead.tags : []);
+  const [followUpDate, setFollowUpDate] = useState<string>(lead.follow_up_date || '');
+
+  const saveTags = (tags: string[]) => {
+    setLocalTags(tags);
+    onUpdate(lead.id, { tags });
+  };
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (!t || localTags.includes(t)) { setTagInput(''); return; }
+    saveTags([...localTags, t]);
+    setTagInput('');
+  };
+  const removeTag = (tag: string) => saveTags(localTags.filter(t => t !== tag));
+  const saveFollowUp = () => onUpdate(lead.id, { follow_up_date: followUpDate || null });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -326,6 +376,64 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
               <p className="text-sm text-neutral-700 leading-relaxed">{lead.notes}</p>
             </div>
           )}
+
+          {/* Tags */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Tag size={13} className="text-neutral-400" />
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Etiquetas</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {localTags.map(tag => (
+                <span key={tag} className={cn('flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full', tagColor(tag))}>
+                  {tag}
+                  <button onClick={() => removeTag(tag)} className="hover:opacity-60 transition-opacity">
+                    <X size={9} />
+                  </button>
+                </span>
+              ))}
+              {localTags.length === 0 && <span className="text-xs text-neutral-300 italic">Nenhuma etiqueta</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+                placeholder="Nova etiqueta..."
+                className="flex-1 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+              />
+              <button onClick={addTag}
+                className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-700 text-white text-xs font-bold transition-colors">
+                Adicionar
+              </button>
+            </div>
+          </div>
+
+          {/* Follow-up date */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Clock size={13} className="text-neutral-400" />
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Data de Follow-up</p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={followUpDate}
+                onChange={e => setFollowUpDate(e.target.value)}
+                className="flex-1 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+              />
+              <button onClick={saveFollowUp}
+                className="px-3 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-700 text-white text-xs font-bold transition-colors">
+                Salvar
+              </button>
+              {followUpDate && (
+                <button onClick={() => { setFollowUpDate(''); onUpdate(lead.id, { follow_up_date: null }); }}
+                  className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold transition-colors">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
 
           <div>
             <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3">Mover etapa</p>
@@ -492,6 +600,15 @@ export const Leads: React.FC = () => {
     }
   }, [leads, fetchLeads, syncDeleteCustomer]);
 
+  const handleUpdateLead = useCallback(async (id: string, data: any) => {
+    try {
+      await dataService.updateLead(id, data);
+      fetchLeads();
+    } catch (e: any) {
+      toast.error('Erro ao atualizar lead: ' + e.message);
+    }
+  }, [fetchLeads]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error('Informe o nome.'); return; }
@@ -557,6 +674,7 @@ export const Leads: React.FC = () => {
           onClose={() => setDetailLead(null)}
           onMove={moveLead}
           onDelete={handleDelete}
+          onUpdate={handleUpdateLead}
         />
       )}
 

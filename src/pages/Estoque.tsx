@@ -241,23 +241,23 @@ export const Estoque: React.FC = () => {
 
         {/* Date badge — far left */}
         <div className={[
-          'w-10 flex-shrink-0 rounded-lg text-center py-1 px-1',
-          isSoldView ? 'bg-neutral-200' : 'bg-neutral-100',
+          'w-11 flex-shrink-0 rounded-lg text-center py-1.5 px-1',
+          isSoldView ? 'bg-neutral-300' : 'bg-neutral-900',
         ].join(' ')}>
           {entryDate ? (
             <>
-              <div className="text-[13px] font-black leading-none text-neutral-700">
+              <div className={['text-[15px] font-black leading-none', isSoldView ? 'text-neutral-600' : 'text-white'].join(' ')}>
                 {String(entryDate.getDate()).padStart(2, '0')}
               </div>
-              <div className="text-[9px] font-bold uppercase tracking-wide text-neutral-400 mt-0.5">
+              <div className={['text-[9px] font-black uppercase tracking-wide mt-0.5', isSoldView ? 'text-neutral-500' : 'text-yellow-400'].join(' ')}>
                 {entryDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
               </div>
-              <div className="text-[8px] text-neutral-300 leading-none">
+              <div className={['text-[8px] font-bold leading-none mt-0.5', isSoldView ? 'text-neutral-400' : 'text-neutral-400'].join(' ')}>
                 {entryDate.getFullYear()}
               </div>
             </>
           ) : (
-            <div className="text-[9px] text-neutral-300 font-bold">—</div>
+            <div className="text-[9px] text-neutral-400 font-bold">—</div>
           )}
         </div>
 

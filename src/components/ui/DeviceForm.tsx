@@ -121,6 +121,20 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
 
   const isNovo = value.condition === 'Novo (lacrado)';
 
+  // Categorias que usam apenas IMEI (chip SIM)
+  const IMEI_ONLY_CATS = ['iPhone', 'Smartphones'];
+  // Categorias que usam apenas Número de Série (sem chip)
+  const SERIAL_ONLY_CATS = ['MacBook', 'AirPods'];
+
+  const imeiConfig = (() => {
+    if (IMEI_ONLY_CATS.includes(value.category))
+      return { label: 'IMEI', placeholder: '352XXXXXXXXXXXX', maxLength: 15, hint: 'Máx. 15 dígitos' };
+    if (SERIAL_ONLY_CATS.includes(value.category))
+      return { label: 'Número de Série', placeholder: 'Ex: C02X1234JGH5', maxLength: undefined, hint: null };
+    // iPad, Watch, Outro — pode ter IMEI (cellular) ou Série (Wi-Fi)
+    return { label: 'IMEI / Número de Série', placeholder: 'IMEI (15 dig.) ou Nº de Série', maxLength: undefined, hint: 'Chip: 15 dígitos · Wi-Fi: Número de Série' };
+  })();
+
   const catalogCategories = ALL_CATEGORIES;
   const catalogModels = value.category ? getModelsByCategory(value.category) : [];
   const catalogCapacities = value.model ? getCapacitiesForModel(value.model) : [];
@@ -271,14 +285,34 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         />
       </div>
 
-      {/* IMEI */}
-      <Input
-        label="IMEI / Serial"
-        placeholder="Ex: 352XXXXXXXXXXXX"
-        value={value.imei}
-        onChange={set('imei')}
-        autoComplete="off"
-      />
+      {/* IMEI / Serial */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-sm font-bold text-neutral-700">{imeiConfig.label}</label>
+          {imeiConfig.maxLength && (
+            <span className={`text-xs font-mono ${value.imei.length === imeiConfig.maxLength ? 'text-emerald-600 font-bold' : value.imei.length > 0 ? 'text-neutral-500' : 'text-neutral-300'}`}>
+              {value.imei.length}/{imeiConfig.maxLength}
+            </span>
+          )}
+        </div>
+        <input
+          className={S}
+          placeholder={imeiConfig.placeholder}
+          value={value.imei}
+          maxLength={imeiConfig.maxLength}
+          onChange={(e) => {
+            const val = imeiConfig.maxLength
+              ? e.target.value.replace(/\D/g, '').slice(0, imeiConfig.maxLength)
+              : e.target.value;
+            onChange({ ...value, imei: val });
+          }}
+          autoComplete="off"
+          inputMode={imeiConfig.maxLength ? 'numeric' : 'text'}
+        />
+        {imeiConfig.hint && (
+          <p className="text-[11px] text-neutral-400 mt-1">{imeiConfig.hint}</p>
+        )}
+      </div>
 
       {/* Prices */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

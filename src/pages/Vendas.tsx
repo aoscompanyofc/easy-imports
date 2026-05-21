@@ -1309,7 +1309,42 @@ export const Vendas: React.FC = () => {
                 </select>
               </div>
 
-              <Input label="IMEI *" placeholder="352XXXXXXXXXXXX" value={form.product_imei} onChange={setF('product_imei')} autoComplete="off" />
+              {(() => {
+                const cat = selectedProductData?.category || '';
+                const isImeiOnly = ['iPhone', 'Smartphones'].includes(cat);
+                const isSerialOnly = ['MacBook', 'AirPods'].includes(cat);
+                const idLabel = isImeiOnly ? 'IMEI' : isSerialOnly ? 'Número de Série' : 'IMEI / Número de Série';
+                const idPlaceholder = isImeiOnly ? '352XXXXXXXXXXXX' : isSerialOnly ? 'Ex: C02X1234JGH5' : 'IMEI (15 dig.) ou Nº de Série';
+                const idMax = isImeiOnly ? 15 : undefined;
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-sm font-bold text-neutral-700">{idLabel}{isImeiOnly ? ' *' : ''}</label>
+                      {idMax && (
+                        <span className={`text-xs font-mono ${form.product_imei.length === idMax ? 'text-emerald-600 font-bold' : form.product_imei.length > 0 ? 'text-neutral-500' : 'text-neutral-300'}`}>
+                          {form.product_imei.length}/{idMax}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      placeholder={idPlaceholder}
+                      value={form.product_imei}
+                      maxLength={idMax}
+                      inputMode={idMax ? 'numeric' : 'text'}
+                      onChange={(e) => {
+                        const val = idMax
+                          ? e.target.value.replace(/\D/g, '').slice(0, idMax)
+                          : e.target.value;
+                        setForm((f) => ({ ...f, product_imei: val }));
+                      }}
+                      autoComplete="off"
+                    />
+                    {isImeiOnly && <p className="text-[11px] text-neutral-400 mt-1">Máx. 15 dígitos</p>}
+                    {!isImeiOnly && !isSerialOnly && <p className="text-[11px] text-neutral-400 mt-1">Chip: 15 dígitos · Wi-Fi: Número de Série</p>}
+                  </div>
+                );
+              })()}
               <div className="sm:col-span-2">
                 <Input label="Acessórios Inclusos" placeholder="Cabo, carregador, caixa original..." value={form.product_accessories} onChange={setF('product_accessories')} autoComplete="off" />
               </div>
@@ -2090,7 +2125,30 @@ export const Vendas: React.FC = () => {
                     {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={editForm.product_imei} onChange={setEF('product_imei')} autoComplete="off" />
+                {(() => {
+                  const isImeiLike = /^\d*$/.test(editForm.product_imei);
+                  const isImei = isImeiLike && (editForm.product_imei.length === 0 || editForm.product_imei.length <= 15);
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-sm font-bold text-neutral-700">IMEI / Número de Série</label>
+                        {isImeiLike && editForm.product_imei.length > 0 && (
+                          <span className={`text-xs font-mono ${editForm.product_imei.length === 15 ? 'text-emerald-600 font-bold' : 'text-neutral-500'}`}>
+                            {editForm.product_imei.length}/15
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                        placeholder="IMEI (15 dígitos) ou Número de Série"
+                        value={editForm.product_imei}
+                        maxLength={isImei && isImeiLike ? 15 : undefined}
+                        onChange={(e) => setEditForm((f: any) => ({ ...f, product_imei: e.target.value }))}
+                        autoComplete="off"
+                      />
+                    </div>
+                  );
+                })()}
                 <div className="sm:col-span-2">
                   <Input label="Acessórios Inclusos" placeholder="Cabo, carregador, caixa original..." value={editForm.product_accessories} onChange={setEF('product_accessories')} autoComplete="off" />
                 </div>
@@ -2145,7 +2203,29 @@ export const Vendas: React.FC = () => {
                   <div className="sm:col-span-2">
                     <Input label="Modelo do aparelho" placeholder="Ex: Samsung Galaxy S22" value={editForm.incoming_name} onChange={setEF('incoming_name')} autoComplete="off" />
                   </div>
-                  <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={editForm.incoming_imei} onChange={setEF('incoming_imei')} autoComplete="off" />
+                  {(() => {
+                    const isImeiLike = /^\d*$/.test(editForm.incoming_imei);
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-sm font-bold text-neutral-700">IMEI / Número de Série</label>
+                          {isImeiLike && editForm.incoming_imei.length > 0 && (
+                            <span className={`text-xs font-mono ${editForm.incoming_imei.length === 15 ? 'text-emerald-600 font-bold' : 'text-neutral-500'}`}>
+                              {editForm.incoming_imei.length}/15
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
+                          placeholder="IMEI (15 dígitos) ou Número de Série"
+                          value={editForm.incoming_imei}
+                          maxLength={isImeiLike ? 15 : undefined}
+                          onChange={(e) => setEditForm((f: any) => ({ ...f, incoming_imei: e.target.value }))}
+                          autoComplete="off"
+                        />
+                      </div>
+                    );
+                  })()}
                   <Input label="Capacidade" placeholder="128GB" value={editForm.incoming_capacity} onChange={setEF('incoming_capacity')} autoComplete="off" />
                   <Input label="Cor" placeholder="Preto" value={editForm.incoming_color} onChange={setEF('incoming_color')} autoComplete="off" />
                   <div>

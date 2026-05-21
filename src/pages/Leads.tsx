@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Plus, Search, MessageCircle, Calendar, Trash2, X,
-  CheckCircle2, Phone, StickyNote, TrendingUp, Users, Zap, Star,
+  Plus, Search, Phone, Calendar, Trash2, X,
+  CheckCircle2, TrendingUp, Users, Zap, ArrowRight, GripVertical,
 } from 'lucide-react';
 import {
   DndContext, DragOverlay,
@@ -26,94 +26,39 @@ function cn(...inputs: ClassValue[]) {
 function toWhatsApp(phone: string) {
   return phone.replace(/\D/g, '').replace(/^0/, '').replace(/^(\d{2})/, '55$1');
 }
-
 function getInitials(name: string) {
   return (name || '').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 }
-
-const AVATAR_COLORS = [
-  'bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-rose-500',
-  'bg-amber-500', 'bg-cyan-500', 'bg-fuchsia-500', 'bg-teal-500',
-];
-function avatarColor(name: string) {
-  return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
+function fmtDate(iso: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-const SOURCES = ['Instagram', 'WhatsApp', 'Google', 'Indicação', 'Facebook', 'TikTok', 'Loja Física', 'Outro'];
+const AVATAR_COLORS = [
+  'bg-blue-500','bg-violet-500','bg-emerald-500','bg-rose-500',
+  'bg-amber-500','bg-cyan-500','bg-fuchsia-500','bg-teal-500',
+];
+function avatarColor(name: string) {
+  return AVATAR_COLORS[((name||'').charCodeAt(0)||0) % AVATAR_COLORS.length];
+}
 
-// ─── Stages ──────────────────────────────────────────────────────────────────
+const SOURCES = ['Instagram','WhatsApp','Google','Indicação','Facebook','TikTok','Loja Física','Outro'];
 
+// ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
-  {
-    id: 'new',
-    label: 'Novo Lead',
-    emoji: '🔥',
-    pill: 'bg-blue-100 text-blue-700',
-    ring: 'ring-blue-400',
-    bar: 'bg-blue-500',
-    colBg: 'bg-blue-50/60',
-    dot: 'bg-blue-500',
-  },
-  {
-    id: 'contacting',
-    label: 'Primeiro Contato',
-    emoji: '💬',
-    pill: 'bg-orange-100 text-orange-700',
-    ring: 'ring-orange-400',
-    bar: 'bg-orange-500',
-    colBg: 'bg-orange-50/60',
-    dot: 'bg-orange-500',
-  },
-  {
-    id: 'interested',
-    label: 'Interessado',
-    emoji: '👀',
-    pill: 'bg-yellow-100 text-yellow-800',
-    ring: 'ring-yellow-400',
-    bar: 'bg-yellow-400',
-    colBg: 'bg-yellow-50/60',
-    dot: 'bg-yellow-400',
-  },
-  {
-    id: 'proposal',
-    label: 'Proposta',
-    emoji: '📋',
-    pill: 'bg-violet-100 text-violet-700',
-    ring: 'ring-violet-400',
-    bar: 'bg-violet-500',
-    colBg: 'bg-violet-50/60',
-    dot: 'bg-violet-500',
-  },
-  {
-    id: 'negotiating',
-    label: 'Negociando',
-    emoji: '🤝',
-    pill: 'bg-pink-100 text-pink-700',
-    ring: 'ring-pink-400',
-    bar: 'bg-pink-500',
-    colBg: 'bg-pink-50/60',
-    dot: 'bg-pink-500',
-  },
-  {
-    id: 'closed',
-    label: 'Cliente',
-    emoji: '⭐',
-    pill: 'bg-emerald-100 text-emerald-700',
-    ring: 'ring-emerald-400',
-    bar: 'bg-emerald-500',
-    colBg: 'bg-emerald-50/60',
-    dot: 'bg-emerald-500',
-  },
+  { id:'new',         label:'Novo Lead',        accent:'#3B82F6', bar:'bg-blue-500',    count:'bg-blue-100 text-blue-700',    col:'bg-blue-50/40'    },
+  { id:'contacting',  label:'Primeiro Contato', accent:'#F97316', bar:'bg-orange-500',  count:'bg-orange-100 text-orange-700',col:'bg-orange-50/40'  },
+  { id:'interested',  label:'Interessado',      accent:'#EAB308', bar:'bg-yellow-400',  count:'bg-yellow-100 text-yellow-800',col:'bg-yellow-50/40'  },
+  { id:'proposal',    label:'Proposta',         accent:'#8B5CF6', bar:'bg-violet-500',  count:'bg-violet-100 text-violet-700',col:'bg-violet-50/40'  },
+  { id:'negotiating', label:'Negociando',       accent:'#EC4899', bar:'bg-pink-500',    count:'bg-pink-100 text-pink-700',    col:'bg-pink-50/40'    },
+  { id:'closed',      label:'Cliente',          accent:'#10B981', bar:'bg-emerald-500', count:'bg-emerald-100 text-emerald-700', col:'bg-emerald-50/40'},
 ] as const;
 
 type StageId = typeof STAGES[number]['id'];
+function getStage(id: string) { return STAGES.find(s => s.id === id) ?? STAGES[0]; }
 
-function getStage(id: string) {
-  return STAGES.find(s => s.id === id) ?? STAGES[0];
-}
-
-// ─── Card content (shared between board and DragOverlay) ──────────────────────
-
+// ─── Card visual ──────────────────────────────────────────────────────────────
 const CardContent = ({
   lead, isDragging = false, onDelete, onDetail,
 }: {
@@ -121,91 +66,98 @@ const CardContent = ({
   onDelete?: (e: React.MouseEvent) => void;
   onDetail?: () => void;
 }) => {
-  const initials = getInitials(lead.name);
-  const color = avatarColor(lead.name);
   const stage = getStage(lead.status);
   const isClient = lead.status === 'closed';
 
-  const dateStr = lead.created_at
-    ? new Date(lead.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-    : '';
-
   return (
-    <div className={cn(
-      'bg-white border rounded-2xl p-3.5 select-none',
-      isDragging
-        ? 'shadow-2xl border-primary rotate-1 scale-105 opacity-95'
-        : 'border-neutral-200 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all duration-150',
-      isClient && !isDragging && 'border-emerald-200 bg-emerald-50/30',
-    )}>
-      {/* Top row */}
-      <div className="flex items-start gap-2.5">
-        <div className={cn(
-          'w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0',
-          color,
-          isClient && 'ring-2 ring-emerald-400 ring-offset-1',
-        )}>
-          {isClient ? <Star size={14} className="fill-white" /> : initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-neutral-900 text-sm truncate leading-tight">{lead.name}</p>
-          <span className={cn('text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full', stage.pill)}>
-            {lead.source || 'Lead'}
-          </span>
-        </div>
-        {!isDragging && onDelete && (
-          <button
-            onPointerDown={e => e.stopPropagation()}
-            onClick={onDelete}
-            className="p-1 text-neutral-300 hover:text-red-400 transition-colors flex-shrink-0"
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
-      </div>
+    <div
+      onClick={!isDragging ? onDetail : undefined}
+      className={cn(
+        'bg-white rounded-2xl border overflow-hidden cursor-pointer transition-all duration-150 group select-none',
+        isDragging
+          ? 'shadow-2xl border-primary rotate-1 scale-[1.03] opacity-95'
+          : 'border-neutral-200 hover:border-neutral-300 hover:shadow-md',
+        isClient && !isDragging && 'border-l-4 border-l-emerald-400',
+      )}
+    >
+      {/* Colored accent line at top */}
+      <div className="h-[3px] w-full" style={{ backgroundColor: stage.accent }} />
 
-      {/* Info */}
-      <div className="mt-2.5 space-y-1">
-        {lead.phone && (
-          <div className="flex items-center gap-1.5 text-xs text-neutral-500">
-            <Phone size={11} className="flex-shrink-0 text-neutral-400" />
-            <span className="truncate">{lead.phone}</span>
+      <div className="p-3.5">
+        {/* Avatar + name + grip */}
+        <div className="flex items-center gap-2.5">
+          <div className={cn(
+            'w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0',
+            avatarColor(lead.name),
+          )}>
+            {getInitials(lead.name)}
           </div>
-        )}
-        {lead.notes && (
-          <div className="flex items-start gap-1.5 text-xs text-neutral-500">
-            <StickyNote size={11} className="flex-shrink-0 text-neutral-400 mt-0.5" />
-            <span className="truncate">{lead.notes}</span>
-          </div>
-        )}
-      </div>
 
-      {/* Bottom */}
-      <div className="mt-2.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 text-[10px] text-neutral-400">
-          <Calendar size={10} />
-          <span>{dateStr}</span>
-        </div>
-        {!isDragging && (
-          <div className="flex items-center gap-1" onPointerDown={e => e.stopPropagation()}>
-            {lead.phone && (
-              <a
-                href={`https://wa.me/${toWhatsApp(lead.phone)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-                title="Abrir WhatsApp"
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-neutral-900 text-sm leading-tight truncate">{lead.name}</p>
+            {lead.source && (
+              <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider">{lead.source}</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {!isDragging && onDelete && (
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onDelete(e); }}
+                className="p-1 opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-red-400 transition-all rounded"
               >
-                <MessageCircle size={13} />
-              </a>
+                <Trash2 size={12} />
+              </button>
+            )}
+            <div className="p-1 text-neutral-200 group-hover:text-neutral-400 transition-colors">
+              <GripVertical size={13} />
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        {lead.notes && (
+          <p className="mt-2.5 text-[11px] text-neutral-500 bg-neutral-50 rounded-xl px-2.5 py-2 line-clamp-2 leading-relaxed">
+            {lead.notes}
+          </p>
+        )}
+
+        {/* Footer */}
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          {lead.phone ? (
+            <div className="flex items-center gap-1 text-[11px] text-neutral-500 min-w-0 truncate">
+              <Phone size={11} className="text-neutral-400 flex-shrink-0" />
+              <span className="truncate">{lead.phone}</span>
+            </div>
+          ) : <div />}
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {lead.created_at && (
+              <span className="text-[10px] text-neutral-400 font-medium">{fmtDate(lead.created_at)}</span>
             )}
             {isClient && (
-              <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                <CheckCircle2 size={10} />
+              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                <CheckCircle2 size={9} />
                 Cliente
               </span>
             )}
           </div>
+        </div>
+
+        {/* Contact button — system identity, not WhatsApp green */}
+        {!isDragging && lead.phone && (
+          <a
+            href={`https://wa.me/${toWhatsApp(lead.phone)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+            className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1.5 rounded-xl text-[11px] font-bold text-neutral-600 bg-neutral-100 hover:bg-primary hover:text-neutral-900 transition-all"
+          >
+            <Phone size={11} />
+            Contatar
+          </a>
         )}
       </div>
     </div>
@@ -213,7 +165,6 @@ const CardContent = ({
 };
 
 // ─── Draggable card ────────────────────────────────────────────────────────────
-
 const DraggableCard = ({ lead, onDelete, onDetail }: {
   lead: any;
   onDelete: (e: React.MouseEvent) => void;
@@ -221,22 +172,15 @@ const DraggableCard = ({ lead, onDelete, onDetail }: {
 }) => {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: lead.id });
   return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      style={{ opacity: isDragging ? 0.3 : 1, cursor: 'grab' }}
-    >
+    <div ref={setNodeRef} {...listeners} {...attributes}
+      style={{ opacity: isDragging ? 0.25 : 1, cursor: 'grab' }}>
       <CardContent lead={lead} onDelete={onDelete} onDetail={onDetail} />
     </div>
   );
 };
 
-// ─── Droppable column ─────────────────────────────────────────────────────────
-
-const KanbanColumn = ({
-  stage, leads, activeId, onDelete, onDetail,
-}: {
+// ─── Column ───────────────────────────────────────────────────────────────────
+const KanbanColumn = ({ stage, leads, activeId, onDelete, onDetail }: {
   stage: typeof STAGES[number];
   leads: any[];
   activeId: string | null;
@@ -246,17 +190,14 @@ const KanbanColumn = ({
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
-    <div className="flex-shrink-0 w-[272px] flex flex-col gap-2">
-      {/* Column header */}
-      <div className="flex items-center gap-2 px-1">
-        <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', stage.dot)} />
-        <span className="text-xs font-black text-neutral-700 uppercase tracking-wider flex-1 truncate">
-          {stage.emoji} {stage.label}
-        </span>
-        <span className={cn(
-          'text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums',
-          leads.length > 0 ? stage.pill : 'bg-neutral-100 text-neutral-400',
-        )}>
+    <div className="flex-shrink-0 w-[268px] flex flex-col gap-2.5">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-0.5">
+        <div className={cn('w-2 h-2 rounded-full flex-shrink-0', stage.bar)} />
+        <p className="text-xs font-black text-neutral-700 uppercase tracking-wider flex-1 truncate">
+          {stage.label}
+        </p>
+        <span className={cn('text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums', stage.count)}>
           {leads.length}
         </span>
       </div>
@@ -265,10 +206,10 @@ const KanbanColumn = ({
       <div
         ref={setNodeRef}
         className={cn(
-          'flex flex-col gap-2.5 rounded-2xl p-2.5 min-h-[520px] transition-all duration-150 border-2',
+          'flex flex-col gap-2.5 rounded-2xl p-2 min-h-[500px] border-2 transition-all duration-150',
           isOver
-            ? cn('border-dashed border-primary bg-primary/5 scale-[1.01]', stage.ring + ' ring-2')
-            : 'border-transparent bg-neutral-100/70',
+            ? 'border-primary border-dashed bg-primary/5'
+            : 'border-transparent bg-neutral-100/60',
         )}
       >
         {leads.map(lead => (
@@ -280,10 +221,11 @@ const KanbanColumn = ({
           />
         ))}
         {leads.length === 0 && !activeId && (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xs text-neutral-400 text-center py-8">
-              Arraste um card<br />para cá
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-1 py-10">
+            <div className="w-8 h-8 rounded-xl bg-neutral-200 flex items-center justify-center">
+              <Plus size={14} className="text-neutral-400" />
+            </div>
+            <p className="text-[11px] text-neutral-400 font-medium">Arraste para cá</p>
           </div>
         )}
       </div>
@@ -291,10 +233,9 @@ const KanbanColumn = ({
   );
 };
 
-// ─── Lead detail panel ────────────────────────────────────────────────────────
-
-const LeadDetail = ({ lead, stages, onClose, onMove, onDelete }: {
-  lead: any; stages: typeof STAGES;
+// ─── Detail panel ─────────────────────────────────────────────────────────────
+const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
+  lead: any;
   onClose: () => void;
   onMove: (id: string, status: string) => void;
   onDelete: (id: string, name: string) => void;
@@ -310,97 +251,96 @@ const LeadDetail = ({ lead, stages, onClose, onMove, onDelete }: {
         className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-neutral-100 px-5 py-4 flex items-center gap-3 z-10">
+        {/* Top accent bar */}
+        <div className="h-1 w-full" style={{ backgroundColor: stage.accent }} />
+
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center gap-3 border-b border-neutral-100">
           <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm flex-shrink-0', color)}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-black text-neutral-900 truncate">{lead.name}</h2>
-            <span className={cn('text-[10px] font-black px-2 py-0.5 rounded-full', stage.pill)}>
-              {stage.emoji} {stage.label}
-            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className={cn('w-2 h-2 rounded-full', stage.bar)} />
+              <span className="text-xs font-bold text-neutral-500">{stage.label}</span>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 text-neutral-400 hover:bg-neutral-100 rounded-xl transition-colors">
+          <button onClick={onClose} className="p-2 text-neutral-400 hover:bg-neutral-100 rounded-xl transition-colors flex-shrink-0">
             <X size={18} />
           </button>
         </div>
 
         <div className="flex-1 p-5 space-y-5">
-          {/* Contact */}
+          {/* Info */}
           <div className="bg-neutral-50 rounded-2xl overflow-hidden divide-y divide-neutral-100">
             {lead.phone && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <Phone size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-800 flex-1">{lead.phone}</span>
-                <a href={`https://wa.me/${toWhatsApp(lead.phone)}`} target="_blank" rel="noopener noreferrer"
-                  className="text-[10px] font-black text-green-600 hover:underline">
-                  WhatsApp
-                </a>
+                <Phone size={14} className="text-neutral-400 flex-shrink-0" />
+                <span className="text-sm font-medium text-neutral-800 flex-1 truncate">{lead.phone}</span>
               </div>
             )}
             {lead.email && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <MessageCircle size={14} className="text-neutral-400" />
+                <span className="text-xs text-neutral-400 flex-shrink-0">Email</span>
                 <span className="text-sm font-medium text-neutral-800 truncate">{lead.email}</span>
               </div>
             )}
             {lead.source && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <Zap size={14} className="text-neutral-400" />
+                <Zap size={14} className="text-neutral-400 flex-shrink-0" />
                 <span className="text-sm text-neutral-600">Origem: <strong>{lead.source}</strong></span>
               </div>
             )}
-            <div className="flex items-center gap-3 px-4 py-3">
-              <Calendar size={14} className="text-neutral-400" />
-              <span className="text-sm text-neutral-500">
-                {lead.created_at ? new Date(lead.created_at).toLocaleDateString('pt-BR', { dateStyle: 'long' }) : '—'}
-              </span>
-            </div>
+            {lead.created_at && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
+                <span className="text-sm text-neutral-500">
+                  {new Date(lead.created_at).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                </span>
+              </div>
+            )}
           </div>
 
           {lead.notes && (
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-              <p className="text-xs font-black text-amber-700 mb-1.5">Interesse / Notas</p>
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1.5">Interesse / Notas</p>
               <p className="text-sm text-neutral-700 leading-relaxed">{lead.notes}</p>
             </div>
           )}
 
-          {/* Move to stage */}
-          <div>
-            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Mover para etapa</p>
-            <div className="space-y-1.5">
-              {stages.filter(s => s.id !== lead.status).map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => { onMove(lead.id, s.id); onClose(); }}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors',
-                    'bg-neutral-50 hover:bg-neutral-100 text-neutral-700',
-                  )}
-                >
-                  <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', s.dot)} />
-                  {s.emoji} {s.label}
-                </button>
-              ))}
-            </div>
+          {/* Move stage */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mover para etapa</p>
+            {STAGES.filter(s => s.id !== lead.status).map(s => (
+              <button
+                key={s.id}
+                onClick={() => { onMove(lead.id, s.id); onClose(); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-neutral-50 hover:bg-neutral-100 text-left transition-colors group"
+              >
+                <div className={cn('w-2 h-2 rounded-full flex-shrink-0', s.bar)} />
+                <span className="text-sm font-bold text-neutral-700 flex-1">{s.label}</span>
+                <ArrowRight size={14} className="text-neutral-300 group-hover:text-neutral-500 transition-colors" />
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 flex gap-2">
+        {/* Footer */}
+        <div className="border-t border-neutral-100 p-4 flex gap-2.5">
           {lead.phone && (
             <a
               href={`https://wa.me/${toWhatsApp(lead.phone)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-sm transition-colors"
+              target="_blank" rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors"
             >
-              <MessageCircle size={16} />
-              WhatsApp
+              <Phone size={16} />
+              Contatar
             </a>
           )}
           <button
             onClick={() => { onDelete(lead.id, lead.name); onClose(); }}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm transition-colors"
+            className="px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 font-bold text-sm transition-colors flex items-center gap-2"
           >
             <Trash2 size={16} />
           </button>
@@ -410,8 +350,7 @@ const LeadDetail = ({ lead, stages, onClose, onMove, onDelete }: {
   );
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export const Leads: React.FC = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -435,8 +374,8 @@ export const Leads: React.FC = () => {
       setIsLoading(true);
       const data = await dataService.getLeads();
       setLeads(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar leads: ' + error.message);
+    } catch (e: any) {
+      toast.error('Erro ao carregar leads: ' + e.message);
     } finally {
       setIsLoading(false);
     }
@@ -459,45 +398,68 @@ export const Leads: React.FC = () => {
     });
   };
 
+  // ── Sync helpers ────────────────────────────────────────────────────────────
+
+  const syncCreateCustomer = useCallback(async (lead: { name: string; phone?: string; email?: string; notes?: string }) => {
+    try {
+      await dataService.addCustomer({
+        name: lead.name,
+        phone: lead.phone || '',
+        email: lead.email || '',
+        cpf: '',
+        city: '',
+        notes: lead.notes || '',
+      });
+    } catch { /* ignore duplicates or schema errors */ }
+  }, []);
+
+  const syncDeleteCustomer = useCallback(async (lead: any) => {
+    if (lead.status !== 'closed') return;
+    try {
+      const customers = await dataService.getCustomers();
+      const match = customers.find((c: any) =>
+        (lead.phone && c.phone && c.phone === lead.phone) ||
+        c.name?.toLowerCase() === lead.name?.toLowerCase()
+      );
+      if (match) await dataService.deleteCustomer(match.id);
+    } catch { /* ignore */ }
+  }, []);
+
+  // ── Move lead ───────────────────────────────────────────────────────────────
+
   const moveLead = useCallback(async (id: string, newStatus: string) => {
     const lead = leads.find(l => l.id === id);
     if (!lead || lead.status === newStatus) return;
 
-    // Auto-create customer when moved to "closed"
-    if (newStatus === 'closed' && lead) {
-      try {
-        await dataService.addCustomer({
-          name: lead.name,
-          phone: lead.phone || '',
-          email: lead.email || '',
-          cpf: '',
-          city: '',
-          notes: lead.notes || '',
-        });
-        toast.success(`${lead.name} virou cliente! 🎉`, { duration: 3000 });
-      } catch {
-        // Ignore duplicate / missing column errors — customer may already exist
-      }
+    if (newStatus === 'closed') {
+      await syncCreateCustomer(lead);
+      toast.success(`${lead.name} virou cliente! 🎉`, { duration: 3000 });
     }
 
     try {
       await dataService.updateLead(id, { status: newStatus });
       fetchLeads();
-    } catch (error: any) {
-      toast.error('Erro ao mover lead: ' + error.message);
+    } catch (e: any) {
+      toast.error('Erro ao mover lead: ' + e.message);
     }
-  }, [leads, fetchLeads]);
+  }, [leads, fetchLeads, syncCreateCustomer]);
+
+  // ── Delete lead ─────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(async (id: string, name: string) => {
     if (!confirm(`Remover "${name}"?`)) return;
+    const lead = leads.find(l => l.id === id);
     try {
       await dataService.deleteLead(id);
+      if (lead) await syncDeleteCustomer(lead);
       toast.success('Lead removido!');
       fetchLeads();
-    } catch (error: any) {
-      toast.error('Erro ao remover: ' + error.message);
+    } catch (e: any) {
+      toast.error('Erro ao remover: ' + e.message);
     }
-  }, [fetchLeads]);
+  }, [leads, fetchLeads, syncDeleteCustomer]);
+
+  // ── Add lead ────────────────────────────────────────────────────────────────
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -505,18 +467,23 @@ export const Leads: React.FC = () => {
     try {
       setIsSaving(true);
       await dataService.addLead({ ...form });
+      // If created directly as "Cliente", sync to Clientes
+      if (form.status === 'closed') {
+        await syncCreateCustomer(form);
+      }
       toast.success('Lead adicionado!');
       setIsAddOpen(false);
       setForm({ name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' });
       fetchLeads();
-    } catch (error: any) {
-      toast.error('Erro: ' + error.message);
+    } catch (e: any) {
+      toast.error('Erro: ' + e.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Drag handlers
+  // ── Drag ────────────────────────────────────────────────────────────────────
+
   const handleDragStart = useCallback((e: DragStartEvent) => {
     setActiveId(String(e.active.id));
   }, []);
@@ -525,34 +492,46 @@ export const Leads: React.FC = () => {
     setActiveId(null);
     const { active, over } = e;
     if (!over) return;
-    const leadId = String(active.id);
     const targetStageId = String(over.id);
-    // over.id is always a stage id (columns are the droppables)
     if (STAGES.some(s => s.id === targetStageId)) {
-      moveLead(leadId, targetStageId);
+      moveLead(String(active.id), targetStageId);
     }
   }, [moveLead]);
 
   const activeLead = activeId ? leads.find(l => l.id === activeId) : null;
 
   // Stats
-  const totalOpen = leads.filter(l => l.status !== 'closed').length;
+  const totalOpen   = leads.filter(l => l.status !== 'closed').length;
   const totalClosed = leads.filter(l => l.status === 'closed').length;
-  const conversionRate = leads.length > 0 ? Math.round((totalClosed / leads.length) * 100) : 0;
-  const thisMonth = leads.filter(l => {
+  const convRate    = leads.length > 0 ? Math.round((totalClosed / leads.length) * 100) : 0;
+  const thisMonth   = leads.filter(l => {
     if (!l.created_at) return false;
     const d = new Date(l.created_at);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    const n = new Date();
+    return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
   }).length;
 
+  // ── Skeleton ────────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="space-y-5 pb-10">
+        <div className="h-8 w-48 bg-neutral-100 rounded-xl animate-pulse" />
+        <div className="grid grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-neutral-100 rounded-2xl animate-pulse" />)}
+        </div>
+        <div className="flex gap-4">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="flex-shrink-0 w-[268px] h-96 bg-neutral-100 rounded-2xl animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 pb-10">
-      {/* Detail panel */}
       {detailLead && (
         <LeadDetail
           lead={detailLead}
-          stages={STAGES}
           onClose={() => setDetailLead(null)}
           onMove={moveLead}
           onDelete={handleDelete}
@@ -563,7 +542,7 @@ export const Leads: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">CRM de Leads</h2>
-          <p className="text-neutral-500 text-sm">Funil de vendas — arraste os cards entre etapas</p>
+          <p className="text-sm text-neutral-400">Arraste os cards entre etapas para avançar no funil</p>
         </div>
         <Button leftIcon={<Plus size={18} />} onClick={() => setIsAddOpen(true)}>
           Novo Lead
@@ -573,10 +552,10 @@ export const Leads: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Users, label: 'Em aberto', value: totalOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { icon: CheckCircle2, label: 'Clientes', value: totalClosed, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { icon: TrendingUp, label: 'Conversão', value: `${conversionRate}%`, color: 'text-violet-600', bg: 'bg-violet-50' },
-          { icon: Zap, label: 'Este mês', value: thisMonth, color: 'text-primary-700', bg: 'bg-primary/10' },
+          { icon: Users,       label: 'Em aberto',  value: totalOpen,        color: 'text-blue-600',    bg: 'bg-blue-50'    },
+          { icon: CheckCircle2,label: 'Clientes',    value: totalClosed,      color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { icon: TrendingUp,  label: 'Conversão',  value: `${convRate}%`,   color: 'text-violet-600',  bg: 'bg-violet-50'  },
+          { icon: Zap,         label: 'Este mês',   value: thisMonth,        color: 'text-primary-700', bg: 'bg-primary/10' },
         ].map(item => (
           <div key={item.label} className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', item.bg)}>
@@ -637,43 +616,31 @@ export const Leads: React.FC = () => {
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Novo Lead" maxWidth="md">
         <form onSubmit={handleSave} className="space-y-4">
           <Input label="Nome Completo *" placeholder="Ex: João da Silva" required
-            value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="off" />
-
+            value={form.name} onChange={e => setForm({...form, name: e.target.value})} autoComplete="off" />
           <div className="grid grid-cols-2 gap-3">
             <Input label="WhatsApp" placeholder="(11) 99999-9999"
-              value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} autoComplete="off" />
+              value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} autoComplete="off" />
             <Input label="Email" type="email" placeholder="email@..."
-              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} autoComplete="off" />
+              value={form.email} onChange={e => setForm({...form, email: e.target.value})} autoComplete="off" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-neutral-700 mb-1.5">Origem</label>
-              <select
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                value={form.source}
-                onChange={e => setForm({ ...form, source: e.target.value })}
-              >
+              <select className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={form.source} onChange={e => setForm({...form, source: e.target.value})}>
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-bold text-neutral-700 mb-1.5">Etapa inicial</label>
-              <select
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                value={form.status}
-                onChange={e => setForm({ ...form, status: e.target.value as StageId })}
-              >
-                {STAGES.filter(s => s.id !== 'closed').map(s => (
-                  <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>
-                ))}
+              <select className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={form.status} onChange={e => setForm({...form, status: e.target.value as StageId})}>
+                {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
           </div>
-
           <Input label="Interesse / Notas" placeholder="Ex: Interessado no iPhone 16 Pro 256GB"
-            value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} autoComplete="off" />
-
+            value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} autoComplete="off" />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth type="button" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit">Criar Lead</Button>

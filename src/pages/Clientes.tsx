@@ -277,7 +277,19 @@ export const Clientes: React.FC = () => {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Remover "${name}"? Esta ação não pode ser desfeita.`)) return;
     try {
+      const customer = enriched.find(c => c.id === id);
       await dataService.deleteCustomer(id);
+      // Sync: delete matching closed lead
+      try {
+        const leads = await dataService.getLeads();
+        const match = leads.find((l: any) =>
+          l.status === 'closed' && (
+            (customer?.phone && l.phone && l.phone === customer.phone) ||
+            l.name?.toLowerCase() === name.toLowerCase()
+          )
+        );
+        if (match) await dataService.deleteLead(match.id);
+      } catch { /* ignore sync errors */ }
       toast.success('Cliente removido!');
       fetchAll();
     } catch (error: any) {

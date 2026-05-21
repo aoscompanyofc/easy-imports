@@ -220,6 +220,17 @@ export const Clientes: React.FC = () => {
     try {
       setIsSaving(true);
       await dataService.addCustomer(formData);
+      // Sync to Leads CRM as a closed lead so client appears in the "Cliente" column
+      try {
+        await dataService.addLead({
+          name: formData.name,
+          phone: formData.phone || '',
+          email: formData.email || '',
+          source: 'Cadastro Direto',
+          notes: formData.notes || '',
+          status: 'closed',
+        });
+      } catch { /* ignore — non-critical */ }
       toast.success('Cliente cadastrado!');
       setIsAddOpen(false);
       setFormData(emptyForm());

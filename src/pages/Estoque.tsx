@@ -241,21 +241,15 @@ export const Estoque: React.FC = () => {
 
         {/* Date badge — far left */}
         <div className={[
-          'w-11 flex-shrink-0 rounded-lg text-center py-1.5 px-1',
+          'flex-shrink-0 rounded-lg text-center py-1.5 px-2.5',
           isSoldView ? 'bg-neutral-300' : 'bg-neutral-900',
         ].join(' ')}>
           {entryDate ? (
-            <>
-              <div className={['text-[15px] font-black leading-none', isSoldView ? 'text-neutral-600' : 'text-white'].join(' ')}>
-                {String(entryDate.getDate()).padStart(2, '0')}
-              </div>
-              <div className={['text-[9px] font-black uppercase tracking-wide mt-0.5', isSoldView ? 'text-neutral-500' : 'text-yellow-400'].join(' ')}>
-                {entryDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
-              </div>
-              <div className={['text-[8px] font-bold leading-none mt-0.5', isSoldView ? 'text-neutral-400' : 'text-neutral-400'].join(' ')}>
-                {entryDate.getFullYear()}
-              </div>
-            </>
+            <div className={['text-[11px] font-black tabular-nums leading-none whitespace-nowrap', isSoldView ? 'text-neutral-600' : 'text-white'].join(' ')}>
+              {String(entryDate.getDate()).padStart(2, '0')}/
+              {String(entryDate.getMonth() + 1).padStart(2, '0')}/
+              {entryDate.getFullYear()}
+            </div>
           ) : (
             <div className="text-[9px] text-neutral-400 font-bold">—</div>
           )}

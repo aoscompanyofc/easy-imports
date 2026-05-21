@@ -50,14 +50,14 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
 
   return (
     <Card className="col-span-full">
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-neutral-900">{title}</h3>
+      <div className="mb-3 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-bold text-neutral-900">{title}</h3>
         <p className="text-sm text-neutral-500">{subtitle}</p>
       </div>
 
-      <div className="h-[300px] w-full">
+      <div className="h-[200px] sm:h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
+          <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#FFC107" stopOpacity={0.35} />
@@ -76,9 +76,9 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#9CA3AF', fontSize: 11 }}
+              tick={{ fill: '#9CA3AF', fontSize: 10 }}
               tickFormatter={formatYAxis}
-              width={65}
+              width={56}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area

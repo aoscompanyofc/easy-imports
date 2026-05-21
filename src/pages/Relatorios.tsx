@@ -237,11 +237,11 @@ export const Relatorios: React.FC = () => {
           {isLoading && <RefreshCw size={16} className="animate-spin text-neutral-400" />}
           {/* Month selector */}
           <div className="flex items-center bg-white border border-neutral-200 rounded-xl overflow-hidden shadow-sm">
-            <button className="p-2.5 hover:bg-neutral-50 text-neutral-500 transition-colors"
+            <button className="p-2 sm:p-2.5 hover:bg-neutral-50 text-neutral-500 transition-colors"
               onClick={() => setSelectedMonth((m) => subMonths(m, 1))}>
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
-            <span className="px-4 text-sm font-bold text-neutral-700 capitalize min-w-[150px] text-center">
+            <span className="px-2 sm:px-4 text-xs sm:text-sm font-bold text-neutral-700 capitalize min-w-[110px] sm:min-w-[150px] text-center">
               {monthLabel}
             </span>
             <button

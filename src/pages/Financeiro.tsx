@@ -261,45 +261,45 @@ export const Financeiro: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-success-light text-success rounded-xl">
-            <ArrowUpCircle size={24} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <Card className="flex items-center gap-2 sm:gap-4 !p-3 sm:!p-5">
+          <div className="p-2 sm:p-3 bg-success-light text-success rounded-xl flex-shrink-0">
+            <ArrowUpCircle size={20} />
           </div>
-          <div>
-            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Entradas</p>
-            <p className="text-xl font-bold text-neutral-900">{formatCurrency(totalIncome)}</p>
-            {!hasActiveFilters && <p className="text-xs text-neutral-400">Histórico total</p>}
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-danger-light text-danger rounded-xl">
-            <ArrowDownCircle size={24} />
-          </div>
-          <div>
-            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Saídas</p>
-            <p className="text-xl font-bold text-neutral-900">{formatCurrency(totalExpense)}</p>
-            {!hasActiveFilters && <p className="text-xs text-neutral-400">Histórico total</p>}
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-xs text-neutral-400 font-bold uppercase tracking-wider">Entradas</p>
+            <p className="text-base sm:text-xl font-bold text-neutral-900">{formatCurrency(totalIncome)}</p>
+            {!hasActiveFilters && <p className="text-[10px] sm:text-xs text-neutral-400">Histórico total</p>}
           </div>
         </Card>
-        <Card className="flex items-center gap-4">
-          <div className="p-3 bg-primary-50 text-primary-900 rounded-xl">
-            <TrendingUp size={24} />
+        <Card className="flex items-center gap-2 sm:gap-4 !p-3 sm:!p-5">
+          <div className="p-2 sm:p-3 bg-danger-light text-danger rounded-xl flex-shrink-0">
+            <ArrowDownCircle size={20} />
           </div>
-          <div>
-            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Lucro Líquido</p>
-            <p className={cn('text-xl font-bold', netProfit >= 0 ? 'text-success' : 'text-danger')}>
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-xs text-neutral-400 font-bold uppercase tracking-wider">Saídas</p>
+            <p className="text-base sm:text-xl font-bold text-neutral-900">{formatCurrency(totalExpense)}</p>
+            {!hasActiveFilters && <p className="text-[10px] sm:text-xs text-neutral-400">Histórico total</p>}
+          </div>
+        </Card>
+        <Card className="flex items-center gap-2 sm:gap-4 !p-3 sm:!p-5">
+          <div className="p-2 sm:p-3 bg-primary-50 text-primary-900 rounded-xl flex-shrink-0">
+            <TrendingUp size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-xs text-neutral-400 font-bold uppercase tracking-wider">Lucro Líquido</p>
+            <p className={cn('text-base sm:text-xl font-bold', netProfit >= 0 ? 'text-success' : 'text-danger')}>
               {formatCurrency(netProfit)}
             </p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 border-2 border-primary-100 bg-primary-50/20">
-          <div className="p-3 bg-primary text-black rounded-xl">
-            <PieChartIcon size={24} />
+        <Card className="flex items-center gap-2 sm:gap-4 !p-3 sm:!p-5 border-2 border-primary-100 bg-primary-50/20">
+          <div className="p-2 sm:p-3 bg-primary text-black rounded-xl flex-shrink-0">
+            <PieChartIcon size={20} />
           </div>
-          <div>
-            <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Margem sobre Receita</p>
-            <p className={cn('text-xl font-bold', margin >= 0 ? 'text-neutral-900' : 'text-danger')}>{margin.toFixed(1)}%</p>
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-xs text-neutral-400 font-bold uppercase tracking-wider">Margem</p>
+            <p className={cn('text-base sm:text-xl font-bold', margin >= 0 ? 'text-neutral-900' : 'text-danger')}>{margin.toFixed(1)}%</p>
           </div>
         </Card>
       </div>

@@ -22,15 +22,15 @@ export const ChannelChart: React.FC<ChannelChartProps> = ({ data }) => {
         <p className="text-sm text-neutral-500">Distribuição das vendas do período</p>
       </div>
 
-      <div className="h-[280px]">
+      <div className="h-[200px] sm:h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={80}
+              innerRadius={50}
+              outerRadius={72}
               paddingAngle={5}
               dataKey="value"
             >

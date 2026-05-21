@@ -312,8 +312,8 @@ export const Dashboard: React.FC = () => {
 
   const Skeleton = () => (
     <div className="animate-pulse space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1,2,3,4].map(i => <div key={i} className="h-32 bg-neutral-100 rounded-2xl" />)}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-neutral-100 rounded-2xl" />)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 h-72 bg-neutral-100 rounded-2xl" />
@@ -401,44 +401,44 @@ export const Dashboard: React.FC = () => {
       {isLoading ? <Skeleton /> : (
         <>
           {/* ── Metric Cards ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {/* Faturamento */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col gap-1">
-              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Faturamento</p>
-              <p className="text-2xl font-black text-neutral-900">{formatCurrency(revenue)}</p>
-              <p className="text-xs text-neutral-400">{periodLabel}</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Faturamento</p>
+              <p className="text-lg sm:text-2xl font-black text-neutral-900">{formatCurrency(revenue)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Vendas */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col gap-1">
-              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Vendas</p>
-              <p className="text-2xl font-black text-neutral-900">{salesCount}</p>
-              <p className="text-xs text-neutral-400">{periodLabel}</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Vendas</p>
+              <p className="text-lg sm:text-2xl font-black text-neutral-900">{salesCount}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Lucro Líquido */}
             <div className={cn(
-              'rounded-2xl border shadow-sm p-5 flex flex-col gap-1',
+              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1',
               netProfit >= 0 ? 'bg-white border-neutral-200' : 'bg-red-50 border-red-200',
             )}>
-              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Lucro Líquido</p>
-              <p className={cn('text-2xl font-black', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Lucro Líquido</p>
+              <p className={cn('text-lg sm:text-2xl font-black', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                 {formatCurrency(netProfit)}
               </p>
-              <p className="text-xs text-neutral-400">{periodLabel}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
             </div>
 
             {/* Estoque — sempre total */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col gap-1">
-              <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Valor em Estoque</p>
-              <p className="text-2xl font-black text-neutral-900">{formatCurrency(stockValue)}</p>
-              <p className="text-xs text-neutral-400">Total disponível</p>
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1">
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest">Valor em Estoque</p>
+              <p className="text-lg sm:text-2xl font-black text-neutral-900">{formatCurrency(stockValue)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">Total disponível</p>
             </div>
           </div>
 
           {/* ── Meta Mensal ── */}
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
-            <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
                   <Target size={16} className="text-primary-700" />
@@ -529,7 +529,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* ── Charts row ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2">
               <RevenueChart
                 data={chartData}
@@ -634,7 +634,7 @@ export const Dashboard: React.FC = () => {
                       return (
                         <div
                           key={sale.id}
-                          className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-neutral-50 transition-colors"
+                          className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl hover:bg-neutral-50 transition-colors"
                         >
                           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary-900 flex-shrink-0">
                             {getInitials(customerName)}

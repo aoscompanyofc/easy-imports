@@ -132,6 +132,8 @@ const emptyForm = () => ({
   pdf_type: 'seminovo',
   // Custo manual (quando produto não vem do estoque)
   product_cost_manual: '',
+  // Salvar produto no histórico do estoque mesmo sendo venda sob demanda
+  save_to_stock: false,
 });
 
 export const Vendas: React.FC = () => {
@@ -405,6 +407,23 @@ export const Vendas: React.FC = () => {
             type: 'expense',
             category: 'stock',
             date: new Date(form.sale_date).toISOString().slice(0, 10),
+          });
+        }
+
+        // Salvar no histórico do estoque se solicitado
+        if (form.save_to_stock && productName) {
+          await dataService.addProduct({
+            name: productName,
+            category: form.incoming_category || 'Smartphones',
+            purchase_price: manualCost || 0,
+            sale_price: unitPrice,
+            stock_quantity: 0,
+            status: 'out_of_stock',
+            imei: form.product_imei || '',
+            product_capacity: form.product_capacity || '',
+            product_color: form.product_color || '',
+            product_condition: form.product_condition || 'Seminovo',
+            entry_date: new Date(form.sale_date).toISOString().split('T')[0],
           });
         }
       }
@@ -1117,17 +1136,70 @@ export const Vendas: React.FC = () => {
               </div>
 
               {!form.selectedProduct && (
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 border-2 border-orange-200 bg-orange-50/60 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
+                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Produto Sob Demanda</p>
+                    <span className="text-xs text-orange-500 font-normal normal-case">— comprado e vendido direto</span>
+                  </div>
+
                   <Input
-                    label="Custo do Produto (R$)"
+                    label="Custo de Entrada (R$)"
                     type="number"
                     step="any"
                     inputMode="decimal"
-                    placeholder="Quanto custou para você (opcional — calcula o lucro)"
+                    placeholder="Quanto você pagou pelo produto"
                     value={form.product_cost_manual}
                     onChange={setF('product_cost_manual')}
                     autoComplete="off"
                   />
+
+                  {/* Live profit preview */}
+                  {hasCost && salePrice > 0 && (
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      <div className="bg-white rounded-xl border border-orange-100 p-2.5 text-center">
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Custo</p>
+                        <p className="text-sm font-black text-neutral-700 mt-0.5">{formatCurrency(totalCost)}</p>
+                      </div>
+                      <div className="bg-white rounded-xl border border-orange-100 p-2.5 text-center">
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Venda</p>
+                        <p className="text-sm font-black text-neutral-700 mt-0.5">{formatCurrency(salePrice)}</p>
+                      </div>
+                      <div className={cn('rounded-xl border p-2.5 text-center', vendaProfit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}>
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Lucro</p>
+                        <p className={cn('text-sm font-black mt-0.5', vendaProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                          {formatCurrency(vendaProfit)}
+                        </p>
+                        <p className={cn('text-[10px] font-bold', vendaProfit >= 0 ? 'text-green-500' : 'text-red-400')}>
+                          {vendaMargin}%
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Toggle: salvar no histórico do estoque */}
+                  <label className="flex items-start gap-3 cursor-pointer pt-1">
+                    <div className="relative flex-shrink-0 mt-0.5">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={form.save_to_stock}
+                        onChange={(e) => setForm((f) => ({ ...f, save_to_stock: e.target.checked }))}
+                      />
+                      <div className={cn(
+                        'w-10 h-6 rounded-full transition-colors',
+                        form.save_to_stock ? 'bg-orange-400' : 'bg-neutral-200'
+                      )} />
+                      <div className={cn(
+                        'absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                        form.save_to_stock ? 'translate-x-5' : 'translate-x-1'
+                      )} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-neutral-800">Salvar no histórico do estoque</p>
+                      <p className="text-xs text-neutral-500">O produto aparece no Estoque como "Vendido" com custo e preço registrados</p>
+                    </div>
+                  </label>
                 </div>
               )}
 

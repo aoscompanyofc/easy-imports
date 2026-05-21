@@ -301,6 +301,12 @@ const LeadDetail = ({ lead, onClose, onMove, onDelete }: {
                 <span className="text-sm text-neutral-600">Origem: <strong>{lead.source}</strong></span>
               </div>
             )}
+            {lead.birthday && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
+                <span className="text-sm text-neutral-600">Nascimento: <strong>{new Date(lead.birthday + 'T00:00:00').toLocaleDateString('pt-BR')}</strong></span>
+              </div>
+            )}
             {lead.created_at && (
               <div className="flex items-center gap-3 px-4 py-3">
                 <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
@@ -373,7 +379,7 @@ export const Leads: React.FC = () => {
   const [isAddOpen, setIsAddOpen]   = useState(false);
   const [isSaving, setIsSaving]     = useState(false);
   const [form, setForm] = useState({
-    name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' as StageId,
+    name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' as StageId, birthday: '',
   });
 
   const sensors = useSensors(
@@ -495,7 +501,7 @@ export const Leads: React.FC = () => {
       if (form.status === 'closed') await syncCreateCustomer(form);
       toast.success('Lead adicionado!');
       setIsAddOpen(false);
-      setForm({ name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new' });
+      setForm({ name: '', phone: '', email: '', source: 'Instagram', notes: '', status: 'new', birthday: '' });
       fetchLeads();
     } catch (e: any) {
       toast.error('Erro: ' + e.message);
@@ -660,6 +666,8 @@ export const Leads: React.FC = () => {
           </div>
           <Input label="Interesse / Notas" placeholder="Ex: Interessado no iPhone 16 Pro 256GB"
             value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} autoComplete="off" />
+          <Input label="Data de Nascimento" type="date"
+            value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth type="button" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit">Criar Lead</Button>

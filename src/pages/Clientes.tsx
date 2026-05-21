@@ -22,8 +22,8 @@ const SOURCES = [
   'Indicação', 'Facebook', 'TikTok', 'Google', 'Loja Física', 'Outro',
 ];
 
-type FormData = { name: string; email: string; phone: string; cpf: string; city: string; notes: string; source: string };
-const emptyForm = (): FormData => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '', source: 'Instagram' });
+type FormData = { name: string; email: string; phone: string; cpf: string; city: string; notes: string; source: string; birthday: string };
+const emptyForm = (): FormData => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '', source: 'Instagram', birthday: '' });
 
 function norm(s: string) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -67,6 +67,8 @@ const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormDa
         {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
     </div>
+    <Input label="Data de Nascimento" type="date"
+      value={data.birthday} onChange={(e) => onChange({ ...data, birthday: e.target.value })} />
     <div className="md:col-span-2">
       <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
       <textarea
@@ -229,7 +231,7 @@ export const Clientes: React.FC = () => {
   const handleOpenEdit = (customer: any) => {
     setEditingId(customer.id);
     setEditForm({ name: customer.name || '', email: customer.email || '', phone: customer.phone || '',
-      cpf: customer.cpf || '', city: customer.city || '', notes: customer.notes || '', source: customer.source || 'Instagram' });
+      cpf: customer.cpf || '', city: customer.city || '', notes: customer.notes || '', source: customer.source || 'Instagram', birthday: customer.birthday || '' });
     setIsEditOpen(true);
   };
 
@@ -433,6 +435,14 @@ export const Clientes: React.FC = () => {
                   <div className="flex items-center gap-3 px-4 py-3">
                     <MapPin size={14} className="text-neutral-400 flex-shrink-0" />
                     <span className="text-sm font-medium text-neutral-800 truncate">{c.city}</span>
+                  </div>
+                )}
+                {c.birthday && (
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
+                    <span className="text-sm font-medium text-neutral-800">
+                      {new Date(c.birthday + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </span>
                   </div>
                 )}
                 {c.created_at && (

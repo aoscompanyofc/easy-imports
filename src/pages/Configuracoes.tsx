@@ -37,6 +37,7 @@ const PAGE_LABELS: Record<PageKey, string> = {
   marketing: 'Marketing',
   relatorios: 'Relatórios',
   documentacao: 'Documentação',
+  vendedores: 'Vendedores',
   configuracoes: 'Configurações',
 };
 

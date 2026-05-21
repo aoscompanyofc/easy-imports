@@ -3,7 +3,7 @@ import { NavLink, useMatch } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
-  ChevronLeft, ChevronRight, LucideIcon,
+  ChevronLeft, ChevronRight, LucideIcon, Users2,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
@@ -25,6 +25,7 @@ const ALL_MENU_ITEMS = [
   { icon: Megaphone, label: 'Marketing', path: '/marketing' },
   { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
   { icon: FileText, label: 'Documentação', path: '/documentacao' },
+  { icon: Users2, label: 'Vendedores', path: '/vendedores' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
 

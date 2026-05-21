@@ -121,24 +121,28 @@ export const dataService = {
       incoming_name, incoming_imei, incoming_serial, incoming_email,
       incoming_capacity, incoming_color, incoming_condition,
       incoming_battery_health, incoming_purchase_price,
+      rep_seller_id, rep_seller_name, incoming_devices_json,
     } = sale;
     const sign_token = crypto.randomUUID();
     const inst = installments || 1;
     const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid };
 
-    // Nível 1: schema completo — tudo incluindo incoming_*, pdf_type, customer_city
+    // Nível 1: schema completo — tudo incluindo incoming_*, pdf_type, customer_city, seller, multi-device
     const p1 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
-      incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price };
+      incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price,
+      seller_id: rep_seller_id, seller_display_name: rep_seller_name, incoming_devices_json };
 
-    // Nível 2: sem incoming_* — mantém sale_type, pdf_type, customer_city
+    // Nível 2: sem multi-device json e seller — mantém incoming_*, sale_type, pdf_type, customer_city
     const p2 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
-      product_capacity, product_color, product_condition, product_imei, product_accessories };
+      product_capacity, product_color, product_condition, product_imei, product_accessories,
+      incoming_name, incoming_imei, incoming_serial, incoming_email,
+      incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price };
 
     // Nível 3: sem incoming_*, sem customer_city/cpf e colunas de seller — mantém sale_type e pdf_type
     const p3 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
@@ -446,6 +450,46 @@ export const dataService = {
   async deleteCampaign(id: string) {
     if (useMock) return mockDataService.deleteCampaign(id);
     const { error } = await supabase.from('campaigns').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
+  // ─── Sellers (Vendedores) ────────────────────────────────────────────
+  async getSellers() {
+    if (useMock) return [];
+    const uid = await getUid();
+    const { data, error } = await supabase
+      .from('sellers')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: true });
+    if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) return [];
+    if (error) throw error;
+    return data || [];
+  },
+  async addSeller(seller: { name: string; role: string; monthly_goal: number; color: string }) {
+    if (useMock) return { id: crypto.randomUUID(), ...seller, active: true, created_at: new Date().toISOString() };
+    const uid = await getUid();
+    const { data, error } = await supabase
+      .from('sellers')
+      .insert([{ ...seller, user_id: uid, active: true }])
+      .select();
+    if (error) throw error;
+    return data![0];
+  },
+  async updateSeller(id: string, updates: Partial<{ name: string; role: string; monthly_goal: number; color: string; active: boolean }>) {
+    if (useMock) return;
+    const { data, error } = await supabase
+      .from('sellers')
+      .update(updates)
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    return data![0];
+  },
+  async deleteSeller(id: string) {
+    if (useMock) return;
+    const { error } = await supabase.from('sellers').delete().eq('id', id);
     if (error) throw error;
     return true;
   },

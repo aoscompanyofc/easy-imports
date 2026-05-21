@@ -3,6 +3,7 @@ import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
   RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw, Pencil,
+  Smartphone, Watch, Tablet, Laptop, Headphones,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -31,6 +32,115 @@ const SALE_TYPES = [
 const PAYMENT_METHODS = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'];
 
 const CONDITIONS = ['Novo', 'Seminovo', 'Usado — Bom Estado', 'Usado — Com Marcas', 'Para Retirada de Peças'];
+
+const DEVICE_CATEGORIES = [
+  { key: 'Smartphones', label: 'Smartphone', Icon: Smartphone },
+  { key: 'Smartwatches', label: 'Smartwatch', Icon: Watch },
+  { key: 'Tablets', label: 'Tablet', Icon: Tablet },
+  { key: 'Notebooks', label: 'Notebook', Icon: Laptop },
+  { key: 'Acessórios', label: 'Acessório', Icon: Headphones },
+];
+
+const DEVICE_MODELS: Record<string, string[]> = {
+  Smartphones: [
+    'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
+    'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
+    'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
+    'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13 mini', 'iPhone 13',
+    'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12 mini', 'iPhone 12',
+    'iPhone 11 Pro Max', 'iPhone 11 Pro', 'iPhone 11',
+    'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
+    'iPhone SE (3ª geração)', 'iPhone SE (2ª geração)',
+    'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24+', 'Samsung Galaxy S24',
+    'Samsung Galaxy S23 Ultra', 'Samsung Galaxy S23+', 'Samsung Galaxy S23',
+    'Samsung Galaxy S22 Ultra', 'Samsung Galaxy S22+', 'Samsung Galaxy S22',
+    'Samsung Galaxy Z Fold6', 'Samsung Galaxy Z Flip6',
+    'Samsung Galaxy Z Fold5', 'Samsung Galaxy Z Flip5',
+    'Samsung Galaxy A55', 'Samsung Galaxy A54', 'Samsung Galaxy A35',
+    'Motorola Edge 50 Pro', 'Motorola Edge 40 Pro', 'Motorola Moto G84',
+  ],
+  Smartwatches: [
+    'Apple Watch Ultra 2', 'Apple Watch Ultra',
+    'Apple Watch Series 10', 'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
+    'Apple Watch SE (2ª geração)', 'Apple Watch SE',
+    'Samsung Galaxy Watch 7', 'Samsung Galaxy Watch 6 Classic', 'Samsung Galaxy Watch 6',
+    'Samsung Galaxy Watch Ultra', 'Samsung Galaxy Watch 5 Pro',
+  ],
+  Tablets: [
+    'iPad Pro 13" (M4)', 'iPad Pro 11" (M4)', 'iPad Pro 12.9" (M2)', 'iPad Pro 11" (M2)',
+    'iPad Air 13" (M2)', 'iPad Air 11" (M2)', 'iPad Air (5ª geração)',
+    'iPad mini (6ª geração)', 'iPad (10ª geração)', 'iPad (9ª geração)',
+    'Samsung Galaxy Tab S9 Ultra', 'Samsung Galaxy Tab S9+', 'Samsung Galaxy Tab S9',
+  ],
+  Notebooks: [
+    'MacBook Pro 16" (M3 Max)', 'MacBook Pro 16" (M3 Pro)', 'MacBook Pro 16" (M3)',
+    'MacBook Pro 14" (M3 Max)', 'MacBook Pro 14" (M3 Pro)', 'MacBook Pro 14" (M3)',
+    'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)',
+    'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)',
+  ],
+  Acessórios: [
+    'AirPods Pro (2ª geração)', 'AirPods (4ª geração)', 'AirPods (3ª geração)', 'AirPods Max',
+    'Apple TV 4K', 'HomePod mini', 'HomePod (2ª geração)',
+  ],
+};
+
+const DEVICE_COLORS_BY_CAT: Record<string, { name: string; hex: string }[]> = {
+  Smartphones: [
+    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Branco', hex: '#F0EEE8' },
+    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Verde', hex: '#4A8C6A' },
+    { name: 'Amarelo', hex: '#F0C040' }, { name: 'Rosa', hex: '#F0A0B0' },
+    { name: 'Roxo', hex: '#7B5EA7' }, { name: 'Vermelho', hex: '#C0392B' },
+    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Meia-Noite', hex: '#1C2036' },
+    { name: 'Titânio Natural', hex: '#C0B8A8' }, { name: 'Titânio Preto', hex: '#3C3C3C' },
+    { name: 'Titânio Azul', hex: '#6B8CAE' }, { name: 'Titânio Deserto', hex: '#C8A882' },
+    { name: 'Titânio Branco', hex: '#E8E4DC' }, { name: 'Prata', hex: '#A8A9AD' },
+    { name: 'Cinza Espacial', hex: '#515154' },
+  ],
+  Smartwatches: [
+    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Prata', hex: '#A8A9AD' },
+    { name: 'Ouro', hex: '#D4AC0D' }, { name: 'Dourado Rosa', hex: '#C8887A' },
+    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Vermelho', hex: '#C0392B' },
+    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Meia-Noite', hex: '#1C2036' },
+    { name: 'Titânio Natural', hex: '#C0B8A8' }, { name: 'Titânio Preto', hex: '#3C3C3C' },
+  ],
+  Tablets: [
+    { name: 'Preto', hex: '#1C1C1E' }, { name: 'Prata', hex: '#A8A9AD' },
+    { name: 'Azul', hex: '#4A7CB4' }, { name: 'Roxo', hex: '#7B5EA7' },
+    { name: 'Amarelo', hex: '#F0C040' },
+  ],
+  Notebooks: [
+    { name: 'Prata', hex: '#A8A9AD' }, { name: 'Cinza Espacial', hex: '#515154' },
+    { name: 'Meia-Noite', hex: '#1C2036' }, { name: 'Estelar', hex: '#F0E8DC' },
+    { name: 'Preto', hex: '#1C1C1E' },
+  ],
+  Acessórios: [
+    { name: 'Branco', hex: '#F0EEE8' }, { name: 'Preto', hex: '#1C1C1E' },
+    { name: 'Prata', hex: '#A8A9AD' }, { name: 'Meia-Noite', hex: '#1C2036' },
+    { name: 'Estelar', hex: '#F0E8DC' }, { name: 'Azul', hex: '#4A7CB4' },
+  ],
+};
+
+const BATTERY_HEALTH_OPTIONS = [
+  '', '100%', '99%', '98%', '97%', '96%', '95%', '94%', '93%', '92%',
+  '91%', '90%', '89%', '88%', '87%', '86%', '85%', '84%', '83%', '82%',
+  '81%', '80%', 'Abaixo de 80%',
+];
+
+const CAPACITY_QUICK = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
+
+interface IncomingDevice {
+  name: string; imei: string; serial: string; email: string;
+  category: string; capacity: string; color: string;
+  condition: string; battery_health: string;
+  purchase_price: string; sale_price: string;
+}
+
+const emptyDevice = (): IncomingDevice => ({
+  name: '', imei: '', serial: '', email: '',
+  category: 'Smartphones', capacity: '', color: '',
+  condition: 'Seminovo', battery_health: '',
+  purchase_price: '', sale_price: '',
+});
 
 const TYPE_COLORS: Record<string, string> = {
   compra: 'bg-blue-100 text-blue-700',
@@ -110,18 +220,6 @@ const emptyForm = () => ({
   product_accessories: '',
   quantity: 1,
   sale_price_manual: '',
-  // Aparelho que entra (troca)
-  incoming_name: '',
-  incoming_imei: '',
-  incoming_serial: '',
-  incoming_email: '',
-  incoming_category: 'Smartphones',
-  incoming_capacity: '',
-  incoming_color: '',
-  incoming_condition: 'Seminovo',
-  incoming_battery_health: '',
-  incoming_purchase_price: '',
-  incoming_sale_price: '',
   // Pagamento
   payment_method: 'PIX',
   installments: 1,
@@ -138,6 +236,8 @@ const emptyForm = () => ({
   split_payment: false,
   payment2_method: 'Cartão de Crédito',
   payment2_amount: '',
+  // Vendedor responsável pela venda
+  rep_id: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -146,6 +246,8 @@ export const Vendas: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [incomingDevices, setIncomingDevices] = useState<IncomingDevice[]>([emptyDevice()]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -191,6 +293,7 @@ export const Vendas: React.FC = () => {
       setTransactions(txData || []);
       setCustomers(custData || []);
       setProducts((prodData || []).filter((p: any) => p.stock_quantity > 0));
+      dataService.getSellers().then((s) => setSellers(s || [])).catch(() => {});
 
       // Default: open current month
       const thisMonth = format(new Date(), 'yyyy-MM');
@@ -301,9 +404,10 @@ export const Vendas: React.FC = () => {
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
     const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
-    // Para troca: total_amount = caixa recebido + valor do aparelho que entrou
-    // (representa o valor real da transação, evitando lucro negativo no Dashboard)
-    const tradeInValue = form.sale_type === 'troca' ? Number(form.incoming_purchase_price || 0) : 0;
+    // Para troca: total_amount = caixa recebido + soma dos aparelhos que entraram
+    const tradeInValue = form.sale_type === 'troca'
+      ? incomingDevices.reduce((sum, d) => sum + Number(d.purchase_price || 0), 0)
+      : 0;
     const totalAmount = unitPrice * form.quantity + tradeInValue;
 
     if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
@@ -346,6 +450,8 @@ export const Vendas: React.FC = () => {
       const resolvedCpf = newCustomer.cpf.trim() || form.customer_cpf || selectedCustomerData?.cpf || '';
       const resolvedCity = newCustomer.address.trim() || form.customer_city || selectedCustomerData?.city || '';
 
+      const primaryDevice = incomingDevices[0] || emptyDevice();
+      const repSeller = sellers.find((s) => s.id === form.rep_id);
       const savedSale = await dataService.addSale(
         {
           customer_id: customerId,
@@ -372,47 +478,55 @@ export const Vendas: React.FC = () => {
           product_condition: form.product_condition,
           product_imei: form.product_imei || selectedProductData?.imei || '',
           product_accessories: form.product_accessories,
-          incoming_name: form.incoming_name || '',
-          incoming_imei: form.incoming_imei || '',
-          incoming_capacity: form.incoming_capacity || '',
-          incoming_color: form.incoming_color || '',
-          incoming_condition: form.incoming_condition || '',
-          incoming_battery_health: form.incoming_battery_health || '',
-          incoming_purchase_price: Number(form.incoming_purchase_price) || 0,
+          incoming_name: primaryDevice.name || '',
+          incoming_imei: primaryDevice.imei || '',
+          incoming_serial: primaryDevice.serial || '',
+          incoming_email: primaryDevice.email || '',
+          incoming_capacity: primaryDevice.capacity || '',
+          incoming_color: primaryDevice.color || '',
+          incoming_condition: primaryDevice.condition || '',
+          incoming_battery_health: primaryDevice.battery_health || '',
+          incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
           pdf_type: form.pdf_type || 'seminovo',
+          rep_seller_id: repSeller?.id || null,
+          rep_seller_name: repSeller?.name || '',
+          incoming_devices_json: incomingDevices.filter((d) => d.name.trim()).length > 0
+            ? JSON.stringify(incomingDevices.filter((d) => d.name.trim()))
+            : null,
         },
         product
           ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
           : []
       );
 
-      // For troca: add incoming device to stock
-      if (form.sale_type === 'troca' && form.incoming_name.trim()) {
-        const batteryNote = form.incoming_battery_health ? ` · Bateria: ${form.incoming_battery_health}` : '';
-        await dataService.addProduct({
-          name: form.incoming_name.trim(),
-          category: form.incoming_category || 'Smartphones',
-          purchase_price: Number(form.incoming_purchase_price) || 0,
-          sale_price: Number(form.incoming_sale_price) || 0,
-          stock_quantity: 1,
-          status: 'available',
-          imei: form.incoming_imei || '',
-          product_capacity: form.incoming_capacity || '',
-          product_color: form.incoming_color || '',
-          product_condition: (form.incoming_condition || 'Seminovo') + batteryNote,
-          entry_date: new Date(form.sale_date).toISOString().split('T')[0],
-        });
-      }
-
-      // Para trocas: registra o valor do aparelho que entrou como receita
-      if (form.sale_type === 'troca' && form.incoming_name.trim() && Number(form.incoming_purchase_price) > 0) {
-        await dataService.addTransaction({
-          description: `Aparelho Recebido ${saleNumber} — ${form.incoming_name.trim()}`,
-          amount: Number(form.incoming_purchase_price),
-          type: 'income',
-          category: 'trade',
-          date: new Date(form.sale_date).toISOString().slice(0, 10),
-        });
+      // For troca: add ALL incoming devices to stock
+      if (form.sale_type === 'troca') {
+        for (const device of incomingDevices) {
+          if (!device.name.trim()) continue;
+          const batteryNote = device.battery_health ? ` · Bateria: ${device.battery_health}` : '';
+          await dataService.addProduct({
+            name: device.name.trim(),
+            category: device.category || 'Smartphones',
+            purchase_price: Number(device.purchase_price) || 0,
+            sale_price: Number(device.sale_price) || 0,
+            stock_quantity: 1,
+            status: 'available',
+            imei: device.imei || '',
+            product_capacity: device.capacity || '',
+            product_color: device.color || '',
+            product_condition: (device.condition || 'Seminovo') + batteryNote,
+            entry_date: new Date(form.sale_date).toISOString().split('T')[0],
+          });
+          if (Number(device.purchase_price) > 0) {
+            await dataService.addTransaction({
+              description: `Aparelho Recebido ${saleNumber} — ${device.name.trim()}`,
+              amount: Number(device.purchase_price),
+              type: 'income',
+              category: 'trade',
+              date: new Date(form.sale_date).toISOString().slice(0, 10),
+            });
+          }
+        }
       }
 
       // Para produtos sem estoque: cria transações financeiras manualmente
@@ -439,7 +553,7 @@ export const Vendas: React.FC = () => {
         if (form.save_to_stock && productName) {
           await dataService.addProduct({
             name: productName,
-            category: form.incoming_category || 'Smartphones',
+            category: 'Smartphones',
             purchase_price: manualCost || 0,
             sale_price: unitPrice,
             stock_quantity: 0,
@@ -477,16 +591,16 @@ export const Vendas: React.FC = () => {
         total_amount: totalAmount,
         payment_method: resolvedPaymentMethod,
         installments: form.split_payment ? 1 : form.installments,
-        // Aparelho entrante (troca)
-        incoming_name: form.incoming_name || undefined,
-        incoming_imei: form.incoming_imei || undefined,
-        incoming_serial: form.incoming_serial || undefined,
-        incoming_email: form.incoming_email || undefined,
-        incoming_capacity: form.incoming_capacity || undefined,
-        incoming_color: form.incoming_color || undefined,
-        incoming_condition: form.incoming_condition || undefined,
-        incoming_battery_health: form.incoming_battery_health || undefined,
-        incoming_purchase_price: Number(form.incoming_purchase_price) || undefined,
+        // Aparelho entrante (troca) — PDF mostra o primeiro aparelho
+        incoming_name: primaryDevice.name || undefined,
+        incoming_imei: primaryDevice.imei || undefined,
+        incoming_serial: primaryDevice.serial || undefined,
+        incoming_email: primaryDevice.email || undefined,
+        incoming_capacity: primaryDevice.capacity || undefined,
+        incoming_color: primaryDevice.color || undefined,
+        incoming_condition: primaryDevice.condition || undefined,
+        incoming_battery_health: primaryDevice.battery_health || undefined,
+        incoming_purchase_price: Number(primaryDevice.purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
         pdf_type: form.pdf_type || 'seminovo',
       };
@@ -532,6 +646,7 @@ export const Vendas: React.FC = () => {
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
       setForm(emptyForm());
+      setIncomingDevices([emptyDevice()]);
       setShowNewCustomer(false);
       setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
       fetchData();
@@ -774,7 +889,7 @@ export const Vendas: React.FC = () => {
           <button onClick={() => setShowSQL(!showSQL)} className="text-xs text-neutral-400 hover:text-neutral-700 underline">
             SQL campos extras
           </button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
             Nova Operação
           </Button>
         </div>
@@ -1361,84 +1476,283 @@ export const Vendas: React.FC = () => {
             })()}
           </div>
 
-          {/* Aparelho Entrando (troca) */}
+          {/* ─── Aparelhos Entrando (troca) — multi-device ─── */}
           {form.sale_type === 'troca' && (
-            <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
-              <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
-                Aparelho Entrando (do cliente)
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Modelo do aparelho *"
-                    placeholder="Ex: Samsung Galaxy S22"
-                    value={form.incoming_name}
-                    onChange={setF('incoming_name')}
-                    autoComplete="off"
-                  />
-                </div>
-                <Input label="IMEI" placeholder="352XXXXXXXXXXXX" value={form.incoming_imei} onChange={setF('incoming_imei')} autoComplete="off" />
-                <Input label="Número de Série" placeholder="Ex: C02XG2YJHV2Q" value={form.incoming_serial} onChange={setF('incoming_serial')} autoComplete="off" />
-                <Input label="E-mail da Conta (iCloud/Google)" placeholder="Ex: joao@icloud.com" value={form.incoming_email} onChange={setF('incoming_email')} autoComplete="off" />
-                <Input label="Capacidade" placeholder="128GB" value={form.incoming_capacity} onChange={setF('incoming_capacity')} autoComplete="off" />
-                <Input label="Cor" placeholder="Preto" value={form.incoming_color} onChange={setF('incoming_color')} autoComplete="off" />
-                <div>
-                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
-                  <select
-                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                    value={form.incoming_condition}
-                    onChange={setF('incoming_condition')}
-                  >
-                    {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
-                  <select
-                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                    value={form.incoming_battery_health}
-                    onChange={setF('incoming_battery_health')}
-                  >
-                    <option value="">Não verificado</option>
-                    {['100%','99%','98%','97%','96%','95%','94%','93%','92%','91%','90%','89%','88%','87%','86%','85%','84%','83%','82%','81%','80%','Abaixo de 80%'].map(h => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </div>
-                <Input
-                  label="Valor dado ao cliente (R$) *"
-                  type="number"
-                  step="any" inputMode="decimal"
-                  placeholder="Quanto você avaliou o aparelho"
-                  value={form.incoming_purchase_price}
-                  onChange={setF('incoming_purchase_price')}
-                  autoComplete="off"
-                />
-                <Input
-                  label="Previsão de revenda (R$)"
-                  type="number"
-                  step="any" inputMode="decimal"
-                  placeholder="Quanto pretende vender depois"
-                  value={form.incoming_sale_price}
-                  onChange={setF('incoming_sale_price')}
-                  autoComplete="off"
-                />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
+                  Aparelhos Entrando (do cliente)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIncomingDevices((prev) => [...prev, emptyDevice()])}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
+                >
+                  <Plus size={13} /> Adicionar aparelho
+                </button>
               </div>
-              <p className="text-xs text-purple-500">Este aparelho será adicionado automaticamente ao seu estoque.</p>
+
+              {incomingDevices.map((device, idx) => {
+                const colorsForCat = DEVICE_COLORS_BY_CAT[device.category] || DEVICE_COLORS_BY_CAT['Smartphones'];
+                const modelsForCat = DEVICE_MODELS[device.category] || [];
+                const updateDevice = (field: keyof IncomingDevice, value: string) =>
+                  setIncomingDevices((prev) =>
+                    prev.map((d, i) => i === idx ? { ...d, [field]: value } : d)
+                  );
+
+                return (
+                  <div key={idx} className="border border-purple-200 bg-purple-50/40 rounded-2xl p-4 space-y-4">
+                    {/* Card header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center">
+                          <span className="text-xs font-black text-purple-700">{idx + 1}</span>
+                        </div>
+                        <p className="text-xs font-bold text-purple-700">
+                          {device.name || 'Aparelho sem nome'}
+                        </p>
+                      </div>
+                      {incomingDevices.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setIncomingDevices((prev) => prev.filter((_, i) => i !== idx))}
+                          className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remover aparelho"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category selector */}
+                    <div>
+                      <p className="text-xs font-bold text-neutral-600 mb-2">Categoria</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {DEVICE_CATEGORIES.map(({ key, label, Icon }) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setIncomingDevices((prev) =>
+                                prev.map((d, i) => i === idx ? { ...d, category: key, name: '', color: '' } : d)
+                              );
+                            }}
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 text-xs font-bold transition-all',
+                              device.category === key
+                                ? 'border-purple-400 bg-purple-100 text-purple-800'
+                                : 'border-neutral-200 text-neutral-500 hover:border-purple-200 hover:text-purple-600'
+                            )}
+                          >
+                            <Icon size={13} /> {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Model selector */}
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+                        Modelo *
+                      </label>
+                      <div className="relative">
+                        <input
+                          list={`models-${idx}`}
+                          placeholder="Digite ou selecione o modelo..."
+                          value={device.name}
+                          onChange={(e) => updateDevice('name', e.target.value)}
+                          className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                          autoComplete="off"
+                        />
+                        <datalist id={`models-${idx}`}>
+                          {modelsForCat.map((m) => <option key={m} value={m} />)}
+                        </datalist>
+                      </div>
+                      {/* Quick model chips */}
+                      {device.category === 'Smartphones' && (
+                        <div className="flex gap-1.5 flex-wrap mt-2">
+                          {['iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 13', 'iPhone 12'].map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => updateDevice('name', m)}
+                              className={cn(
+                                'px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
+                                device.name === m
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'border-neutral-200 text-neutral-500 hover:border-purple-300 hover:text-purple-600'
+                              )}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Capacity */}
+                      <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Capacidade</label>
+                        <div className="flex gap-1.5 flex-wrap mb-2">
+                          {CAPACITY_QUICK.map((cap) => (
+                            <button
+                              key={cap}
+                              type="button"
+                              onClick={() => updateDevice('capacity', device.capacity === cap ? '' : cap)}
+                              className={cn(
+                                'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-all',
+                                device.capacity === cap
+                                  ? 'border-purple-500 bg-purple-500 text-white'
+                                  : 'border-neutral-200 text-neutral-500 hover:border-purple-300'
+                              )}
+                            >
+                              {cap}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          placeholder="Outra capacidade"
+                          value={CAPACITY_QUICK.includes(device.capacity) ? '' : device.capacity}
+                          onChange={(e) => updateDevice('capacity', e.target.value)}
+                          className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                        />
+                      </div>
+
+                      {/* Condition */}
+                      <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
+                        <select
+                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                          value={device.condition}
+                          onChange={(e) => updateDevice('condition', e.target.value)}
+                        >
+                          {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Color swatches */}
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-2">Cor</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {colorsForCat.map(({ name, hex }) => (
+                          <button
+                            key={name}
+                            type="button"
+                            title={name}
+                            onClick={() => updateDevice('color', device.color === name ? '' : name)}
+                            className={cn(
+                              'w-7 h-7 rounded-full border-2 transition-all flex-shrink-0',
+                              device.color === name
+                                ? 'border-neutral-900 scale-110 shadow-md'
+                                : 'border-transparent hover:scale-105 hover:border-neutral-300'
+                            )}
+                            style={{ backgroundColor: hex }}
+                          />
+                        ))}
+                      </div>
+                      {device.color && (
+                        <p className="text-xs text-neutral-500 mt-1.5">Cor: <span className="font-bold">{device.color}</span></p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Battery health */}
+                      <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
+                        <select
+                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                          value={device.battery_health}
+                          onChange={(e) => updateDevice('battery_health', e.target.value)}
+                        >
+                          <option value="">Não verificado</option>
+                          {BATTERY_HEALTH_OPTIONS.filter(Boolean).map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* IMEI */}
+                      <div>
+                        <Input
+                          label="IMEI"
+                          placeholder="352XXXXXXXXXXXX"
+                          value={device.imei}
+                          onChange={(e) => updateDevice('imei', e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {/* iCloud/Google account */}
+                      <div>
+                        <Input
+                          label="E-mail da Conta (iCloud/Google)"
+                          placeholder="Ex: joao@icloud.com"
+                          value={device.email}
+                          onChange={(e) => updateDevice('email', e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {/* Serial */}
+                      <div>
+                        <Input
+                          label="Número de Série"
+                          placeholder="Ex: C02XG2YJHV2Q"
+                          value={device.serial}
+                          onChange={(e) => updateDevice('serial', e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {/* Purchase price */}
+                      <div>
+                        <Input
+                          label="Valor dado ao cliente (R$) *"
+                          type="number"
+                          step="any"
+                          inputMode="decimal"
+                          placeholder="Quanto você avaliou o aparelho"
+                          value={device.purchase_price}
+                          onChange={(e) => updateDevice('purchase_price', e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {/* Sale price estimate */}
+                      <div>
+                        <Input
+                          label="Previsão de revenda (R$)"
+                          type="number"
+                          step="any"
+                          inputMode="decimal"
+                          placeholder="Quanto pretende vender depois"
+                          value={device.sale_price}
+                          onChange={(e) => updateDevice('sale_price', e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <p className="text-xs text-purple-500 pl-1">
+                Todos os aparelhos serão adicionados automaticamente ao seu estoque.
+              </p>
 
               {/* ── Painel de lucratividade da troca ── */}
               {(() => {
-                const cashReceived  = Number(form.sale_price_manual) || 0;
-                const tradeIn       = Number(form.incoming_purchase_price) || 0;
-                const outSale       = cashReceived + tradeIn; // valor real da transação
-                const outCost       = selectedProductData?.purchase_price || 0;
-                const inResale      = Number(form.incoming_sale_price) || 0;
-
-                const profitOutgoing  = outSale - outCost;
-                const profitIncoming  = inResale > 0 ? inResale - tradeIn : null;
-                const totalProfit     = profitOutgoing + (profitIncoming ?? 0);
-                const hasNumbers      = cashReceived > 0 || outCost > 0 || tradeIn > 0;
-
+                const cashReceived = Number(form.sale_price_manual) || 0;
+                const totalTradeIn = incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                const totalResale  = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
+                const outSale      = cashReceived + totalTradeIn;
+                const outCost      = selectedProductData?.purchase_price || 0;
+                const profitOutgoing = outSale - outCost;
+                const profitIncoming = totalResale > 0 ? totalResale - totalTradeIn : null;
+                const totalProfit    = profitOutgoing + (profitIncoming ?? 0);
+                const hasNumbers     = cashReceived > 0 || outCost > 0 || totalTradeIn > 0;
                 if (!hasNumbers) return null;
 
                 const profitColor = (v: number) =>
@@ -1446,19 +1760,19 @@ export const Vendas: React.FC = () => {
 
                 return (
                   <div className="bg-white border border-purple-200 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-black text-purple-700 uppercase tracking-widest">📊 Análise da Troca</p>
+                    <p className="text-xs font-black text-purple-700 uppercase tracking-widest">Análise da Troca</p>
 
-                    {/* Aparelho saindo */}
-                    <div className="space-y-1 text-sm">
-                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Aparelho saindo</p>
+                    <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
                         <span className="text-neutral-500">Você recebe em caixa</span>
                         <span className="font-bold text-neutral-900">{formatCurrency(cashReceived)}</span>
                       </div>
-                      {tradeIn > 0 && (
+                      {totalTradeIn > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-neutral-500">Crédito da troca</span>
-                          <span className="font-bold text-neutral-900">+ {formatCurrency(tradeIn)}</span>
+                          <span className="text-neutral-500">
+                            Crédito dos aparelhos ({incomingDevices.filter((d) => d.purchase_price).length}x)
+                          </span>
+                          <span className="font-bold text-neutral-900">+ {formatCurrency(totalTradeIn)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
@@ -1467,46 +1781,46 @@ export const Vendas: React.FC = () => {
                       </div>
                       {outCost > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-neutral-500">Custo do estoque</span>
+                          <span className="text-neutral-500">Custo do aparelho saindo</span>
                           <span className="font-bold text-neutral-600">− {formatCurrency(outCost)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between pt-1 border-t border-neutral-100">
+                      <div className="flex justify-between pt-1.5 border-t border-neutral-100">
                         <span className="font-bold text-neutral-700">Lucro nesta venda</span>
                         <span className={cn('font-black', profitColor(profitOutgoing))}>
                           {formatCurrency(profitOutgoing)}
-                          {outSale > 0 && <span className="text-xs font-normal ml-1">({((profitOutgoing / outSale) * 100).toFixed(0)}%)</span>}
+                          {outSale > 0 && (
+                            <span className="text-xs font-normal ml-1">
+                              ({((profitOutgoing / outSale) * 100).toFixed(0)}%)
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
 
-                    {/* Aparelho entrando */}
-                    {tradeIn > 0 && inResale > 0 && (
-                      <div className="space-y-1 text-sm border-t border-neutral-100 pt-3">
-                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Aparelho entrando</p>
+                    {profitIncoming !== null && (
+                      <div className="space-y-1.5 text-sm border-t border-neutral-100 pt-3">
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                          Aparelhos entrando
+                        </p>
                         <div className="flex justify-between">
-                          <span className="text-neutral-500">Custo (valor dado)</span>
-                          <span className="font-bold text-neutral-600">− {formatCurrency(tradeIn)}</span>
+                          <span className="text-neutral-500">Custo total (valor dado)</span>
+                          <span className="font-bold text-neutral-600">− {formatCurrency(totalTradeIn)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-neutral-500">Previsão de revenda</span>
-                          <span className="font-bold text-neutral-900">{formatCurrency(inResale)}</span>
+                          <span className="font-bold text-neutral-900">{formatCurrency(totalResale)}</span>
                         </div>
-                        <div className="flex justify-between pt-1 border-t border-neutral-100">
-                          <span className="font-bold text-neutral-700">Lucro potencial</span>
-                          <span className={cn('font-black', profitColor(profitIncoming ?? 0))}>
-                            {formatCurrency(profitIncoming ?? 0)}
+                        <div className="flex justify-between pt-1.5 border-t border-neutral-100">
+                          <span className="font-bold text-neutral-700">Lucro potencial de revenda</span>
+                          <span className={cn('font-black', profitColor(profitIncoming))}>
+                            {formatCurrency(profitIncoming)}
                           </span>
                         </div>
                       </div>
                     )}
 
-                    {/* Totais */}
                     <div className="border-t-2 border-purple-200 pt-3 space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Você recebe em caixa agora</span>
-                        <span className="font-bold text-neutral-900">{formatCurrency(cashReceived)}</span>
-                      </div>
                       <div className="flex justify-between text-base">
                         <span className="font-black text-neutral-800">
                           {profitIncoming !== null ? 'Lucro total esperado' : 'Lucro bruto'}
@@ -1517,17 +1831,12 @@ export const Vendas: React.FC = () => {
                       </div>
                       {totalProfit < 0 && (
                         <p className="text-xs text-red-600 font-bold bg-red-50 rounded-lg px-3 py-2">
-                          ⚠️ Atenção: você está no prejuízo nesta operação!
-                        </p>
-                      )}
-                      {totalProfit === 0 && (
-                        <p className="text-xs text-amber-600 font-bold bg-amber-50 rounded-lg px-3 py-2">
-                          ⚠️ Operação no zero a zero — sem lucro nem prejuízo.
+                          Atenção: você está no prejuízo nesta operação!
                         </p>
                       )}
                       {totalProfit > 0 && (
                         <p className="text-xs text-green-700 font-bold bg-green-50 rounded-lg px-3 py-2">
-                          ✅ Operação no lucro!
+                          Operação no lucro!
                         </p>
                       )}
                     </div>
@@ -1732,21 +2041,46 @@ export const Vendas: React.FC = () => {
                   <span>Você recebe em caixa</span>
                   <span className="font-bold">{formatCurrency(salePrice)}</span>
                 </div>
-                {Number(form.incoming_purchase_price) > 0 && (
+                {incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0) > 0 && (
                   <div className="flex items-center justify-between text-sm text-purple-700">
-                    <span>Aparelho da troca</span>
-                    <span className="font-bold">+ {formatCurrency(Number(form.incoming_purchase_price))}</span>
+                    <span>
+                      Aparelhos da troca ({incomingDevices.filter((d) => d.purchase_price).length}x)
+                    </span>
+                    <span className="font-bold">
+                      + {formatCurrency(incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0))}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-primary/20">
                   <span className="font-bold text-neutral-700">Valor total recebido</span>
                   <span className="text-2xl font-black text-primary-900">
-                    {formatCurrency(salePrice + Number(form.incoming_purchase_price || 0))}
+                    {formatCurrency(salePrice + incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0))}
                   </span>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Vendedor responsável */}
+          {sellers.length > 0 && (
+            <div>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">
+                Responsável pela Venda
+              </p>
+              <select
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                value={form.rep_id}
+                onChange={setF('rep_id')}
+              >
+                <option value="">Sem atribuição</option>
+                {sellers.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.role && s.role !== 'Vendedor' ? ` — ${s.role}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>

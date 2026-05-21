@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 export const ALL_PAGES = [
   'dashboard', 'vendas', 'estoque', 'clientes', 'leads',
   'financeiro', 'fornecedores', 'marketing', 'relatorios',
-  'documentacao', 'configuracoes',
+  'documentacao', 'vendedores', 'configuracoes',
 ] as const;
 
 export type PageKey = typeof ALL_PAGES[number];

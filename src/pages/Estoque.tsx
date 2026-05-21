@@ -346,6 +346,45 @@ export const Estoque: React.FC = () => {
         </Button>
       </div>
 
+      {/* Summary stats */}
+      {available.length > 0 && (() => {
+        const totalCost = available.reduce((sum, p) => sum + (Number(p.purchase_price) || 0), 0);
+        const totalSale = available.reduce((sum, p) => sum + (Number(p.sale_price) || 0), 0);
+        const totalProfit = totalSale - totalCost;
+        const itemsWithPrice = available.filter(p => Number(p.sale_price) > 0).length;
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Em estoque</p>
+              <p className="text-2xl font-black text-neutral-900 mt-1">{available.length}</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">aparelho{available.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Custo total</p>
+              <p className="text-xl font-black text-red-600 mt-1">{formatCurrency(totalCost)}</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">investido</p>
+            </div>
+            <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Previsão de venda</p>
+              <p className="text-xl font-black text-neutral-900 mt-1">{formatCurrency(totalSale)}</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">{itemsWithPrice} com preço definido</p>
+            </div>
+            <div className={[
+              'border rounded-2xl p-4',
+              totalProfit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100',
+            ].join(' ')}>
+              <p className={['text-[10px] font-black uppercase tracking-wide', totalProfit >= 0 ? 'text-green-600' : 'text-red-500'].join(' ')}>
+                Lucro potencial
+              </p>
+              <p className={['text-xl font-black mt-1', totalProfit >= 0 ? 'text-green-600' : 'text-red-600'].join(' ')}>
+                {totalProfit >= 0 ? '+' : ''}{formatCurrency(totalProfit)}
+              </p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">se tudo vender</p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">

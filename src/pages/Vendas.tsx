@@ -875,6 +875,7 @@ export const Vendas: React.FC = () => {
                             <p className="text-xs text-neutral-400 truncate">
                               {sale.product_name}
                               {sale.product_imei ? ` · IMEI ${sale.product_imei}` : ''}
+                              {type === 'troca' && sale.incoming_name?.trim() ? ` ⇄ ${sale.incoming_name}` : ''}
                             </p>
                           </div>
 
@@ -2120,27 +2121,79 @@ export const Vendas: React.FC = () => {
               <span className="ml-auto text-2xl font-black text-neutral-900">{formatCurrency(Number(detailSale.total_amount))}</span>
             </div>
 
-            {/* Custo + Lucro */}
+            {/* Custo + Lucro / Resumo da Troca */}
             {(() => {
               const dtype = detailSale.sale_type || (detailSale.incoming_name?.trim() ? 'troca' : 'venda');
               const dcost = costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
-              const dprofit = dtype === 'troca' ? null : (dcost !== null ? Number(detailSale.total_amount) - dcost : null);
+
+              if (dtype === 'troca') {
+                const cashReceived = Number(detailSale.total_amount);
+                const incomingValue = Number(detailSale.incoming_purchase_price || 0);
+                const resultado = dcost !== null ? cashReceived + incomingValue - dcost : null;
+                return (
+                  <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+                    <div className="bg-neutral-900 text-white px-4 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-wider">Resumo da Troca</p>
+                    </div>
+                    <div className="divide-y divide-neutral-100">
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Aparelho que saiu</p>
+                          <p className="text-sm font-semibold text-neutral-900">{detailSale.product_name}</p>
+                        </div>
+                        {dcost !== null && (
+                          <span className="text-sm font-black text-red-600">− {formatCurrency(dcost)}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Cliente pagou</p>
+                          <p className="text-sm font-semibold text-neutral-900">{detailSale.payment_method || 'Dinheiro'}</p>
+                        </div>
+                        <span className="text-sm font-black text-green-600">+ {formatCurrency(cashReceived)}</span>
+                      </div>
+                      {detailSale.incoming_name?.trim() && (
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Aparelho recebido</p>
+                            <p className="text-sm font-semibold text-neutral-900">{detailSale.incoming_name}</p>
+                          </div>
+                          {incomingValue > 0 && (
+                            <span className="text-sm font-black text-green-600">+ {formatCurrency(incomingValue)}</span>
+                          )}
+                        </div>
+                      )}
+                      {resultado !== null && (
+                        <div className={cn('flex items-center justify-between px-4 py-3', resultado >= 0 ? 'bg-green-50' : 'bg-red-50')}>
+                          <p className={cn('text-xs font-black uppercase tracking-wide', resultado >= 0 ? 'text-green-700' : 'text-red-700')}>
+                            {resultado >= 0 ? 'Resultado positivo' : 'Resultado negativo'}
+                          </p>
+                          <span className={cn('text-base font-black', resultado >= 0 ? 'text-green-600' : 'text-red-600')}>
+                            {resultado >= 0 ? '+' : ''}{formatCurrency(resultado)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Venda / Compra
+              const dprofit = dcost !== null ? Number(detailSale.total_amount) - dcost : null;
               const dmargin = dprofit !== null && Number(detailSale.total_amount) > 0
                 ? Math.round((dprofit / Number(detailSale.total_amount)) * 100)
                 : null;
-              if (dcost === null && dprofit === null) return null;
+              if (dcost === null) return null;
               return (
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-center">
                     <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Venda</p>
                     <p className="text-sm font-black text-neutral-900 mt-0.5">{formatCurrency(Number(detailSale.total_amount))}</p>
                   </div>
-                  {dcost !== null && (
-                    <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
-                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
-                      <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(dcost)}</p>
-                    </div>
-                  )}
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                    <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
+                    <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(dcost)}</p>
+                  </div>
                   {dprofit !== null && (
                     <div className={cn('border rounded-xl p-3 text-center', dprofit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100')}>
                       <p className={cn('text-[10px] font-black uppercase tracking-wide', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>Lucro</p>

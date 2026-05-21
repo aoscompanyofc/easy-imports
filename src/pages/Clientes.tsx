@@ -3,7 +3,7 @@ import {
   Plus, Search, Phone, Mail, Trash2, Edit2, X,
   ShoppingBag, TrendingUp, Users, RepeatIcon,
   ChevronRight, Calendar, MapPin, FileText, CreditCard,
-  Send, Clock,
+  Send, Clock, Cake,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -115,6 +115,8 @@ export const Clientes: React.FC = () => {
   const [showInactive, setShowInactive] = useState(false);
   const [showMassModal, setShowMassModal] = useState(false);
   const [massMessage, setMassMessage] = useState('Olá {nome}! Temos novidades incríveis aqui na Easy Imports. Faz tempo que não te vemos por aqui! 😊');
+  const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+  const [birthdayMessage, setBirthdayMessage] = useState('🎂 Feliz aniversário, {nome}! Aqui é a equipe da Easy Imports desejando um dia muito especial pra você! 🥳 Aproveite seu dia e conte com a gente sempre! 😊');
 
   const fetchAll = async () => {
     try {
@@ -205,6 +207,18 @@ export const Clientes: React.FC = () => {
     }
     return count > 0 ? Math.round(total / count) : null;
   }, [enriched]);
+
+  const currentMonth = new Date().getMonth() + 1;
+  const birthdayCustomers = useMemo(() =>
+    customers
+      .filter(c => {
+        if (!c.birthday) return false;
+        const month = parseInt(c.birthday.split('-')[1], 10);
+        return month === currentMonth;
+      })
+      .sort((a, b) => parseInt(a.birthday.split('-')[2], 10) - parseInt(b.birthday.split('-')[2], 10)),
+    [customers, currentMonth]
+  );
 
   function formatLtv(days: number | null): string {
     if (days === null) return '—';
@@ -683,6 +697,18 @@ export const Clientes: React.FC = () => {
           <Send size={15} />
           Mensagem em Massa
         </button>
+        <button
+          onClick={() => setShowBirthdayModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-200 bg-amber-50 text-sm font-bold text-amber-700 hover:bg-amber-100 transition-all whitespace-nowrap relative"
+        >
+          <Cake size={15} />
+          Aniversariantes
+          {birthdayCustomers.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+              {birthdayCustomers.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Cards grid — alphabetical */}
@@ -732,6 +758,98 @@ export const Clientes: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Modal Aniversariantes do Mês */}
+      {showBirthdayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)} />
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between flex-shrink-0 bg-amber-50">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Cake size={18} className="text-amber-500" />
+                  <h2 className="font-black text-lg text-neutral-900">Aniversariantes do Mês</h2>
+                </div>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {new Date().toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())} · {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={() => setShowBirthdayModal(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Mensagem de Parabéns</label>
+                <textarea
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 resize-none"
+                  rows={4}
+                  value={birthdayMessage}
+                  onChange={e => setBirthdayMessage(e.target.value)}
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">Use {'{nome}'} para personalizar com o primeiro nome</p>
+              </div>
+
+              {birthdayCustomers.length === 0 ? (
+                <div className="py-10 flex flex-col items-center gap-3 text-center">
+                  <Cake size={36} className="text-neutral-200" />
+                  <div>
+                    <p className="font-bold text-neutral-500">Nenhum aniversariante este mês</p>
+                    <p className="text-xs text-neutral-400 mt-1">Cadastre a data de nascimento dos clientes para aparecerem aqui.</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
+                    Clientes ({birthdayCustomers.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {birthdayCustomers.map(c => {
+                      const [, , day] = c.birthday.split('-');
+                      const dayNum = parseInt(day, 10);
+                      const today = new Date().getDate();
+                      const isToday = dayNum === today;
+                      return (
+                        <div key={c.id} className={cn(
+                          'flex items-center gap-3 rounded-xl px-4 py-2.5 border',
+                          isToday ? 'bg-amber-50 border-amber-200' : 'bg-neutral-50 border-transparent'
+                        )}>
+                          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black flex-shrink-0', avatarColor(c.name))}>
+                            {getInitials(c.name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-bold text-neutral-900 truncate">{c.name}</p>
+                              {isToday && <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">Hoje! 🎂</span>}
+                            </div>
+                            <p className="text-xs text-neutral-400">
+                              {`Dia ${dayNum}`}{c.phone ? ` · ${c.phone}` : ''}
+                            </p>
+                          </div>
+                          {c.phone ? (
+                            <a
+                              href={`https://wa.me/${toWhatsApp(c.phone)}?text=${encodeURIComponent(birthdayMessage.replace(/\{nome\}/g, c.name.split(' ')[0]))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors flex-shrink-0"
+                            >
+                              <Send size={11} />
+                              Enviar
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-neutral-400 flex-shrink-0">Sem telefone</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Mensagem em Massa */}
       {showMassModal && (

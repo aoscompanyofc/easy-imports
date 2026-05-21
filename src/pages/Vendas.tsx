@@ -134,6 +134,10 @@ const emptyForm = () => ({
   product_cost_manual: '',
   // Salvar produto no histórico do estoque mesmo sendo venda sob demanda
   save_to_stock: false,
+  // Pagamento dividido
+  split_payment: false,
+  payment2_method: 'Cartão de Crédito',
+  payment2_amount: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -304,6 +308,16 @@ export const Vendas: React.FC = () => {
 
     if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
 
+    // Monta forma de pagamento combinada se split ativo
+    let resolvedPaymentMethod = form.payment_method;
+    if (form.split_payment && Number(form.payment2_amount) > 0) {
+      const p2 = Number(form.payment2_amount);
+      const p1 = Math.max(0, unitPrice * form.quantity - p2);
+      const cardMethod = form.payment2_method === 'Cartão de Crédito' ? form.payment2_method : form.payment_method === 'Cartão de Crédito' ? form.payment_method : null;
+      const instStr = cardMethod && form.installments > 1 ? ` ${form.installments}x` : '';
+      resolvedPaymentMethod = `${form.payment_method} (${formatCurrency(p1)}) + ${form.payment2_method}${instStr} (${formatCurrency(p2)})`;
+    }
+
     const saleNumber = generateSaleNumber(sales.length, form.sale_type);
 
     try {
@@ -338,8 +352,8 @@ export const Vendas: React.FC = () => {
           customer_name: customerName,
           product_name: productName,
           total_amount: totalAmount,
-          payment_method: form.payment_method,
-          installments: form.installments,
+          payment_method: resolvedPaymentMethod,
+          installments: form.split_payment ? 1 : form.installments,
           status: 'completed',
           created_at: new Date(form.sale_date).toISOString(),
           sale_number: saleNumber,
@@ -461,8 +475,8 @@ export const Vendas: React.FC = () => {
         product_imei: form.product_imei || selectedProductData?.imei || '',
         product_accessories: form.product_accessories,
         total_amount: totalAmount,
-        payment_method: form.payment_method,
-        installments: form.installments,
+        payment_method: resolvedPaymentMethod,
+        installments: form.split_payment ? 1 : form.installments,
         // Aparelho entrante (troca)
         incoming_name: form.incoming_name || undefined,
         incoming_imei: form.incoming_imei || undefined,
@@ -1493,7 +1507,21 @@ export const Vendas: React.FC = () => {
 
           {/* Condições de Pagamento */}
           <div>
-            <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Condições de Pagamento</p>
+              {/* Toggle pagamento dividido */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only"
+                    checked={form.split_payment}
+                    onChange={(e) => setForm((f: any) => ({ ...f, split_payment: e.target.checked, payment2_amount: '' }))}
+                  />
+                  <div className={cn('w-9 h-5 rounded-full transition-colors', form.split_payment ? 'bg-primary' : 'bg-neutral-200')} />
+                  <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', form.split_payment ? 'translate-x-4' : 'translate-x-0.5')} />
+                </div>
+                <span className="text-xs font-bold text-neutral-600">Pagamento dividido</span>
+              </label>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
@@ -1505,34 +1533,122 @@ export const Vendas: React.FC = () => {
                 onChange={setF('sale_price_manual')}
                 required
               />
-              <div>
-                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Forma de Pagamento</label>
-                <select
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                  value={form.payment_method}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm((f: any) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 }));
-                  }}
-                >
-                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              {form.payment_method === 'Cartão de Crédito' && (
-                <div>
-                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
-                  <select
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                    value={form.installments}
-                    onChange={(e) => setForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
-                  >
-                    {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
-                      const label = n === 1 ? '1x (à vista)' : `${n}x de ${salePrice > 0 ? formatCurrency(salePrice / n) : '—'}`;
-                      return <option key={n} value={n}>{label}</option>;
-                    })}
-                  </select>
+
+              {!form.split_payment ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Forma de Pagamento</label>
+                    <select
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      value={form.payment_method}
+                      onChange={(e) => { const v = e.target.value; setForm((f: any) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 })); }}
+                    >
+                      {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  {form.payment_method === 'Cartão de Crédito' && (
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Parcelas</label>
+                      <select
+                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                        value={form.installments}
+                        onChange={(e) => setForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
+                      >
+                        {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
+                          const label = n === 1 ? '1x (à vista)' : `${n}x de ${salePrice > 0 ? formatCurrency(salePrice / n) : '—'}`;
+                          return <option key={n} value={n}>{label}</option>;
+                        })}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Pagamento dividido */
+                <div className="sm:col-span-2 border-2 border-primary/20 bg-primary/5 rounded-2xl p-3 space-y-3">
+                  {(() => {
+                    const total = salePrice;
+                    const p2 = Number(form.payment2_amount) || 0;
+                    const p1 = Math.max(0, total - p2);
+                    const remainder = total - p1 - p2;
+                    const hasCard = form.payment_method === 'Cartão de Crédito' || form.payment2_method === 'Cartão de Crédito';
+                    const cardBase = form.payment2_method === 'Cartão de Crédito' ? p2 : p1;
+                    return (
+                      <>
+                        {/* Linha 1 */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <span className="text-[10px] font-black text-black">1</span>
+                          </div>
+                          <select
+                            className="flex-1 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                            value={form.payment_method}
+                            onChange={(e) => { const v = e.target.value; setForm((f: any) => ({ ...f, payment_method: v, installments: v === 'Cartão de Crédito' ? f.installments : 1 })); }}
+                          >
+                            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <div className="w-28 flex-shrink-0">
+                            <div className="bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-sm font-bold text-neutral-600 text-right">
+                              {total > 0 ? formatCurrency(p1) : '—'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Linha 2 */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-neutral-300 flex items-center justify-center flex-shrink-0">
+                            <span className="text-[10px] font-black text-neutral-600">2</span>
+                          </div>
+                          <select
+                            className="flex-1 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                            value={form.payment2_method}
+                            onChange={(e) => setForm((f: any) => ({ ...f, payment2_method: e.target.value }))}
+                          >
+                            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <input
+                            type="number"
+                            step="any"
+                            inputMode="decimal"
+                            placeholder="Valor"
+                            value={form.payment2_amount}
+                            onChange={setF('payment2_amount')}
+                            className="w-28 flex-shrink-0 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-right"
+                          />
+                        </div>
+
+                        {/* Saldo */}
+                        {total > 0 && (
+                          <div className={cn(
+                            'flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold',
+                            Math.abs(remainder) < 0.01 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                          )}>
+                            <span>{Math.abs(remainder) < 0.01 ? '✓ Pagamento completo' : 'Restante a distribuir'}</span>
+                            <span>{Math.abs(remainder) < 0.01 ? formatCurrency(total) : formatCurrency(Math.abs(remainder))}</span>
+                          </div>
+                        )}
+
+                        {/* Parcelas se tiver cartão */}
+                        {hasCard && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-neutral-500 flex-shrink-0">Parcelas do cartão:</span>
+                            <select
+                              className="flex-1 bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                              value={form.installments}
+                              onChange={(e) => setForm((f: any) => ({ ...f, installments: Number(e.target.value) }))}
+                            >
+                              {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => {
+                                const label = n === 1 ? '1x (à vista)' : `${n}x de ${cardBase > 0 ? formatCurrency(cardBase / n) : '—'}`;
+                                return <option key={n} value={n}>{label}</option>;
+                              })}
+                            </select>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
+
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data e Hora</label>
                 <input

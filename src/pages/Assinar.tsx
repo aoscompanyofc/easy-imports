@@ -136,7 +136,7 @@ export const Assinar: React.FC = () => {
           </div>
           <div className="p-4 space-y-4">
             <p className="text-sm text-neutral-600">
-              Ao assinar abaixo, você confirma que está de acordo com os termos do documento acima.
+              Ao assinar abaixo, você confirma que está de acordo com os termos do documento acima. Você pode desenhar ou digitar seu nome.
             </p>
             <SignaturePad
               value={signature}

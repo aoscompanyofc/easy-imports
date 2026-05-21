@@ -53,7 +53,13 @@ export const Estoque: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await dataService.getProducts();
-      setProducts(data || []);
+      // Sort: oldest entry_date first (ascending), then by created_at ascending as fallback
+      const sorted = [...(data || [])].sort((a, b) => {
+        const da = a.entry_date || a.created_at?.slice(0, 10) || '';
+        const db = b.entry_date || b.created_at?.slice(0, 10) || '';
+        return da.localeCompare(db);
+      });
+      setProducts(sorted);
 
       // Auto-fix duplicate names on first load
       if (!skipAutoFix && !autoFixedRef.current && data && data.length > 0) {
@@ -224,6 +230,7 @@ export const Estoque: React.FC = () => {
   const ProductCard = ({ p, isSoldView = false }: { p: any; isSoldView?: boolean }) => {
     const profit = p.sale_price - p.purchase_price;
     const margin = p.sale_price > 0 ? (profit / p.sale_price) * 100 : 0;
+    const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
     return (
       <div className={[
         'flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
@@ -231,6 +238,29 @@ export const Estoque: React.FC = () => {
           ? 'bg-neutral-50 border-neutral-200 opacity-55'
           : 'bg-white border-neutral-200 hover:border-primary/30 hover:shadow-sm',
       ].join(' ')}>
+
+        {/* Date badge — far left */}
+        <div className={[
+          'w-10 flex-shrink-0 rounded-lg text-center py-1 px-1',
+          isSoldView ? 'bg-neutral-200' : 'bg-neutral-100',
+        ].join(' ')}>
+          {entryDate ? (
+            <>
+              <div className="text-[13px] font-black leading-none text-neutral-700">
+                {String(entryDate.getDate()).padStart(2, '0')}
+              </div>
+              <div className="text-[9px] font-bold uppercase tracking-wide text-neutral-400 mt-0.5">
+                {entryDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+              </div>
+              <div className="text-[8px] text-neutral-300 leading-none">
+                {entryDate.getFullYear()}
+              </div>
+            </>
+          ) : (
+            <div className="text-[9px] text-neutral-300 font-bold">—</div>
+          )}
+        </div>
+
         {/* Icon */}
         <div className={[
           'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
@@ -265,9 +295,6 @@ export const Estoque: React.FC = () => {
           )}
           {p.product_origin && (
             <span className="text-xs text-neutral-400">Origem: <strong className="text-blue-600">{p.product_origin}</strong></span>
-          )}
-          {p.entry_date && (
-            <span className="text-xs text-neutral-400">Entrada: <strong className="text-neutral-600">{formatDate(p.entry_date)}</strong></span>
           )}
         </div>
 

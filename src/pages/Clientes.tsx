@@ -1,17 +1,37 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Phone, Mail, Trash2, Edit2, X,
   MessageCircle, ShoppingBag, TrendingUp, Users,
-  ChevronRight, Calendar, MapPin, FileText, CreditCard,
+  ChevronRight, Calendar, MapPin, FileText, CreditCard, GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
-import { formatCurrency, formatDate } from '../lib/formatters';
+import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+const ORDER_KEY = 'easy-imports-clientes-order';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -80,6 +100,15 @@ export const Clientes: React.FC = () => {
   const [allSales, setAllSales] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [order, setOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]'); } catch { return []; }
+  });
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -137,15 +166,21 @@ export const Clientes: React.FC = () => {
   }
 
   const enriched = useMemo(() => {
-    return customers.map(c => {
+    const base = customers.map(c => {
       const sales = getSalesForCustomer(c);
       const totalSpent = sales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
-      const lastSale = sales.sort((a: any, b: any) =>
+      const lastSale = sales.slice().sort((a: any, b: any) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )[0];
       return { ...c, _sales: sales, _totalSpent: totalSpent, _lastSale: lastSale };
     });
-  }, [customers, salesByCustomer]);
+    if (order.length === 0) return base;
+    const map: Record<string, any> = {};
+    for (const c of base) map[c.id] = c;
+    const sorted = order.filter(id => map[id]).map(id => map[id]);
+    const rest = base.filter(c => !order.includes(c.id));
+    return [...sorted, ...rest];
+  }, [customers, salesByCustomer, order]);
 
   const filtered = enriched.filter(c =>
     norm(c.name).includes(norm(searchTerm)) ||
@@ -153,6 +188,24 @@ export const Clientes: React.FC = () => {
     norm(c.email || '').includes(norm(searchTerm)) ||
     (c.cpf || '').includes(searchTerm)
   );
+
+  const handleDragStart = useCallback((e: DragStartEvent) => {
+    setActiveId(String(e.active.id));
+  }, []);
+
+  const handleDragEnd = useCallback((e: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setOrder(prev => {
+      const ids = enriched.map(c => c.id);
+      const oldIdx = ids.indexOf(String(active.id));
+      const newIdx = ids.indexOf(String(over.id));
+      const newOrder = arrayMove(ids, oldIdx, newIdx);
+      localStorage.setItem(ORDER_KEY, JSON.stringify(newOrder));
+      return newOrder;
+    });
+  }, [enriched]);
 
   // Global stats
   const totalRevenue = enriched.reduce((a, c) => a + c._totalSpent, 0);
@@ -221,9 +274,9 @@ export const Clientes: React.FC = () => {
     }
   };
 
-  // ── Customer Card ─────────────────────────────────────────────────────────
+  // ── Customer Card (base — reused by DragOverlay too) ─────────────────────
 
-  const CustomerCard = ({ c }: { c: any }) => {
+  const CardContent = ({ c, isDragging = false }: { c: any; isDragging?: boolean }) => {
     const initials = getInitials(c.name);
     const color = avatarColor(c.name);
     const salesCount = c._sales.length;
@@ -232,8 +285,18 @@ export const Clientes: React.FC = () => {
       : null;
 
     return (
-      <div className="bg-white border border-neutral-200 rounded-2xl p-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group">
-        <div className="flex items-start gap-3">
+      <div className={cn(
+        'bg-white border rounded-2xl p-4 transition-all duration-200 group relative',
+        isDragging
+          ? 'border-primary shadow-2xl shadow-primary/20 rotate-1 scale-105 opacity-90'
+          : 'border-neutral-200 hover:border-primary/40 hover:shadow-md',
+      )}>
+        {/* Drag handle — top right */}
+        <div className="absolute top-3 right-3 text-neutral-300 group-hover:text-neutral-400 transition-colors cursor-grab active:cursor-grabbing">
+          <GripVertical size={14} />
+        </div>
+
+        <div className="flex items-start gap-3 pr-5">
           {/* Avatar */}
           <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0', color)}>
             {initials}
@@ -249,14 +312,6 @@ export const Clientes: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Detail arrow */}
-          <button
-            onClick={() => setDetailCustomer(c)}
-            className="p-1.5 text-neutral-300 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
 
         {/* Stats row */}
@@ -284,41 +339,60 @@ export const Clientes: React.FC = () => {
               <p className="text-[10px] text-neutral-300 italic">Sem compras registradas</p>
             )}
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {c.phone && (
-              <a
-                href={`https://wa.me/${toWhatsApp(c.phone)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-                title="WhatsApp"
+          {!isDragging && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {c.phone && (
+                <a
+                  href={`https://wa.me/${toWhatsApp(c.phone)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                  title="WhatsApp"
+                >
+                  <MessageCircle size={13} />
+                </a>
+              )}
+              <button
+                onClick={() => setDetailCustomer(c)}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Ver histórico"
               >
-                <MessageCircle size={13} />
-              </a>
-            )}
-            <button
-              onClick={() => setDetailCustomer(c)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Ver histórico"
-            >
-              <FileText size={13} />
-            </button>
-            <button
-              onClick={() => handleOpenEdit(c)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-              title="Editar"
-            >
-              <Edit2 size={13} />
-            </button>
-            <button
-              onClick={() => handleDelete(c.id, c.name)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-              title="Remover"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
+                <FileText size={13} />
+              </button>
+              <button
+                onClick={() => handleOpenEdit(c)}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Editar"
+              >
+                <Edit2 size={13} />
+              </button>
+              <button
+                onClick={() => handleDelete(c.id, c.name)}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Remover"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
         </div>
+      </div>
+    );
+  };
+
+  // ── Sortable wrapper ───────────────────────────────────────────────────────
+
+  const CustomerCard = ({ c }: { c: any }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
+    const style: React.CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.35 : 1,
+      zIndex: isDragging ? 10 : undefined,
+    };
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <CardContent c={c} />
       </div>
     );
   };
@@ -603,7 +677,7 @@ export const Clientes: React.FC = () => {
         />
       </div>
 
-      {/* Cards grid */}
+      {/* Cards grid with drag-and-drop */}
       {filtered.length === 0 ? (
         <div className="py-20 flex flex-col items-center gap-4 text-center">
           <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center">
@@ -624,9 +698,23 @@ export const Clientes: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={filtered.map(c => c.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
+            </div>
+          </SortableContext>
+          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.18,0.67,0.6,1.22)' }}>
+            {activeId ? (
+              <CardContent c={filtered.find(c => c.id === activeId)!} isDragging />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Modal Adicionar */}

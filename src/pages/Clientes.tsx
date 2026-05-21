@@ -209,25 +209,28 @@ export const Clientes: React.FC = () => {
     return count > 0 ? Math.round(total / count) : null;
   }, [enriched]);
 
-  function getBirthdayMonth(birthday: string): number | null {
+  function getBirthdayMonth(birthday: string | null | undefined): number | null {
     if (!birthday) return null;
-    // Suporta YYYY-MM-DD e DD/MM/YYYY
-    if (birthday.includes('-')) {
-      const parts = birthday.split('-');
-      if (parts.length >= 2) return parseInt(parts[1], 10);
-    }
-    if (birthday.includes('/')) {
-      const parts = birthday.split('/');
-      if (parts.length >= 2) return parseInt(parts[1], 10);
-    }
+    const s = String(birthday).trim();
+    // YYYY-MM-DD ou ISO (ex: "1990-05-15" ou "1990-05-15T03:00:00+00:00")
+    const isoMatch = s.match(/^\d{4}-(\d{2})/);
+    if (isoMatch) return parseInt(isoMatch[1], 10);
+    // DD/MM/YYYY
+    const brMatch = s.match(/^\d{2}\/(\d{2})/);
+    if (brMatch) return parseInt(brMatch[1], 10);
     return null;
   }
-  function getBirthdayDay(birthday: string): number {
+  function getBirthdayDay(birthday: string | null | undefined): number {
     if (!birthday) return 0;
-    if (birthday.includes('-')) return parseInt(birthday.split('-')[2] || '0', 10);
-    if (birthday.includes('/')) return parseInt(birthday.split('/')[0] || '0', 10);
+    const s = String(birthday).trim();
+    const isoMatch = s.match(/^\d{4}-\d{2}-(\d{2})/);
+    if (isoMatch) return parseInt(isoMatch[1], 10);
+    const brMatch = s.match(/^(\d{2})\//);
+    if (brMatch) return parseInt(brMatch[1], 10);
     return 0;
   }
+
+  const customersWithBirthday = useMemo(() => customers.filter(c => c.birthday), [customers]);
 
   const targetDate = useMemo(() => {
     const d = new Date();
@@ -850,12 +853,26 @@ export const Clientes: React.FC = () => {
               </div>
 
 
+              {/* Debug: mostra clientes com birthday no banco */}
+              {customersWithBirthday.length > 0 && birthdayCustomers.length === 0 && (
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs text-neutral-500 space-y-1">
+                  <p className="font-bold text-neutral-700">{customersWithBirthday.length} cliente(s) com data cadastrada — nenhum em {targetDate.toLocaleString('pt-BR', { month: 'long' })}:</p>
+                  {customersWithBirthday.map(c => (
+                    <p key={c.id}><span className="font-semibold">{c.name}</span> → <code className="bg-neutral-200 px-1 rounded">{String(c.birthday)}</code> (mês {getBirthdayMonth(c.birthday)})</p>
+                  ))}
+                </div>
+              )}
+
               {birthdayCustomers.length === 0 ? (
                 <div className="py-8 flex flex-col items-center gap-3 text-center">
                   <Cake size={36} className="text-neutral-200" />
                   <div>
                     <p className="font-bold text-neutral-500">Nenhum aniversariante em {targetDate.toLocaleString('pt-BR', { month: 'long' })}</p>
-                    <p className="text-xs text-neutral-400 mt-1">Edite os clientes e preencha a data de nascimento para aparecerem aqui.</p>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      {customersWithBirthday.length === 0
+                        ? 'Edite os clientes e preencha a data de nascimento para aparecerem aqui.'
+                        : 'Use as setas ← → para navegar entre os meses.'}
+                    </p>
                   </div>
                 </div>
               ) : (

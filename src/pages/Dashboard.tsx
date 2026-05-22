@@ -247,7 +247,7 @@ export const Dashboard: React.FC = () => {
       const sv = (products || [])
         .filter((p: any) => p.stock_quantity > 0)
         .reduce((acc: number, p: any) =>
-          acc + (p.sale_price > 0 ? Number(p.sale_price) : Number(p.purchase_price || 0)), 0);
+          acc + Number(p.purchase_price || 0), 0);
       setStockValue(sv);
     } catch (error) {
       console.error('Dashboard error:', error);

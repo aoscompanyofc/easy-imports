@@ -588,6 +588,7 @@ export const Vendas: React.FC = () => {
         incoming_purchase_price: Number(primaryDevice.purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
         pdf_type: form.pdf_type || 'seminovo',
+        installments_json: installmentsJson || undefined,
       };
       generatePDF(pdfData, getCompanyInfo());
 
@@ -811,6 +812,7 @@ export const Vendas: React.FC = () => {
       signature_admin: adminSignature || undefined,
       signature_client: sale.signature_client || undefined,
       pdf_type: sale.pdf_type || undefined,
+      installments_json: sale.installments_json || undefined,
     };
     generatePDF(pdfData, getCompanyInfo());
   };

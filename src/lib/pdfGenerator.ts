@@ -44,6 +44,8 @@ export interface SalePDFData {
   // 'novo' = garantia do fabricante (1 ano) | 'seminovo' = 90 dias Easy Imports
   // Quando informado, sobrepõe a detecção automática pela condição do aparelho
   pdf_type?: string;
+  // JSON array de parcelas para venda a prazo
+  installments_json?: string;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -234,6 +236,57 @@ body {
   letter-spacing: 0.3px;
   flex-shrink: 0;
 }
+
+/* TABELA DE PARCELAS */
+.inst-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2px 0;
+  font-size: 7.5pt;
+}
+.inst-table thead tr {
+  background: #111;
+  color: #F5C200;
+}
+.inst-table thead th {
+  padding: 4px 7px;
+  text-align: left;
+  font-size: 6.5pt;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+.inst-table thead th.r { text-align: right; }
+.inst-table tbody tr:nth-child(even) { background: #f7f7f7; }
+.inst-table tbody td {
+  padding: 3px 7px;
+  border-bottom: 1px solid #efefef;
+  color: #111;
+}
+.inst-table tbody td.r { text-align: right; font-weight: 700; }
+.inst-table tbody td.paid { color: #2d6a4f; font-weight: 700; }
+.inst-table tfoot td {
+  padding: 5px 7px;
+  border-top: 2px solid #111;
+  font-weight: 900;
+  font-size: 8.5pt;
+}
+.inst-table tfoot td.r { text-align: right; color: #111; }
+
+/* PIX BOX */
+.pix-box {
+  border: 1.5px solid #F5C200;
+  background: #fffde7;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pix-icon { font-size: 13pt; flex-shrink: 0; }
+.pix-txt { font-size: 7.5pt; }
+.pix-txt strong { font-size: 8.5pt; color: #111; }
 `;
 
 // ─── helpers de renderização ──────────────────────────────────────────────────
@@ -672,9 +725,202 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
   openAndPrint(page('DOCUMENTO DE COMPRA', sale.sale_number, date, body), `Compra ${sale.sale_number}`);
 }
 
+// ─── CONTRATO DE VENDA A PRAZO ───────────────────────────────────────────────
+export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
+  const date = fmtDate(sale.created_at);
+  const clientName  = sale.customer_name  || '';
+  const clientCpf   = sale.customer_cpf   || '';
+  const clientPhone = sale.customer_phone || '';
+  const clientCity  = sale.customer_city  || '';
+
+  // Parse installments
+  interface Installment { n: number; due: string; amount: number; paid_at: string | null }
+  let insts: Installment[] = [];
+  if (sale.installments_json) {
+    try { insts = JSON.parse(sale.installments_json); } catch {}
+  }
+
+  const totalContract = insts.length > 0
+    ? insts.reduce((s, i) => s + i.amount, 0)
+    : (sale.total_amount || 0);
+  const paidCount = insts.filter(i => i.paid_at).length;
+  const instValue = insts[0]?.amount || 0;
+  const planLabel = insts.length > 0
+    ? `${insts.length}x de ${fmtMoney(instValue)} — Total ${fmtMoney(totalContract)}`
+    : fmtMoney(totalContract);
+
+  // Condition helpers (same as venda)
+  const outCond = (sale.product_condition || '').toLowerCase();
+  const isNovo  = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
+  const isSemi  = (c: string) => c.includes('seminovo');
+  const isBom   = (c: string) => c.includes('bom') && !c.includes('seminovo');
+  const isUsado = (c: string) => c.includes('usado') || c.includes('defeito');
+  const forceNovo = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
+
+  // Installment table rows
+  const instRows = insts.map(inst => {
+    const dueFmt = inst.due.split('-').reverse().join('/');
+    const isPaid = !!inst.paid_at;
+    const paidFmt = isPaid ? inst.paid_at!.split('-').reverse().join('/') : '';
+    return `<tr>
+      <td>${inst.n}</td>
+      <td>${dueFmt}</td>
+      <td>PIX</td>
+      <td class="r${isPaid ? ' paid' : ''}">${isPaid ? `✓ Pago em ${paidFmt}` : fmtMoney(inst.amount)}</td>
+    </tr>`;
+  }).join('');
+
+  const instTableOrFallback = insts.length > 0 ? `
+    <table class="inst-table">
+      <thead>
+        <tr>
+          <th style="width:28px">Nº</th>
+          <th>Vencimento</th>
+          <th>Forma</th>
+          <th class="r">Valor</th>
+        </tr>
+      </thead>
+      <tbody>${instRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">Valor Total do Contrato</td>
+          <td class="r">${fmtMoney(totalContract)}</td>
+        </tr>
+        ${paidCount > 0 ? `<tr style="color:#2d6a4f">
+          <td colspan="3">Já recebido (${paidCount} parcela${paidCount !== 1 ? 's' : ''})</td>
+          <td class="r">${fmtMoney(insts.filter(i => i.paid_at).reduce((s, i) => s + i.amount, 0))}</td>
+        </tr>` : ''}
+      </tfoot>
+    </table>
+    <div class="pix-box">
+      <span class="pix-icon">⚡</span>
+      <div class="pix-txt">
+        Chave PIX para pagamento: <strong>${company.cnpj || company.phone || 'Consulte a Easy Imports'}</strong>
+        &nbsp;·&nbsp; Favorecido: <strong>${company.name}</strong>
+        &nbsp;·&nbsp; Envie o comprovante via WhatsApp após cada pagamento.
+      </div>
+    </div>
+  ` : `<div class="row">${field('Forma de Pagamento', sale.payment_method, 'f3')}${field('Valor Total', fmtMoney(totalContract), 'f2')}</div>`;
+
+  // Trade-in block (optional)
+  const hasTradeIn = !!sale.incoming_name?.trim();
+  const tradeInSection = hasTradeIn ? `
+<div class="sec">
+  <div class="sec-t">Aparelho Recebido na Troca</div>
+  <div class="sec-b">
+    <div class="row">
+      ${field('Modelo', sale.incoming_name, 'f3')}
+      ${field('Cor', sale.incoming_color)}
+      ${field('Capacidade', sale.incoming_capacity)}
+    </div>
+    <div class="row">
+      ${field('IMEI / Serial', sale.incoming_imei || sale.incoming_serial, 'f2')}
+      ${sale.incoming_battery_health ? field('Saúde Bateria', sale.incoming_battery_health) : ''}
+      ${field('Valor de Crédito ao Cliente', fmtMoney(sale.incoming_purchase_price), 'f2')}
+    </div>
+    <p style="font-size:7.5pt;color:#555;margin-top:4px;">
+      O aparelho acima foi recebido pela Easy Imports como parte do pagamento, reduzindo o valor
+      do contrato. O comprador declara ser o legítimo proprietário e que o aparelho não possui bloqueios ativos.
+    </p>
+  </div>
+</div>` : '';
+
+  const body = `
+<div class="sec">
+  <div class="sec-t">Partes Contratantes</div>
+  <div class="sec-b">
+    <div class="split">
+      <div class="split-box">
+        <div class="split-t">Vendedora — Credora</div>
+        <div class="split-b">
+          <div class="row">${field('Razão Social', company.name, 'f4')}</div>
+          <div class="row">
+            ${field('CNPJ', company.cnpj, 'f2')}
+            ${field('Telefone / WhatsApp', company.phone, 'f2')}
+          </div>
+        </div>
+      </div>
+      <div class="split-box">
+        <div class="split-t">Comprador — Devedor</div>
+        <div class="split-b">
+          <div class="row">${field('Nome Completo', clientName, 'f4')}</div>
+          <div class="row">
+            ${field('CPF / CNPJ', clientCpf, 'f2')}
+            ${field('Telefone / WhatsApp', clientPhone, 'f2')}
+          </div>
+          <div class="row">${field('Endereço', clientCity, 'f4')}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-t">Objeto do Contrato</div>
+  <div class="sec-b">
+    <div class="row">
+      ${field('Produto / Modelo', sale.product_name, 'f3')}
+      ${field('Cor', sale.product_color, 'f2')}
+      ${field('Capacidade', sale.product_capacity)}
+    </div>
+    <div class="row">
+      ${field('IMEI / Número de Série', sale.product_imei, 'f2')}
+      ${field('Acessórios Inclusos', sale.product_accessories, 'f3')}
+    </div>
+    <div class="ck-row">
+      <span class="ck-lbl">Estado:</span>
+      ${checkbox('Novo (lacrado)', forceNovo)}
+      ${checkbox('Seminovo',  !forceNovo && isSemi(outCond))}
+      ${checkbox('Bom estado', !forceNovo && isBom(outCond))}
+      ${checkbox('Usado',      !forceNovo && isUsado(outCond))}
+    </div>
+  </div>
+</div>
+
+${tradeInSection}
+
+<div class="sec">
+  <div class="sec-t">Plano de Pagamento — ${planLabel}</div>
+  <div class="sec-b">
+    ${instTableOrFallback}
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-t">Cláusulas Contratuais</div>
+  <div class="sec-b">
+    <div class="g-txt" style="font-size:7.5pt;line-height:1.65;color:#333;">
+      <strong>1. Pagamento:</strong> O comprador compromete-se a pagar cada parcela até a data de vencimento via PIX,
+      enviando o comprovante ao WhatsApp da Easy Imports. O não pagamento na data acordada
+      caracteriza inadimplência.<br>
+      <strong>2. Atraso:</strong> Em caso de atraso superior a 5 dias, incidirão multa de 2% e juros de mora de 1% ao
+      mês sobre o valor da parcela em aberto. Após 15 dias de inadimplência, a Easy Imports
+      poderá retomar amigavelmente o produto descrito neste contrato.<br>
+      <strong>3. Propriedade:</strong> A propriedade do produto somente é transferida definitivamente ao comprador
+      após o pagamento integral de todas as parcelas. O produto não pode ser vendido, transferido
+      ou dado como garantia antes da quitação total.<br>
+      <strong>4. Garantia:</strong> A Easy Imports concede garantia de 90 dias para defeitos técnicos de funcionamento
+      a partir desta data (art. 26, CDC). Não coberta: quedas, danos por água, mau uso ou violação por terceiros.<br>
+      <strong>5. Foro:</strong> As partes elegem o foro da comarca de domicílio da vendedora para dirimir eventuais
+      controvérsias oriundas deste contrato, com renúncia a qualquer outro.
+    </div>
+  </div>
+</div>
+
+<div class="sig-area">
+  <div class="sigs">
+    ${sigBlock('Assinatura do Comprador', `Nome: ${fmt(clientName) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(clientCpf) || '___________________'}`, sale.signature_client)}
+    ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
+  </div>
+</div>`;
+
+  openAndPrint(page('CONTRATO DE VENDA A PRAZO', sale.sale_number, date, body), `Prazo ${sale.sale_number}`);
+}
+
 // ─── dispatcher ───────────────────────────────────────────────────────────────
 export function generatePDF(sale: SalePDFData, company: CompanyInfo) {
   if (sale.sale_type === 'compra') return generateCompraPDF(sale, company);
   if (sale.sale_type === 'troca')  return generateTrocaPDF(sale, company);
+  if (sale.sale_type === 'prazo')  return generatePrazoPDF(sale, company);
   return generateVendaPDF(sale, company);
 }

@@ -7,7 +7,6 @@ import {
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
-import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { formatCurrency, formatDate } from '../lib/formatters';
@@ -280,26 +279,36 @@ export const Financeiro: React.FC = () => {
 
   const columns = [
     { header: 'Descrição', accessor: (t: any) => (
-      <div className="flex flex-col gap-0.5">
-        <span className="font-semibold text-neutral-900">{t.description}</span>
-        {isAutoTx(t) && (
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Automático · gerado pela venda</span>
-        )}
+      <div className="flex items-center gap-3 py-0.5">
+        <div className={cn(
+          'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black',
+          t.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+        )}>
+          {t.type === 'income' ? '↑' : '↓'}
+        </div>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="font-semibold text-neutral-900 leading-snug">{t.description}</span>
+          {isAutoTx(t) && (
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Automático · gerado pela venda</span>
+          )}
+        </div>
       </div>
     )},
     { header: 'Categoria', accessor: (t: any) => (
-      <span className="text-sm text-neutral-600">{CATEGORY_LABELS[t.category] || t.category || '—'}</span>
-    )},
-    { header: 'Data', accessor: (t: any) => formatDate(t.date) },
-    { header: 'Valor', accessor: (t: any) => (
-      <span className={t.type === 'income' ? 'text-success font-bold' : 'text-danger font-bold'}>
-        {t.type === 'income' ? '+' : '−'} {formatCurrency(t.amount)}
+      <span className={cn(
+        'text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap',
+        t.type === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+      )}>
+        {CATEGORY_LABELS[t.category] || t.category || '—'}
       </span>
     )},
-    { header: 'Tipo', accessor: (t: any) => (
-      <Badge variant={t.type === 'income' ? 'success' : 'danger'}>
-        {t.type === 'income' ? 'Entrada' : 'Saída'}
-      </Badge>
+    { header: 'Data', accessor: (t: any) => (
+      <span className="text-sm text-neutral-500 whitespace-nowrap">{formatDate(t.date)}</span>
+    )},
+    { header: 'Valor', accessor: (t: any) => (
+      <span className={cn('font-black text-sm whitespace-nowrap', t.type === 'income' ? 'text-emerald-600' : 'text-red-500')}>
+        {t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}
+      </span>
     )},
     { header: 'Ações', accessor: (t: any) => (
       <div className="flex items-center gap-1.5">
@@ -501,25 +510,50 @@ export const Financeiro: React.FC = () => {
         {/* Real transactions for this month */}
         {viewMonthTx.length > 0 ? (
           <div>
-            <div className="px-5 py-2 bg-neutral-50 border-b border-neutral-100">
-              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Lançamentos Reais do Mês</p>
+            <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between">
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Lançamentos do Mês</p>
+              <span className="text-[10px] font-bold text-neutral-400">{viewMonthTx.length} lançamento{viewMonthTx.length !== 1 ? 's' : ''}</span>
             </div>
-            <div className="divide-y divide-neutral-50 max-h-64 overflow-y-auto">
+            <div className="divide-y divide-neutral-100 max-h-80 overflow-y-auto">
               {viewMonthTx.map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-neutral-900 truncate">{t.description}</p>
-                    <p className="text-xs text-neutral-400">{formatDate(t.date)} · {CATEGORY_LABELS[t.category] || t.category}</p>
+                <div key={t.id} className="flex items-center gap-0 hover:bg-neutral-50 transition-colors">
+                  {/* Colored left stripe */}
+                  <div className={cn('w-1 self-stretch flex-shrink-0 rounded-r', t.type === 'income' ? 'bg-emerald-400' : 'bg-red-400')} />
+                  <div className="flex items-center gap-3 flex-1 px-4 py-3.5 min-w-0">
+                    {/* Icon */}
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black',
+                      t.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                    )}>
+                      {t.type === 'income' ? '↑' : '↓'}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-neutral-900 leading-snug truncate">{t.description}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">{formatDate(t.date)}</span>
+                        <span className="text-neutral-200 text-xs">·</span>
+                        <span className={cn(
+                          'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                          t.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                        )}>
+                          {CATEGORY_LABELS[t.category] || t.category || '—'}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Amount */}
+                    <div className="flex-shrink-0 text-right">
+                      <span className={cn('text-sm font-black', t.type === 'income' ? 'text-emerald-600' : 'text-red-500')}>
+                        {t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}
+                      </span>
+                    </div>
                   </div>
-                  <span className={cn('text-sm font-black flex-shrink-0', t.type === 'income' ? 'text-emerald-600' : 'text-red-500')}>
-                    {t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}
-                  </span>
                 </div>
               ))}
             </div>
           </div>
         ) : viewMonthProjected.length === 0 && (
-          <div className="px-5 py-6 text-center text-sm text-neutral-400">
+          <div className="px-5 py-8 text-center text-sm text-neutral-400">
             Nenhum lançamento em {fmtMonthKey(viewMonth)}.
           </div>
         )}

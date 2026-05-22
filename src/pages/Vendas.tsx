@@ -323,16 +323,36 @@ export const Vendas: React.FC = () => {
     const productName = product?.name || form.product_name_manual;
     const isPrazo = form.sale_type === 'prazo';
     const prazoCount = isPrazo ? Math.max(1, Number(form.prazo_count) || 1) : 0;
-    const prazoValue = isPrazo ? (Number(form.prazo_value) || 0) : 0;
-    const unitPrice = isPrazo ? prazoValue : (Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0));
-    // Para troca: total_amount = caixa recebido + soma dos aparelhos que entraram
+
+    // Para prazo: preço do produto vem de sale_price_manual (auto-preenchido do estoque ou manual)
+    const prazoProductPrice = isPrazo
+      ? (Number(form.sale_price_manual) || (product?.sale_price > 0 ? product.sale_price : 0))
+      : 0;
+    // Aparelhos dados pelo cliente na troca (crédito abatido do prazo)
+    const prazoTradeInTotal = isPrazo
+      ? incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0)
+      : 0;
+    // Valor que o cliente ainda paga em parcelas = preço do produto − crédito da troca
+    const prazoFinancing = Math.max(0, prazoProductPrice - prazoTradeInTotal);
+    // Valor por parcela: manual tem prioridade; senão auto-calcula pelo financiamento
+    const prazoValue = isPrazo
+      ? (Number(form.prazo_value) > 0 ? Number(form.prazo_value) : (prazoCount > 0 ? prazoFinancing / prazoCount : 0))
+      : 0;
+
+    const unitPrice = isPrazo
+      ? prazoProductPrice
+      : (Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0));
+    // Trade-in para troca regular
     const tradeInValue = form.sale_type === 'troca'
       ? incomingDevices.reduce((sum, d) => sum + Number(d.purchase_price || 0), 0)
       : 0;
-    const totalAmount = isPrazo ? prazoCount * prazoValue : (unitPrice * form.quantity + tradeInValue);
+    // Total: prazo = parcelas + troca (= preço do produto); outros = preço × qtd + troca
+    const totalAmount = isPrazo
+      ? prazoCount * prazoValue + prazoTradeInTotal
+      : (unitPrice * form.quantity + tradeInValue);
 
     if (isPrazo) {
-      if (prazoValue <= 0) { toast.error('Informe o valor da parcela.'); return; }
+      if (prazoValue <= 0) { toast.error('Informe o valor da parcela ou o valor do produto.'); return; }
       if (!form.prazo_first_due) { toast.error('Informe a data do 1º vencimento.'); return; }
     } else {
       if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
@@ -352,7 +372,9 @@ export const Vendas: React.FC = () => {
 
     // Monta forma de pagamento combinada se split ativo
     let resolvedPaymentMethod = isPrazo
-      ? `A Prazo — ${prazoCount}x de ${formatCurrency(prazoValue)}`
+      ? (prazoTradeInTotal > 0
+        ? `Troca ${formatCurrency(prazoTradeInTotal)} + ${prazoCount}x de ${formatCurrency(prazoValue)} a prazo`
+        : `A Prazo — ${prazoCount}x de ${formatCurrency(prazoValue)}`)
       : form.payment_method;
     if (!isPrazo && form.split_payment && Number(form.payment2_amount) > 0) {
       const p2 = Number(form.payment2_amount);
@@ -1727,8 +1749,8 @@ export const Vendas: React.FC = () => {
                 }
               </p>
 
-              {/* ── Painel de lucratividade da troca ── */}
-              {(() => {
+              {/* ── Painel de lucratividade da troca (só para troca, não prazo) ── */}
+              {form.sale_type !== 'prazo' && (() => {
                 const cashReceived = Number(form.sale_price_manual) || 0;
                 const totalTradeIn = incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0);
                 const totalResale  = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
@@ -2090,8 +2112,72 @@ export const Vendas: React.FC = () => {
             <div className="border-2 border-orange-200 bg-orange-50/40 rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
-                <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Parcelas do Contrato</p>
+                <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Condições a Prazo</p>
               </div>
+
+              {/* Valor do produto — sempre visível para prazo */}
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+                  Valor do Produto (R$) *
+                  {selectedProductData && selectedProductData.sale_price > 0 && (
+                    <span className="ml-2 text-[10px] font-normal text-orange-500">
+                      auto-preenchido do estoque
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  value={form.sale_price_manual}
+                  onChange={setF('sale_price_manual')}
+                  className="w-full bg-white border-2 border-orange-300 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="Ex: 5000"
+                />
+              </div>
+
+              {/* Breakdown: produto − troca = a pagar a prazo */}
+              {(() => {
+                const prodPrice = Number(form.sale_price_manual) || 0;
+                const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                const diff = Math.max(0, prodPrice - tradeIn);
+                const cnt = Math.max(1, Number(form.prazo_count) || 1);
+                const suggested = cnt > 0 ? diff / cnt : 0;
+                if (prodPrice === 0 && tradeIn === 0) return null;
+                return (
+                  <div className="bg-white border border-orange-200 rounded-xl p-3.5 space-y-2">
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Breakdown do Contrato</p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Valor do produto</span>
+                      <span className="font-bold text-neutral-900">{formatCurrency(prodPrice)}</span>
+                    </div>
+                    {tradeIn > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-700">Crédito da troca ({incomingDevices.filter(d => d.model.trim()).length}x aparelho)</span>
+                        <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-bold border-t border-orange-200 pt-2">
+                      <span className="text-orange-700">A pagar em parcelas</span>
+                      <span className="text-orange-700">{formatCurrency(diff)}</span>
+                    </div>
+                    {suggested > 0 && (
+                      <p className="text-xs text-orange-500">
+                        Sugestão: {cnt}x de {formatCurrency(suggested)}
+                        {!Number(form.prazo_value) && (
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, prazo_value: String(Math.round(suggested * 100) / 100) }))}
+                            className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 font-bold rounded-full hover:bg-orange-200 transition-colors"
+                          >
+                            Usar este valor
+                          </button>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -2117,7 +2203,6 @@ export const Vendas: React.FC = () => {
                     onChange={setF('prazo_value')}
                     className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="500,00"
-                    required={form.sale_type === 'prazo'}
                   />
                 </div>
                 <div>
@@ -2143,20 +2228,59 @@ export const Vendas: React.FC = () => {
                 />
               </div>
 
-              {/* Preview do contrato */}
-              {Number(form.prazo_value) > 0 && Number(form.prazo_count) > 0 && (
+              {/* Preview do contrato — mostra breakdown completo */}
+              {(Number(form.prazo_value) > 0 || Number(form.sale_price_manual) > 0) && Number(form.prazo_count) > 0 && (
                 <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-2">
                   <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Resumo do Contrato</p>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">Parcelas</span>
-                    <span className="font-bold">{form.prazo_count}x de {formatCurrency(Number(form.prazo_value))}</span>
-                  </div>
+
+                  {Number(form.sale_price_manual) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Valor do produto</span>
+                      <span className="font-bold">{formatCurrency(Number(form.sale_price_manual))}</span>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                    if (tradeIn <= 0) return null;
+                    return (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-700">Crédito da troca</span>
+                        <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                      </div>
+                    );
+                  })()}
+
+                  {Number(form.prazo_value) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Parcelas ({form.prazo_count}x)</span>
+                      <span className="font-bold">{form.prazo_count}x de {formatCurrency(Number(form.prazo_value))}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-sm border-t border-orange-100 pt-2">
-                    <span className="font-bold text-neutral-700">Valor total do contrato</span>
+                    <span className="font-bold text-neutral-700">
+                      {(() => {
+                        const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                        return tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo';
+                      })()}
+                    </span>
                     <span className="text-xl font-black text-orange-700">
-                      {formatCurrency(Number(form.prazo_count) * Number(form.prazo_value))}
+                      {(() => {
+                        const cnt = Math.max(1, Number(form.prazo_count) || 1);
+                        const val = Number(form.prazo_value) > 0
+                          ? Number(form.prazo_value)
+                          : (() => {
+                            const prodP = Number(form.sale_price_manual) || 0;
+                            const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                            return Math.max(0, prodP - tradeIn) / cnt;
+                          })();
+                        const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                        return formatCurrency(cnt * val + tradeIn);
+                      })()}
                     </span>
                   </div>
+
                   {form.prazo_first_due && (
                     <p className="text-xs text-orange-600 font-medium">
                       Primeira parcela em: {form.prazo_first_due.split('-').reverse().join('/')}

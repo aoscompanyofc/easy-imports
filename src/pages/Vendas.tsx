@@ -406,6 +406,9 @@ export const Vendas: React.FC = () => {
         customerName = created.name;
         customerPhone = created.phone || customerPhone;
         setCustomers((prev) => [created, ...prev]);
+        if (created.__migration_needed) {
+          toast('Endereço/CPF não foram salvos no perfil do cliente. Execute a migração SQL em Configurações → banco de dados.', { icon: '⚠️', duration: 6000 });
+        }
       }
 
       // Resolve customer fields — new customer form takes priority over existing customer data
@@ -449,7 +452,7 @@ export const Vendas: React.FC = () => {
           incoming_condition: primaryDevice.condition || '',
           incoming_battery_health: primaryDevice.battery_health || '',
           incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
-          pdf_type: form.pdf_type || 'seminovo',
+          pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
           rep_seller_id: repSeller?.id || null,
           rep_seller_name: repSeller?.name || '',
           incoming_devices_json: incomingDevices.filter((d) => d.model.trim()).length > 0
@@ -609,7 +612,7 @@ export const Vendas: React.FC = () => {
         incoming_battery_health: primaryDevice.battery_health || undefined,
         incoming_purchase_price: Number(primaryDevice.purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
-        pdf_type: form.pdf_type || 'seminovo',
+        pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
         installments_json: installmentsJson || undefined,
       };
       generatePDF(pdfData, getCompanyInfo());
@@ -810,7 +813,7 @@ export const Vendas: React.FC = () => {
       seller_address: sale.seller_address,
       seller_email: sale.seller_email,
       customer_name: sale.customer_name || sale.customers?.name,
-      customer_phone: sale.customer_phone,
+      customer_phone: sale.customer_phone || sale.customers?.phone || '',
       customer_cpf: sale.customer_cpf,
       customer_city: sale.customer_city || sale.customers?.city || '',
       product_name: sale.product_name,
@@ -1174,7 +1177,7 @@ export const Vendas: React.FC = () => {
                                 setEditSale(sale);
                                 setEditForm({
                                   customer_name: sale.customer_name || '',
-                                  customer_phone: sale.customer_phone || '',
+                                  customer_phone: sale.customer_phone || sale.customers?.phone || '',
                                   customer_cpf: sale.customer_cpf || '',
                                   customer_city: sale.customer_city || sale.customers?.city || '',
                                   product_name: sale.product_name || '',
@@ -1184,7 +1187,7 @@ export const Vendas: React.FC = () => {
                                   product_imei: sale.product_imei || '',
                                   product_accessories: sale.product_accessories || '',
                                   sale_type: sale.sale_type || 'venda',
-                                  pdf_type: sale.pdf_type || 'seminovo',
+                                  pdf_type: sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
                                   total_amount: String(sale.total_amount || ''),
                                   payment_method: sale.payment_method || 'PIX',
                                   installments: sale.installments || 1,
@@ -1408,6 +1411,18 @@ export const Vendas: React.FC = () => {
                   <Input label="Nome (se não cadastrado)" value={form.seller_name} onChange={setF('seller_name')} autoComplete="off" />
                   <Input label="CPF / CNPJ" placeholder="CPF ou CNPJ" value={form.customer_cpf} onChange={setF('customer_cpf')} autoComplete="off" />
                 </>
+              )}
+
+              {!showNewCustomer && (
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Endereço / Cidade do Cliente"
+                    placeholder="Rua, número, bairro, cidade — SP"
+                    value={form.customer_city}
+                    onChange={setF('customer_city')}
+                    autoComplete="off"
+                  />
+                </div>
               )}
 
               {/* WhatsApp — always visible so the signing link can be sent */}

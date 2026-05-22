@@ -265,7 +265,7 @@ export const Clientes: React.FC = () => {
     if (!formData.name.trim()) { toast.error('Informe o nome do cliente.'); return; }
     try {
       setIsSaving(true);
-      await dataService.addCustomer(formData);
+      const created = await dataService.addCustomer(formData);
       try {
         await dataService.addLead({
           name: formData.name, phone: formData.phone || '',
@@ -273,15 +273,14 @@ export const Clientes: React.FC = () => {
           notes: formData.notes || '', status: 'closed',
         });
       } catch { /* ignore */ }
-      toast.success('Cliente cadastrado!');
+      if (created.__migration_needed) {
+        toast.success('Cliente salvo! Endereço/CPF não foram incluídos — execute a migração SQL em Configurações.');
+      } else {
+        toast.success('Cliente cadastrado!');
+      }
       setIsAddOpen(false); setFormData(emptyForm()); fetchAll();
     } catch (error: any) {
-      if (error.message === '__MIGRATION_NEEDED__') {
-        toast.success('Cliente salvo!');
-        setIsAddOpen(false); setFormData(emptyForm()); fetchAll();
-      } else {
-        toast.error('Erro ao salvar: ' + error.message);
-      }
+      toast.error('Erro ao salvar: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -299,16 +298,15 @@ export const Clientes: React.FC = () => {
     if (!editingId || !editForm.name.trim()) { toast.error('O nome não pode ficar vazio.'); return; }
     try {
       setIsEditSaving(true);
-      await dataService.updateCustomer(editingId, editForm);
-      toast.success('Cliente atualizado!');
+      const updated = await dataService.updateCustomer(editingId, editForm);
+      if (updated.__migration_needed) {
+        toast.success('Atualizado! Endereço/CPF não foram incluídos — execute a migração SQL.');
+      } else {
+        toast.success('Cliente atualizado!');
+      }
       setIsEditOpen(false); setEditingId(null); fetchAll();
     } catch (error: any) {
-      if (error.message === '__MIGRATION_NEEDED__') {
-        toast.success('Atualizado!');
-        setIsEditOpen(false); setEditingId(null); fetchAll();
-      } else {
-        toast.error('Erro ao atualizar: ' + error.message);
-      }
+      toast.error('Erro ao atualizar: ' + error.message);
     } finally {
       setIsEditSaving(false);
     }

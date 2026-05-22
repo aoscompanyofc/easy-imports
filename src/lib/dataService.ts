@@ -112,7 +112,7 @@ export const dataService = {
   async getSales() {
     if (useMock) return mockDataService.getSales();
     const { data, error } = await supabase
-      .from('sales').select('*, customers(name, city)').order('created_at', { ascending: false });
+      .from('sales').select('*, customers(name, city, phone)').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -152,18 +152,24 @@ export const dataService = {
       incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price,
       installments_json };
 
-    // Nível 3: sem incoming_*, sem customer_city/cpf e colunas de seller — mantém sale_type e pdf_type
+    // Nível 3: sem incoming_* e seller — mantém customer_city/cpf, sale_type e pdf_type
     const p3 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
+      customer_phone, customer_cpf, customer_city,
+      product_capacity, product_color, product_condition, product_imei, product_accessories,
+      installments_json };
+
+    // Nível 4: sem incoming_*, sem customer_city/cpf — mantém sale_type e pdf_type
+    const p4 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       customer_phone, product_capacity, product_color, product_condition, product_imei, product_accessories,
       installments_json };
 
-    // Nível 4: sem colunas de produto extras — garante sale_type e sale_number
-    const p4 = { ...base, sale_number, sale_type, installments: inst, sign_token, installments_json };
+    // Nível 5: sem colunas de produto extras — garante sale_type e sale_number
+    const p5 = { ...base, sale_number, sale_type, installments: inst, sign_token, installments_json };
 
-    // Nível 5: mínimo absoluto — pelo menos sale_type é salvo
-    const p5 = { ...base, sale_type };
+    // Nível 6: mínimo absoluto — pelo menos sale_type é salvo
+    const p6 = { ...base, sale_type };
 
-    const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5]);
+    const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5, p6]);
     const saleId = saleRow.id;
     const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {
@@ -293,13 +299,12 @@ export const dataService = {
     const { data: d1, error: e1 } = await supabase.from('customers').insert([fullPayload]).select();
     if (!e1) return d1![0]; // campos extras salvos — sem necessidade de migração
     if (!isColErr(e1)) throw e1;
-    // Fallback sem campos extras — informa que migração é necessária
+    // Fallback sem campos extras — retorna com flag de migração necessária
     const saved = await tryInsert('customers', [
       { ...base, ...(birthday ? { birthday } : {}) },
       base,
     ]);
-    if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return saved;
+    return hasCpfCity ? { ...saved, __migration_needed: true } : saved;
   },
   async updateCustomer(id: string, updates: any) {
     if (useMock) return updates;
@@ -323,8 +328,7 @@ export const dataService = {
     if (email !== undefined) baseNoBirthday.email = email;
     if (phone !== undefined) baseNoBirthday.phone = phone;
     const saved = await tryUpdate('customers', id, [base, baseNoBirthday]);
-    if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return saved;
+    return hasCpfCity ? { ...saved, __migration_needed: true } : saved;
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);

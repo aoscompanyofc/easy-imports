@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp, Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil, BarChart3 } from 'lucide-react';
+import {
+  DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp,
+  Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil, BarChart3,
+  ChevronLeft, ChevronRight, CheckCircle2, Clock,
+} from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table } from '../components/ui/Table';
@@ -16,8 +20,20 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function fmtMonthKey(key: string) {
+  const [y, m] = key.split('-');
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function shiftMonth(key: string, delta: number): string {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export const Financeiro: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
@@ -31,6 +47,11 @@ export const Financeiro: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Month navigator
+  const todayKey = new Date().toISOString().slice(0, 7);
+  const [viewMonth, setViewMonth] = useState(todayKey);
+  const [effectingKey, setEffectingKey] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -39,21 +60,93 @@ export const Financeiro: React.FC = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  const fetchTransactions = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await dataService.getTransactions();
-      setTransactions(data || []);
+      const [txData, salesData] = await Promise.all([
+        dataService.getTransactions(),
+        dataService.getSales(),
+      ]);
+      setTransactions(txData || []);
+      setSales(salesData || []);
     } catch (error: any) {
-      toast.error('Erro ao carregar transações: ' + error.message);
+      toast.error('Erro ao carregar: ' + error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
+
+  // Projected prazo installments grouped by month
+  const projectedByMonth = useMemo(() => {
+    const map: Record<string, { sale: any; inst: any; index: number }[]> = {};
+    for (const sale of sales) {
+      if (sale.sale_type !== 'prazo' || !sale.installments_json) continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(sale.installments_json); } catch { continue; }
+      insts.forEach((inst: any, i: number) => {
+        if (inst.paid_at) return;
+        const mk = inst.due.slice(0, 7);
+        if (!map[mk]) map[mk] = [];
+        map[mk].push({ sale, inst, index: i });
+      });
+    }
+    return map;
+  }, [sales]);
+
+  // Extended monthly flow: past (real) + future (projected)
+  const extendedFlow = useMemo(() => {
+    const realMap: Record<string, { income: number; expense: number }> = {};
+    for (const t of transactions) {
+      const key = (t.date || '').slice(0, 7);
+      if (!key) continue;
+      if (!realMap[key]) realMap[key] = { income: 0, expense: 0 };
+      if (t.type === 'income') realMap[key].income += Number(t.amount || 0);
+      else realMap[key].expense += Number(t.amount || 0);
+    }
+    const projMap: Record<string, number> = {};
+    for (const [mk, items] of Object.entries(projectedByMonth)) {
+      projMap[mk] = items.reduce((s, { inst }) => s + inst.amount, 0);
+    }
+    const allKeys = new Set([...Object.keys(realMap), ...Object.keys(projMap)]);
+    return [...allKeys]
+      .sort((a, b) => b.localeCompare(a))
+      .map(key => ({
+        key,
+        income: realMap[key]?.income || 0,
+        expense: realMap[key]?.expense || 0,
+        projected: projMap[key] || 0,
+        profit: (realMap[key]?.income || 0) - (realMap[key]?.expense || 0),
+      }));
+  }, [transactions, projectedByMonth]);
+
+  const handleEffetivar = async (sale: any, instIndex: number) => {
+    const key = `${sale.id}-${instIndex}`;
+    try {
+      setEffectingKey(key);
+      const insts: any[] = JSON.parse(sale.installments_json || '[]');
+      const paid_at = new Date().toISOString().slice(0, 10);
+      const updated = insts.map((inst: any, i: number) =>
+        i === instIndex ? { ...inst, paid_at } : inst
+      );
+      await dataService.updateSale(sale.id, { installments_json: JSON.stringify(updated) });
+      const inst = insts[instIndex];
+      await dataService.addTransaction({
+        description: `Receita ${sale.sale_number} — Parcela ${instIndex + 1}/${insts.length} (${sale.customer_name || ''})`,
+        amount: inst.amount,
+        type: 'income',
+        category: 'sale',
+        date: paid_at,
+      });
+      toast.success(`Parcela ${instIndex + 1} efetivada!`);
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro: ' + error.message);
+    } finally {
+      setEffectingKey(null);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,14 +154,11 @@ export const Financeiro: React.FC = () => {
     if (!amount || amount <= 0) { toast.error('Informe um valor maior que zero.'); return; }
     try {
       setIsSaving(true);
-      await dataService.addTransaction({
-        ...formData,
-        amount,
-      });
+      await dataService.addTransaction({ ...formData, amount });
       toast.success('Transação registrada!');
       setIsModalOpen(false);
       setFormData({ description: '', amount: '', type: 'expense', category: 'rent', date: new Date().toISOString().split('T')[0] });
-      fetchTransactions();
+      fetchData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
     } finally {
@@ -81,7 +171,7 @@ export const Financeiro: React.FC = () => {
       try {
         await dataService.deleteTransaction(id);
         toast.success('Lançamento removido!');
-        fetchTransactions();
+        fetchData();
       } catch (error: any) {
         toast.error('Erro ao remover: ' + error.message);
       }
@@ -115,7 +205,7 @@ export const Financeiro: React.FC = () => {
       });
       toast.success('Lançamento atualizado!');
       setEditTransaction(null);
-      fetchTransactions();
+      fetchData();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
     } finally {
@@ -152,7 +242,6 @@ export const Financeiro: React.FC = () => {
     return matchesSearch && matchesType && matchesFrom && matchesTo;
   });
 
-  // Cards always reflect the currently filtered view (when no filters, = all-time)
   const summaryBase = hasActiveFilters ? filteredTransactions : transactions;
   const totalIncome = summaryBase.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpense = summaryBase.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
@@ -161,32 +250,23 @@ export const Financeiro: React.FC = () => {
 
   const filterTypeLabels = { all: 'Filtros', income: 'Receitas', expense: 'Despesas' };
 
-  const monthlyFlow = useMemo(() => {
-    const map: Record<string, { income: number; expense: number }> = {};
-    for (const t of transactions) {
-      const key = (t.date || '').slice(0, 7);
-      if (!key) continue;
-      if (!map[key]) map[key] = { income: 0, expense: 0 };
-      if (t.type === 'income') map[key].income += Number(t.amount || 0);
-      else map[key].expense += Number(t.amount || 0);
-    }
-    return Object.entries(map)
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, v]) => ({ key, ...v, profit: v.income - v.expense }));
-  }, [transactions]);
+  // Month view data
+  const viewMonthTx = useMemo(
+    () => transactions.filter(t => (t.date || '').slice(0, 7) === viewMonth).sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [transactions, viewMonth]
+  );
+  const viewMonthProjected = projectedByMonth[viewMonth] || [];
+  const viewMonthRealIncome = viewMonthTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthRealExpense = viewMonthTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthProjectedTotal = viewMonthProjected.reduce((s, { inst }) => s + inst.amount, 0);
 
-  const thisMonthKey = new Date().toISOString().slice(0, 7);
+  const thisMonthKey = todayKey;
   const dayOfMonth = new Date().getDate();
   const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const thisMonthData = monthlyFlow.find(m => m.key === thisMonthKey);
+  const thisMonthData = extendedFlow.find(m => m.key === thisMonthKey);
   const projectedIncome = thisMonthData && dayOfMonth < daysInMonth
     ? Math.round((thisMonthData.income / dayOfMonth) * daysInMonth)
     : null;
-
-  function fmtMonth(key: string) {
-    const [y, m] = key.split('-');
-    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  }
 
   const CATEGORY_LABELS: Record<string, string> = {
     sale: 'Venda', stock: 'Custo estoque', trade: 'Troca — Aparelho Recebido',
@@ -194,7 +274,6 @@ export const Financeiro: React.FC = () => {
     taxes: 'Impostos', utilities: 'Serviços', other: 'Outros',
   };
 
-  // Transações auto-geradas pelo sistema têm descrição começando em Receita/Custo + nº operação
   const isAutoTx = (t: any) =>
     /^(Receita|Custo|Venda) #/.test(t.description || '') ||
     t.description?.startsWith('Custo Mercadoria #');
@@ -236,6 +315,7 @@ export const Financeiro: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">Financeiro</h2>
@@ -261,6 +341,7 @@ export const Financeiro: React.FC = () => {
         </div>
       )}
 
+      {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <Card className="flex items-center gap-2 sm:gap-4 !p-3 sm:!p-5">
           <div className="p-2 sm:p-3 bg-success-light text-success rounded-xl flex-shrink-0">
@@ -304,8 +385,148 @@ export const Financeiro: React.FC = () => {
         </Card>
       </div>
 
+      {/* ── Navegador de Meses ── */}
+      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+        {/* Month selector header */}
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar size={16} className="text-neutral-400" />
+            <p className="font-black text-sm text-neutral-700 uppercase tracking-widest">Visão do Mês</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMonth(shiftMonth(viewMonth, -1))}
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+              title="Mês anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => setViewMonth(todayKey)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-bold capitalize border transition-colors',
+                viewMonth === todayKey
+                  ? 'bg-primary border-primary/40 text-neutral-900'
+                  : 'border-neutral-200 text-neutral-600 hover:border-primary/40'
+              )}
+            >
+              {fmtMonthKey(viewMonth)}
+              {viewMonth > todayKey && <span className="ml-1.5 text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-black">Previsto</span>}
+              {viewMonth === todayKey && <span className="ml-1.5 text-[9px] bg-primary/10 text-primary-900 px-1.5 py-0.5 rounded-full font-black">Atual</span>}
+            </button>
+            <button
+              onClick={() => setViewMonth(shiftMonth(viewMonth, 1))}
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+              title="Próximo mês"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Month summary bar */}
+        <div className="grid grid-cols-3 divide-x divide-neutral-100 border-b border-neutral-100">
+          <div className="px-4 py-3 text-center">
+            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-0.5">Receitas reais</p>
+            <p className="text-lg font-black text-emerald-600">{formatCurrency(viewMonthRealIncome)}</p>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-0.5">Saídas reais</p>
+            <p className="text-lg font-black text-red-500">{formatCurrency(viewMonthRealExpense)}</p>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
+              <Clock size={10} /> Previsto a prazo
+            </p>
+            <p className="text-lg font-black text-orange-600">{formatCurrency(viewMonthProjectedTotal)}</p>
+          </div>
+        </div>
+
+        {/* Projected installments for this month */}
+        {viewMonthProjected.length > 0 && (
+          <div className="border-b border-orange-100">
+            <div className="px-5 py-2 bg-orange-50 border-b border-orange-100">
+              <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Parcelas a Prazo — Aguardando Pagamento</p>
+            </div>
+            <div className="divide-y divide-orange-50">
+              {viewMonthProjected.map(({ sale, inst, index }) => {
+                const key = `${sale.id}-${index}`;
+                const today = new Date().toISOString().slice(0, 10);
+                const isOverdue = inst.due < today;
+                return (
+                  <div key={key} className={cn(
+                    'flex items-center gap-3 px-5 py-3',
+                    isOverdue ? 'bg-red-50/50' : 'bg-white'
+                  )}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-neutral-900 truncate">
+                        {sale.customer_name} — {sale.product_name || '—'}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {sale.sale_number} · Parcela {inst.n} · vence {inst.due.split('-').reverse().join('/')}
+                        {isOverdue && <span className="ml-1.5 text-red-600 font-bold">ATRASADA</span>}
+                      </p>
+                    </div>
+                    <span className={cn('text-sm font-black', isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                      {formatCurrency(inst.amount)}
+                    </span>
+                    <span className="text-[10px] font-bold text-orange-500 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full hidden sm:block">
+                      Previsto
+                    </span>
+                    <button
+                      onClick={() => handleEffetivar(sale, index)}
+                      disabled={effectingKey === key}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex-shrink-0',
+                        isOverdue
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200',
+                        effectingKey === key && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      {effectingKey === key ? (
+                        <span className="animate-spin">↻</span>
+                      ) : (
+                        <CheckCircle2 size={13} />
+                      )}
+                      Efetivar
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Real transactions for this month */}
+        {viewMonthTx.length > 0 ? (
+          <div>
+            <div className="px-5 py-2 bg-neutral-50 border-b border-neutral-100">
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Lançamentos Reais do Mês</p>
+            </div>
+            <div className="divide-y divide-neutral-50 max-h-64 overflow-y-auto">
+              {viewMonthTx.map(t => (
+                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900 truncate">{t.description}</p>
+                    <p className="text-xs text-neutral-400">{formatDate(t.date)} · {CATEGORY_LABELS[t.category] || t.category}</p>
+                  </div>
+                  <span className={cn('text-sm font-black flex-shrink-0', t.type === 'income' ? 'text-emerald-600' : 'text-red-500')}>
+                    {t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : viewMonthProjected.length === 0 && (
+          <div className="px-5 py-6 text-center text-sm text-neutral-400">
+            Nenhum lançamento em {fmtMonthKey(viewMonth)}.
+          </div>
+        )}
+      </div>
+
       {/* Fluxo de Caixa Mensal */}
-      {monthlyFlow.length > 0 && (
+      {extendedFlow.length > 0 && (
         <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-neutral-100 flex items-center gap-2">
             <BarChart3 size={16} className="text-neutral-400" />
@@ -317,41 +538,63 @@ export const Financeiro: React.FC = () => {
             )}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[340px]">
+            <table className="w-full text-sm min-w-[400px]">
               <colgroup>
-                <col className="w-[40%]" />
+                <col className="w-[35%]" />
                 <col className="w-[20%]" />
-                <col className="w-[20%]" />
-                <col className="w-[20%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-neutral-100">
                   <th className="text-left px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mês</th>
                   <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entr.</th>
+                  <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-orange-400 uppercase tracking-widest">Previsto</th>
                   <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Saíd.</th>
                   <th className="text-right px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
-                {monthlyFlow.slice(0, 6).map(m => (
-                  <tr key={m.key} className={cn('hover:bg-neutral-50 transition-colors', m.key === thisMonthKey && 'bg-primary/5')}>
-                    <td className="px-3 sm:px-5 py-3 font-semibold text-neutral-800 capitalize text-xs sm:text-sm">
-                      {fmtMonth(m.key)}
-                      {m.key === thisMonthKey && <span className="ml-1.5 text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
-                    </td>
-                    <td className="px-2 sm:px-4 py-3 text-right font-bold text-emerald-600 text-xs sm:text-sm">{formatCurrency(m.income)}</td>
-                    <td className="px-2 sm:px-4 py-3 text-right font-bold text-red-500 text-xs sm:text-sm">{formatCurrency(m.expense)}</td>
-                    <td className={cn('px-3 sm:px-5 py-3 text-right font-black text-xs sm:text-sm', m.profit >= 0 ? 'text-neutral-900' : 'text-red-600')}>
-                      {m.profit >= 0 ? '+' : ''}{formatCurrency(m.profit)}
-                    </td>
-                  </tr>
-                ))}
+                {extendedFlow.map(m => {
+                  const isFuture = m.key > thisMonthKey;
+                  const isCurrent = m.key === thisMonthKey;
+                  return (
+                    <tr
+                      key={m.key}
+                      onClick={() => setViewMonth(m.key)}
+                      className={cn(
+                        'hover:bg-neutral-50 transition-colors cursor-pointer',
+                        isCurrent && 'bg-primary/5',
+                        viewMonth === m.key && 'ring-1 ring-inset ring-primary/30',
+                      )}
+                    >
+                      <td className="px-3 sm:px-5 py-3 font-semibold text-neutral-800 capitalize text-xs sm:text-sm">
+                        {fmtMonthKey(m.key)}
+                        {isCurrent && <span className="ml-1.5 text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
+                        {isFuture && m.projected > 0 && <span className="ml-1.5 text-[9px] font-black text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">Previsto</span>}
+                      </td>
+                      <td className="px-2 sm:px-4 py-3 text-right font-bold text-emerald-600 text-xs sm:text-sm">{m.income > 0 ? formatCurrency(m.income) : '—'}</td>
+                      <td className="px-2 sm:px-4 py-3 text-right font-bold text-orange-500 text-xs sm:text-sm">{m.projected > 0 ? formatCurrency(m.projected) : '—'}</td>
+                      <td className="px-2 sm:px-4 py-3 text-right font-bold text-red-500 text-xs sm:text-sm">{m.expense > 0 ? formatCurrency(m.expense) : '—'}</td>
+                      <td className={cn('px-3 sm:px-5 py-3 text-right font-black text-xs sm:text-sm',
+                        isFuture && m.income === 0 ? 'text-orange-500' : m.profit >= 0 ? 'text-neutral-900' : 'text-red-600'
+                      )}>
+                        {isFuture && m.income === 0 && m.projected > 0
+                          ? `+${formatCurrency(m.projected)}`
+                          : m.profit !== 0 ? `${m.profit >= 0 ? '+' : ''}${formatCurrency(m.profit)}` : '—'
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
+      {/* Transaction filters + table */}
       <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
         <Input
           placeholder="Buscar transação..."
@@ -397,11 +640,8 @@ export const Financeiro: React.FC = () => {
         emptyMessage="Nenhuma movimentação financeira encontrada."
       />
 
-      <Modal
-        isOpen={isPeriodModalOpen}
-        onClose={() => setIsPeriodModalOpen(false)}
-        title="Filtrar por Período"
-      >
+      {/* Period modal */}
+      <Modal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} title="Filtrar por Período">
         <div className="space-y-4">
           <Input label="Data inicial" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <Input label="Data final" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
@@ -416,6 +656,7 @@ export const Financeiro: React.FC = () => {
         </div>
       </Modal>
 
+      {/* Add transaction modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -465,24 +706,15 @@ export const Financeiro: React.FC = () => {
               <option value="other">Outros</option>
             </select>
           </div>
-
           <div className="flex gap-3 mt-6">
-            <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">
-              Cancelar
-            </Button>
-            <Button fullWidth loading={isSaving} type="submit">
-              Confirmar Lançamento
-            </Button>
+            <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>
+            <Button fullWidth loading={isSaving} type="submit">Confirmar Lançamento</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal de Edição */}
-      <Modal
-        isOpen={!!editTransaction}
-        onClose={() => setEditTransaction(null)}
-        title="Editar Lançamento"
-      >
+      {/* Edit transaction modal */}
+      <Modal isOpen={!!editTransaction} onClose={() => setEditTransaction(null)} title="Editar Lançamento">
         <form onSubmit={handleSaveEdit} className="space-y-4">
           <Input
             label="Descrição"
@@ -550,17 +782,11 @@ export const Financeiro: React.FC = () => {
             </select>
           </div>
           <div className="flex gap-3 mt-6">
-            <Button variant="secondary" fullWidth onClick={() => setEditTransaction(null)} type="button">
-              Cancelar
-            </Button>
-            <Button fullWidth loading={isSavingEdit} type="submit">
-              Salvar Alterações
-            </Button>
+            <Button variant="secondary" fullWidth onClick={() => setEditTransaction(null)} type="button">Cancelar</Button>
+            <Button fullWidth loading={isSavingEdit} type="submit">Salvar Alterações</Button>
           </div>
         </form>
       </Modal>
     </div>
   );
 };
-
-export default Financeiro;

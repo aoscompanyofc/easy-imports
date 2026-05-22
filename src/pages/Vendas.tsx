@@ -441,8 +441,8 @@ export const Vendas: React.FC = () => {
           : [])
       );
 
-      // For troca: add ALL incoming devices to stock
-      if (form.sale_type === 'troca') {
+      // For troca/prazo: add ALL incoming devices to stock
+      if (form.sale_type === 'troca' || (isPrazo && incomingDevices.some(d => d.model.trim()))) {
         for (const device of incomingDevices) {
           const deviceName = deviceFormToProductName(device) || device.model;
           if (!deviceName.trim()) continue;
@@ -1641,11 +1641,11 @@ export const Vendas: React.FC = () => {
           </div>
 
           {/* ─── Aparelhos Entrando (troca) — multi-device ─── */}
-          {form.sale_type === 'troca' && (
+          {(form.sale_type === 'troca' || form.sale_type === 'prazo') && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
-                  Aparelhos Entrando (do cliente)
+                  {form.sale_type === 'prazo' ? 'Aparelho na Troca (opcional)' : 'Aparelhos Entrando (do cliente)'}
                 </p>
                 <button
                   type="button"
@@ -1719,7 +1719,10 @@ export const Vendas: React.FC = () => {
               ))}
 
               <p className="text-xs text-purple-500 pl-1">
-                Todos os aparelhos serão adicionados automaticamente ao seu estoque.
+                {form.sale_type === 'prazo'
+                  ? 'O aparelho entra no estoque e o crédito dado ao cliente reduz o valor contratado.'
+                  : 'Todos os aparelhos serão adicionados automaticamente ao seu estoque.'
+                }
               </p>
 
               {/* ── Painel de lucratividade da troca ── */}

@@ -349,8 +349,24 @@ export const Configuracoes: React.FC = () => {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  };
+
   const copySQL = () => {
-    navigator.clipboard.writeText(TEAM_SQL);
+    copyToClipboard(TEAM_SQL);
     setCopiedSQL(true);
     setTimeout(() => setCopiedSQL(false), 2000);
   };
@@ -372,7 +388,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS product_origin TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
 
   const copyMigSQL = () => {
-    navigator.clipboard.writeText(MIGRATION_SQL);
+    copyToClipboard(MIGRATION_SQL);
     setCopiedMigSQL(true);
     setTimeout(() => setCopiedMigSQL(false), 2500);
   };
@@ -630,10 +646,10 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
             <Card className="bg-neutral-50 border-neutral-200">
               <h5 className="font-bold text-neutral-700 text-sm mb-2">Como funciona?</h5>
               <ol className="text-sm text-neutral-500 space-y-1 list-decimal list-inside">
-                <li>Adicione um membro com o email e as páginas que ele pode acessar.</li>
-                <li>Compartilhe o link do sistema e uma senha com ele via WhatsApp.</li>
-                <li>No primeiro acesso, ele cria a conta com o email cadastrado aqui.</li>
-                <li>O sistema detecta automaticamente o perfil e restringe o acesso.</li>
+                <li>Adicione um membro com o email, senha e as páginas que ele pode acessar.</li>
+                <li>Clique em "Criar Acesso" — o sistema cria a conta automaticamente.</li>
+                <li>Compartilhe o link, email e senha com o colaborador via WhatsApp.</li>
+                <li>O sistema detecta o perfil do colaborador e restringe o acesso automaticamente.</li>
               </ol>
             </Card>
           </div>
@@ -814,7 +830,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
                   <p className="text-sm font-mono">{window.location.origin}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(window.location.origin); toast.success('Link copiado!'); }}
+                  onClick={() => { copyToClipboard(window.location.origin); toast.success('Link copiado!'); }}
                   className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
                 >
                   <Copy size={14} />
@@ -827,7 +843,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
                   <p className="text-sm font-mono">{createdCredentials.email}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(createdCredentials.email); toast.success('Email copiado!'); }}
+                  onClick={() => { copyToClipboard(createdCredentials.email); toast.success('Email copiado!'); }}
                   className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
                 >
                   <Copy size={14} />
@@ -840,7 +856,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
                   <p className="text-sm font-mono">{createdCredentials.password}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(createdCredentials.password); toast.success('Senha copiada!'); }}
+                  onClick={() => { copyToClipboard(createdCredentials.password); toast.success('Senha copiada!'); }}
                   className="p-2 rounded-xl bg-neutral-700 hover:bg-neutral-600 transition-colors flex-shrink-0"
                 >
                   <Copy size={14} />
@@ -863,7 +879,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
                 variant="secondary"
                 onClick={() => {
                   const msg = `Link: ${window.location.origin}\nEmail: ${createdCredentials.email}\nSenha: ${createdCredentials.password}`;
-                  navigator.clipboard.writeText(msg);
+                  copyToClipboard(msg);
                   toast.success('Credenciais copiadas!');
                 }}
               >

@@ -211,7 +211,9 @@ export const Dashboard: React.FC = () => {
   })();
 
   // Meta mensal helpers
-  const thisMonthRevenue = useMemo(() => {
+  const [showMetaSales, setShowMetaSales] = useState(false);
+
+  const thisMonthSales = useMemo(() => {
     const now = new Date();
     return allSales
       .filter(s => {
@@ -219,8 +221,13 @@ export const Dashboard: React.FC = () => {
         const d = new Date(s.created_at);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       })
-      .reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [allSales]);
+
+  const thisMonthRevenue = useMemo(
+    () => thisMonthSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0),
+    [thisMonthSales]
+  );
 
   const metaPct = meta > 0 ? Math.min(100, Math.round((thisMonthRevenue / meta) * 100)) : 0;
 
@@ -524,6 +531,45 @@ export const Dashboard: React.FC = () => {
                     )
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Vendas do mês — lista expansível */}
+            {thisMonthSales.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowMetaSales(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-800 transition-colors"
+                >
+                  {showMetaSales ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  {showMetaSales ? 'Ocultar' : 'Ver'} vendas do mês ({thisMonthSales.length})
+                </button>
+                {showMetaSales && (
+                  <div className="mt-2 rounded-xl border border-neutral-100 overflow-hidden">
+                    {thisMonthSales.map((s) => {
+                      const stype = s.sale_type || 'venda';
+                      const typeBadge = stype === 'troca' ? 'bg-purple-100 text-purple-700' : stype === 'compra' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700';
+                      const typeLabel = stype === 'troca' ? 'T' : stype === 'compra' ? 'C' : 'V';
+                      return (
+                        <div key={s.id} className="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-50 last:border-0 bg-white">
+                          <span className={cn('text-[9px] font-black px-1.5 py-0.5 rounded flex-shrink-0', typeBadge)}>{typeLabel}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-neutral-800 truncate">{s.customer_name || 'Avulso'}</p>
+                            <p className="text-[10px] text-neutral-400 truncate">{s.product_name || '—'}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs font-black text-neutral-900">{formatCurrency(Number(s.total_amount))}</p>
+                            <p className="text-[10px] text-neutral-400">{s.sale_number || ''}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between px-3 py-2 bg-neutral-50 border-t border-neutral-100">
+                      <span className="text-xs font-black text-neutral-500">Total do mês</span>
+                      <span className="text-sm font-black text-neutral-900">{formatCurrency(thisMonthRevenue)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

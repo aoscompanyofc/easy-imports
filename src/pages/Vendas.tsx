@@ -477,18 +477,6 @@ export const Vendas: React.FC = () => {
         }
       }
 
-      // Taxa de cartão: cria despesa automática para abater do lucro
-      const cardFeeAmt = Number(form.card_fee_amount) || 0;
-      if (cardFeeAmt > 0) {
-        await dataService.addTransaction({
-          description: `Custo ${saleNumber} — Taxa Cartão`,
-          amount: cardFeeAmt,
-          type: 'expense',
-          category: 'stock',
-          date: new Date(form.sale_date).toISOString().slice(0, 10),
-        });
-      }
-
       // Generate PDF immediately with form data
       const pdfData: SalePDFData = {
         sale_number: saleNumber,

@@ -163,35 +163,36 @@ export const dataService = {
 
     const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5]);
     const saleId = saleRow.id;
+    const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {
       await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
+
+      // Receita criada primeiro — garante que sempre vai pro Financeiro
+      await this.addTransaction({
+        description: `Receita ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
+        amount: item.unit_price * item.quantity,
+        type: 'income', category: 'sale',
+        date: txDate,
+      });
+
+      // Atualiza estoque e cria custo (independente da receita)
       const { data: product } = await supabase
         .from('products').select('stock_quantity, purchase_price').eq('id', item.product_id).single();
       if (product) {
         const newQty = product.stock_quantity - item.quantity;
-        const { data: updatedRows } = await supabase.from('products')
+        await supabase.from('products')
           .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
           .eq('id', item.product_id)
-          .eq('stock_quantity', product.stock_quantity)
-          .select('id');
-        if (!updatedRows || updatedRows.length === 0) {
-          throw new Error('Produto já foi vendido ou o estoque mudou. Recarregue a página e tente novamente.');
-        }
+          .eq('stock_quantity', product.stock_quantity);
         if (product.purchase_price > 0) {
           await this.addTransaction({
             description: `Custo ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
             amount: product.purchase_price * item.quantity,
             type: 'expense', category: 'stock',
-            date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            date: txDate,
           });
         }
       }
-      await this.addTransaction({
-        description: `Receita ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
-        amount: item.unit_price * item.quantity,
-        type: 'income', category: 'sale',
-        date: created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-      });
     }
     return saleRow;
   },

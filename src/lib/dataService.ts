@@ -213,6 +213,11 @@ export const dataService = {
     if (!e1) return true;
     if (!isColErr(e1)) throw e1;
 
+    // Se installments_json está na atualização e falhou por coluna ausente, lança erro específico
+    if ('installments_json' in updates && isColErr(e1)) {
+      throw new Error('Coluna installments_json não existe no banco. Execute a migração SQL em Configurações → Banco de Dados para habilitar vendas a prazo.');
+    }
+
     // Nível 2: sem incoming_* e pdf_type
     const lvl2 = Object.fromEntries(
       Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type')
@@ -233,9 +238,10 @@ export const dataService = {
 
     // Nível 4: mínimo absoluto — só colunas garantidas no schema base
     const minimal: Record<string, any> = {};
-    for (const k of ['sale_type','customer_name','product_name','total_amount','payment_method','created_at']) {
+    for (const k of ['sale_type','customer_name','product_name','total_amount','payment_method','created_at','signature_client']) {
       if (updates[k] !== undefined) minimal[k] = updates[k];
     }
+    if (Object.keys(minimal).length === 0) return true;
     const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);
     if (e4) throw e4;
     return true;

@@ -372,12 +372,14 @@ export const Configuracoes: React.FC = () => {
   };
 
   const MIGRATION_SQL = `-- Execute no Supabase Dashboard → SQL Editor
--- Adiciona colunas que faltam para CPF, Cidade, Garantia, Origem e Data de Entrada
+-- Migração completa — adiciona TODAS as colunas necessárias
 
 -- Tabela: customers
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS cpf TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;
 
 -- Tabela: products
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_capacity TEXT;
@@ -386,9 +388,36 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS product_condition TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_warranty TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_origin TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS imei TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id TEXT;
 
--- Tabela: sales (venda a prazo)
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments_json TEXT;`;
+-- Tabela: sales (OBRIGATÓRIO para vendas a prazo e contratos)
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS sale_number TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS sale_type TEXT DEFAULT 'venda';
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments INTEGER DEFAULT 1;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments_json TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS sign_token TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS signature_client TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_cpf TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_city TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_condition TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_capacity TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_color TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_imei TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS product_accessories TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_name TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_imei TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_condition TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_name TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_phone TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_address TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_email TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_cpf TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_rg TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
 
   const copyMigSQL = () => {
     copyToClipboard(MIGRATION_SQL);

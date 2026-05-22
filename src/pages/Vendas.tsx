@@ -1112,8 +1112,10 @@ export const Vendas: React.FC = () => {
                             <button
                               onClick={() => setExpandedPrazoSale(isExpanded ? null : sale.id)}
                               className={cn(
-                                'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 cursor-pointer transition-colors',
-                                paidCount === prazoInsts.length && prazoInsts.length > 0
+                                'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 cursor-pointer transition-colors',
+                                !sale.installments_json
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : paidCount === prazoInsts.length && prazoInsts.length > 0
                                   ? 'bg-green-100 text-green-700'
                                   : prazoInsts.some((i: any) => !i.paid_at && i.due < today)
                                   ? 'bg-red-100 text-red-700'
@@ -1121,7 +1123,7 @@ export const Vendas: React.FC = () => {
                               )}
                             >
                               <Clock size={10} />
-                              {paidCount}/{prazoInsts.length} pagas
+                              {!sale.installments_json ? 'Migração necessária' : `${paidCount}/${prazoInsts.length} pagas`}
                               {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                             </button>
                           ) : (
@@ -1219,64 +1221,80 @@ export const Vendas: React.FC = () => {
                         </div>
 
                         {/* ── Installments panel (prazo) ── */}
-                        {type === 'prazo' && isExpanded && prazoInsts.length > 0 && (
+                        {type === 'prazo' && isExpanded && (
                           <div className="border-t border-orange-100 bg-orange-50/40 px-5 py-3 space-y-1.5">
                             <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                               <Calendar size={11} /> Parcelas — {name}
                             </p>
-                            {prazoInsts.map((inst: any, i: number) => {
-                              const isOverdue = !inst.paid_at && inst.due < today;
-                              const isPaid = !!inst.paid_at;
-                              const markKey = `${sale.id}-${i}`;
-                              return (
-                                <div key={i} className={cn(
-                                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm',
-                                  isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
-                                )}>
-                                  <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
-                                    {inst.n}
-                                  </span>
-                                  <span className="text-xs text-neutral-500 flex-shrink-0 w-24">
-                                    {inst.due.split('-').reverse().join('/')}
-                                  </span>
-                                  <span className="font-bold text-neutral-800 flex-1">
-                                    {formatCurrency(inst.amount)}
-                                  </span>
-                                  {isPaid ? (
-                                    <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                                      <CheckCircle2 size={10} /> Pago {inst.paid_at.split('-').reverse().join('/')}
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => handleMarkPaid(sale, i)}
-                                      disabled={markingPaid === markKey}
-                                      className={cn(
-                                        'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors',
-                                        isOverdue
-                                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                          : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
-                                        markingPaid === markKey && 'opacity-50 cursor-not-allowed'
-                                      )}
-                                    >
-                                      {markingPaid === markKey ? (
-                                        <RefreshCw size={10} className="animate-spin" />
-                                      ) : (
-                                        <CheckCircle2 size={10} />
-                                      )}
-                                      {isOverdue ? 'Atrasada — marcar paga' : 'Marcar como paga'}
-                                    </button>
-                                  )}
+
+                            {!sale.installments_json ? (
+                              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+                                <div>
+                                  <p className="text-sm font-bold text-amber-800">Dados das parcelas não encontrados</p>
+                                  <p className="text-xs text-amber-700 mt-1">
+                                    A coluna <code className="bg-amber-100 px-1 rounded">installments_json</code> não existe no banco. Execute a migração SQL em{' '}
+                                    <strong>Configurações → Banco de Dados</strong> e recrie esta venda a prazo.
+                                  </p>
                                 </div>
-                              );
-                            })}
-                            <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
-                              <span>Total do contrato</span>
-                              <span>{formatCurrency(prazoInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-green-700 font-bold">
-                              <span>Já recebido ({paidCount} parcela{paidCount !== 1 ? 's' : ''})</span>
-                              <span>{formatCurrency(prazoInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
-                            </div>
+                              </div>
+                            ) : (
+                              <>
+                                {prazoInsts.map((inst: any, i: number) => {
+                                  const isOverdue = !inst.paid_at && inst.due < today;
+                                  const isPaid = !!inst.paid_at;
+                                  const markKey = `${sale.id}-${i}`;
+                                  return (
+                                    <div key={i} className={cn(
+                                      'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm',
+                                      isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
+                                    )}>
+                                      <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                                        {inst.n}
+                                      </span>
+                                      <span className="text-xs text-neutral-500 flex-shrink-0 w-24">
+                                        {inst.due.split('-').reverse().join('/')}
+                                      </span>
+                                      <span className="font-bold text-neutral-800 flex-1">
+                                        {formatCurrency(inst.amount)}
+                                      </span>
+                                      {isPaid ? (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                          <CheckCircle2 size={10} /> Pago {inst.paid_at.split('-').reverse().join('/')}
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleMarkPaid(sale, i)}
+                                          disabled={markingPaid === markKey}
+                                          className={cn(
+                                            'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors',
+                                            isOverdue
+                                              ? 'bg-red-500 text-white hover:bg-red-600'
+                                              : 'bg-orange-500 text-white hover:bg-orange-600',
+                                            markingPaid === markKey && 'opacity-50 cursor-not-allowed'
+                                          )}
+                                        >
+                                          {markingPaid === markKey ? (
+                                            <RefreshCw size={11} className="animate-spin" />
+                                          ) : (
+                                            <CheckCircle2 size={11} />
+                                          )}
+                                          {isOverdue ? 'Atrasada — Receber' : 'Receber'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
+                                  <span>Total do contrato</span>
+                                  <span>{formatCurrency(prazoInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-green-700 font-bold">
+                                  <span>Já recebido ({paidCount} parcela{paidCount !== 1 ? 's' : ''})</span>
+                                  <span>{formatCurrency(prazoInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         )}
                         </React.Fragment>
@@ -2934,6 +2952,94 @@ export const Vendas: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Prazo installments in detail modal */}
+            {detailSale.sale_type === 'prazo' && (() => {
+              const dInsts: any[] = (() => { try { return JSON.parse(detailSale.installments_json || '[]'); } catch { return []; } })();
+              const dToday = new Date().toISOString().slice(0, 10);
+              const dPaid = dInsts.filter((i: any) => i.paid_at).length;
+              return (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest flex items-center gap-1.5">
+                      <Calendar size={12} /> Parcelas a Prazo
+                    </p>
+                    {dInsts.length > 0 && (
+                      <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full',
+                        dPaid === dInsts.length ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                      )}>
+                        {dPaid}/{dInsts.length} recebidas
+                      </span>
+                    )}
+                  </div>
+
+                  {!detailSale.installments_json ? (
+                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      <span className="text-amber-500 flex-shrink-0">⚠️</span>
+                      <p className="text-xs text-amber-800 font-medium">
+                        Dados de parcelas não salvos. Execute a migração SQL em <strong>Configurações → Banco de Dados</strong> e recrie esta venda.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {dInsts.map((inst: any, i: number) => {
+                        const isPaid = !!inst.paid_at;
+                        const isOverdue = !isPaid && inst.due < dToday;
+                        const markKey = `detail-${detailSale.id}-${i}`;
+                        return (
+                          <div key={i} className={cn(
+                            'flex items-center gap-3 px-3 py-2.5 rounded-xl',
+                            isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
+                          )}>
+                            <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                              {inst.n}
+                            </span>
+                            <span className="text-xs text-neutral-500 flex-shrink-0 w-20">{inst.due.split('-').reverse().join('/')}</span>
+                            <span className="font-bold text-neutral-800 text-sm flex-1">{formatCurrency(inst.amount)}</span>
+                            {isPaid ? (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                <CheckCircle2 size={10} /> {inst.paid_at.split('-').reverse().join('/')}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  await handleMarkPaid(detailSale, i);
+                                  setDetailSale((prev: any) => {
+                                    if (!prev) return prev;
+                                    const insts = JSON.parse(prev.installments_json || '[]');
+                                    const upd = insts.map((x: any, idx: number) => idx === i ? { ...x, paid_at: new Date().toISOString().slice(0, 10) } : x);
+                                    return { ...prev, installments_json: JSON.stringify(upd) };
+                                  });
+                                }}
+                                disabled={markingPaid === markKey || markingPaid === `${detailSale.id}-${i}`}
+                                className={cn(
+                                  'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors text-white',
+                                  isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600',
+                                  (markingPaid === markKey || markingPaid === `${detailSale.id}-${i}`) && 'opacity-50 cursor-not-allowed'
+                                )}
+                              >
+                                <CheckCircle2 size={11} />
+                                {isOverdue ? 'Atrasada — Receber' : 'Receber'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
+                        <span>Total do contrato</span>
+                        <span>{formatCurrency(dInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                      </div>
+                      {dPaid > 0 && (
+                        <div className="flex items-center justify-between text-xs text-green-700 font-bold">
+                          <span>Já recebido</span>
+                          <span>{formatCurrency(dInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Signature status */}
             <div className="flex items-center gap-2 text-sm">

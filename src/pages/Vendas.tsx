@@ -141,6 +141,7 @@ const emptyForm = () => ({
   split_payment: false,
   payment2_method: 'Cartão de Crédito',
   payment2_amount: '',
+  card_fee_amount: '',
   // Vendedor responsável pela venda
   rep_id: '',
 });
@@ -290,11 +291,12 @@ export const Vendas: React.FC = () => {
   // Actual unit price: manual input wins, then product.sale_price if > 0, else 0
   const resolvedUnitPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price > 0 ? selectedProductData.sale_price : 0);
   const salePrice = resolvedUnitPrice * form.quantity;
+  const cardFee   = Number(form.card_fee_amount) || 0;
 
   // Lucro estimado para venda simples (sempre calculado, exibido no preview de pagamento)
   const unitCost = selectedProductData?.purchase_price || Number(form.product_cost_manual) || 0;
   const totalCost = unitCost * (form.quantity || 1);
-  const vendaProfit = salePrice - totalCost;
+  const vendaProfit = salePrice - totalCost - cardFee;
   const vendaMargin = salePrice > 0 ? Math.round((vendaProfit / salePrice) * 100) : 0;
   const hasCost = unitCost > 0;
 
@@ -473,6 +475,18 @@ export const Vendas: React.FC = () => {
             entry_date: new Date(form.sale_date).toISOString().split('T')[0],
           });
         }
+      }
+
+      // Taxa de cartão: cria despesa automática para abater do lucro
+      const cardFeeAmt = Number(form.card_fee_amount) || 0;
+      if (cardFeeAmt > 0) {
+        await dataService.addTransaction({
+          description: `Custo ${saleNumber} — Taxa Cartão`,
+          amount: cardFeeAmt,
+          type: 'expense',
+          category: 'stock',
+          date: new Date(form.sale_date).toISOString().slice(0, 10),
+        });
       }
 
       // Generate PDF immediately with form data
@@ -714,8 +728,22 @@ export const Vendas: React.FC = () => {
   const handleCopySignLink = async (sale: any) => {
     if (!sale.sign_token) { toast.error('Esta venda não tem token de assinatura. Registre novamente.'); return; }
     const link = `${window.location.origin}/assinar/${sale.sign_token}`;
-    await navigator.clipboard.writeText(link);
-    toast.success('Link de assinatura copiado!');
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success('Link de assinatura copiado!');
+    } catch {
+      // Fallback para iOS Safari e contextos sem permissão de clipboard
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) toast.success('Link de assinatura copiado!');
+      else toast.error('Não foi possível copiar. Acesse: ' + link);
+    }
   };
 
   // Filters
@@ -1775,6 +1803,39 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
+            {/* Taxa de cartão — aparece quando Cartão de Crédito é selecionado */}
+            {(form.payment_method === 'Cartão de Crédito' || (form.split_payment && form.payment2_method === 'Cartão de Crédito')) && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs font-black text-amber-700 uppercase tracking-widest mb-0.5">
+                      Taxa / juros do banco (R$)
+                    </label>
+                    <p className="text-[10px] text-amber-600">
+                      Quanto fica pro banco — será descontado do seu lucro
+                    </p>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={form.card_fee_amount}
+                    onChange={setF('card_fee_amount')}
+                    className="w-32 flex-shrink-0 bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-300 text-right"
+                  />
+                </div>
+                {Number(form.card_fee_amount) > 0 && salePrice > 0 && (
+                  <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-amber-200">
+                    <span className="text-amber-700 font-bold">Cliente paga:</span>
+                    <span className="font-black text-amber-900">{formatCurrency(salePrice)}</span>
+                    <span className="text-amber-700 font-bold">Você recebe:</span>
+                    <span className="font-black text-emerald-700">{formatCurrency(salePrice - Number(form.card_fee_amount))}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Preview total + Lucro */}
             {salePrice > 0 && form.sale_type !== 'troca' && (
               <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
@@ -1786,6 +1847,12 @@ export const Vendas: React.FC = () => {
                   <div className="flex items-center justify-between text-sm text-neutral-500">
                     <span>Custo do produto</span>
                     <span className="font-semibold">− {formatCurrency(totalCost)}</span>
+                  </div>
+                )}
+                {Number(form.card_fee_amount) > 0 && (
+                  <div className="flex items-center justify-between text-sm text-amber-600">
+                    <span>Taxa banco (cartão)</span>
+                    <span className="font-semibold">− {formatCurrency(Number(form.card_fee_amount))}</span>
                   </div>
                 )}
                 <div className={cn('flex items-center justify-between pt-2 border-t', 'border-primary/20')}>
@@ -1968,7 +2035,21 @@ export const Vendas: React.FC = () => {
 
                 {signLink && (
                   <button
-                    onClick={() => { navigator.clipboard.writeText(signLink); toast.success('Link copiado!'); }}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(signLink);
+                        toast.success('Link copiado!');
+                      } catch {
+                        const ta = document.createElement('textarea');
+                        ta.value = signLink;
+                        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+                        document.body.appendChild(ta);
+                        ta.focus(); ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        toast.success('Link copiado!');
+                      }
+                    }}
                     className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
                   >
                     <Copy size={15} />

@@ -350,7 +350,6 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
     <div class="row">
       ${field('Endereço', sale.customer_city, 'f4')}
-      ${field('Cidade / Estado', undefined, 'f2')}
     </div>
   </div>
 </div>

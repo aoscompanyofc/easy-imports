@@ -285,14 +285,18 @@ export const dataService = {
     const { name, email, phone, cpf, city, notes, source, birthday } = customer;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
     const base: any = { name, email, phone, user_id: uid };
-    // Nível 1: tudo; Nível 2: sem cpf/city/notes/source mas com birthday; Nível 3: mínimo absoluto
-    const result = await tryInsert('customers', [
-      { ...base, cpf, city, notes, ...(source ? { source } : {}), ...(birthday ? { birthday } : {}) },
+    // Tenta primeiro com todos os campos extras
+    const fullPayload = { ...base, cpf, city, notes, ...(source ? { source } : {}), ...(birthday ? { birthday } : {}) };
+    const { data: d1, error: e1 } = await supabase.from('customers').insert([fullPayload]).select();
+    if (!e1) return d1![0]; // campos extras salvos — sem necessidade de migração
+    if (!isColErr(e1)) throw e1;
+    // Fallback sem campos extras — informa que migração é necessária
+    const saved = await tryInsert('customers', [
       { ...base, ...(birthday ? { birthday } : {}) },
       base,
     ]);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return result;
+    return saved;
   },
   async updateCustomer(id: string, updates: any) {
     if (useMock) return updates;
@@ -307,13 +311,17 @@ export const dataService = {
     if (city     !== undefined) full.city     = city;
     if (notes    !== undefined) full.notes    = notes;
     if (source   !== undefined) full.source   = source;
-    // Nível 1: tudo; Nível 2: sem cpf/city/notes/source mas com birthday; Nível 3: sem birthday
+    // Tenta primeiro com todos os campos
+    const { data: d1, error: e1 } = await supabase.from('customers').update(full).eq('id', id).select();
+    if (!e1) return d1![0];
+    if (!isColErr(e1)) throw e1;
+    // Fallback sem campos extras
     const baseNoBirthday: any = { name };
     if (email !== undefined) baseNoBirthday.email = email;
     if (phone !== undefined) baseNoBirthday.phone = phone;
-    const result = await tryUpdate('customers', id, [full, base, baseNoBirthday]);
+    const saved = await tryUpdate('customers', id, [base, baseNoBirthday]);
     if (hasCpfCity) throw new Error('__MIGRATION_NEEDED__');
-    return result;
+    return saved;
   },
   async deleteCustomer(id: string) {
     if (useMock) return mockDataService.deleteCustomer(id);

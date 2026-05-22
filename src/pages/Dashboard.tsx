@@ -10,6 +10,7 @@ import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
   Calendar, TrendingUp, ArrowRight, ChevronDown, ChevronUp,
   Target, Pencil, Check, RefreshCw, CheckCircle2, XCircle, Trash2,
+  AlertCircle, Clock,
 } from 'lucide-react';
 
 const META_KEY       = 'easy-imports-meta-mensal';
@@ -308,6 +309,27 @@ export const Dashboard: React.FC = () => {
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
 
+  // ─── Prazo installment alerts ────────────────────────────────────────────────
+  const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const in7 = new Date();
+    in7.setDate(in7.getDate() + 7);
+    const in7Str = in7.toISOString().slice(0, 10);
+    const overdue: { sale: any; inst: any; index: number }[] = [];
+    const dueSoon: { sale: any; inst: any; index: number }[] = [];
+    for (const sale of allSales) {
+      if (sale.sale_type !== 'prazo' || !sale.installments_json) continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(sale.installments_json); } catch { continue; }
+      insts.forEach((inst: any, i: number) => {
+        if (inst.paid_at) return;
+        if (inst.due < todayStr) overdue.push({ sale, inst, index: i });
+        else if (inst.due <= in7Str) dueSoon.push({ sale, inst, index: i });
+      });
+    }
+    return { overdueInstallments: overdue, dueSoonInstallments: dueSoon };
+  }, [allSales]);
+
   const handlePeriodClick = (p: Period) => {
     setPeriod(p);
     if (p === 'custom') {
@@ -442,6 +464,58 @@ export const Dashboard: React.FC = () => {
               <p className="text-[10px] sm:text-xs text-neutral-400">Total</p>
             </div>
           </div>
+
+          {/* ── Alertas de Parcelas a Prazo ── */}
+          {(overdueInstallments.length > 0 || dueSoonInstallments.length > 0) && (
+            <div className="space-y-2">
+              {overdueInstallments.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-red-700">
+                      {overdueInstallments.length} parcela{overdueInstallments.length !== 1 ? 's' : ''} em atraso
+                    </p>
+                    <div className="mt-1.5 space-y-1">
+                      {overdueInstallments.slice(0, 3).map(({ sale, inst, index }) => (
+                        <p key={`${sale.id}-${index}`} className="text-xs text-red-600">
+                          <strong>{sale.customer_name}</strong> — Parcela {inst.n} — {formatCurrency(inst.amount)} — venceu {inst.due.split('-').reverse().join('/')}
+                        </p>
+                      ))}
+                      {overdueInstallments.length > 3 && (
+                        <p className="text-xs text-red-500 font-bold">+ {overdueInstallments.length - 3} mais...</p>
+                      )}
+                    </div>
+                    <button onClick={() => navigate('/vendas')} className="mt-2 text-xs font-black text-red-700 underline">
+                      Ver em Vendas →
+                    </button>
+                  </div>
+                </div>
+              )}
+              {dueSoonInstallments.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <Clock size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-amber-700">
+                      {dueSoonInstallments.length} parcela{dueSoonInstallments.length !== 1 ? 's' : ''} vencendo nos próximos 7 dias
+                    </p>
+                    <div className="mt-1.5 space-y-1">
+                      {dueSoonInstallments.slice(0, 3).map(({ sale, inst, index }) => (
+                        <p key={`${sale.id}-${index}`} className="text-xs text-amber-700">
+                          <strong>{sale.customer_name}</strong> — Parcela {inst.n} — {formatCurrency(inst.amount)} — vence {inst.due.split('-').reverse().join('/')}
+                        </p>
+                      ))}
+                      {dueSoonInstallments.length > 3 && (
+                        <p className="text-xs text-amber-500 font-bold">+ {dueSoonInstallments.length - 3} mais...</p>
+                      )}
+                    </div>
+                    <button onClick={() => navigate('/vendas')} className="mt-2 text-xs font-black text-amber-700 underline">
+                      Ver em Vendas →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Meta Mensal ── */}
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">

@@ -3,6 +3,7 @@ import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
   RefreshCw, Eye, Link2, MessageCircle, Copy, UserPlus, RotateCcw, Pencil,
+  Calendar, Clock, AlertCircle,
 } from 'lucide-react';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { Button } from '../components/ui/Button';
@@ -27,6 +28,7 @@ function cn(...inputs: ClassValue[]) {
 const SALE_TYPES = [
   { value: 'venda', label: 'Venda ao Cliente', desc: 'Easy Imports vende para um cliente' },
   { value: 'troca', label: 'Troca de Aparelhos', desc: 'Cliente entrega um aparelho e leva outro' },
+  { value: 'prazo', label: 'Venda a Prazo', desc: 'Cliente paga em parcelas mensais via PIX' },
 ];
 
 const PAYMENT_METHODS = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'];
@@ -49,12 +51,14 @@ const TYPE_COLORS: Record<string, string> = {
   compra: 'bg-blue-100 text-blue-700',
   venda: 'bg-green-100 text-green-700',
   troca: 'bg-purple-100 text-purple-700',
+  prazo: 'bg-orange-100 text-orange-700',
 };
 
 const TYPE_LABELS: Record<string, string> = {
   compra: 'Compra',
   venda: 'Venda',
   troca: 'Troca',
+  prazo: 'A Prazo',
 };
 
 const SALES_SQL = `-- Execute no Supabase Dashboard → SQL Editor
@@ -87,7 +91,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS incoming_purchase_price NUMERIC DEFAU
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS pdf_type TEXT DEFAULT 'seminovo';
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS rep_seller_id UUID;
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS rep_seller_name TEXT;`;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS rep_seller_name TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments_json TEXT;`;
 
 function toWhatsAppNumber(phone: string) {
   const d = phone.replace(/\D/g, '');
@@ -107,7 +112,7 @@ export function getCompanyInfo(): CompanyInfo {
 }
 
 function generateSaleNumber(existingCount: number, type: string) {
-  const prefix = type === 'troca' ? 'T' : 'V';
+  const prefix = type === 'troca' ? 'T' : type === 'prazo' ? 'P' : 'V';
   return `#${prefix}${String(existingCount + 1).padStart(4, '0')}`;
 }
 
@@ -144,6 +149,10 @@ const emptyForm = () => ({
   card_fee_amount: '',
   // Vendedor responsável pela venda
   rep_id: '',
+  // Venda a Prazo
+  prazo_count: '12',
+  prazo_value: '',
+  prazo_first_due: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -163,6 +172,8 @@ export const Vendas: React.FC = () => {
   const [editSale, setEditSale] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [expandedPrazoSale, setExpandedPrazoSale] = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
 
   const setEF = (field: string) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -310,18 +321,40 @@ export const Vendas: React.FC = () => {
 
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
-    const unitPrice = Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0);
+    const isPrazo = form.sale_type === 'prazo';
+    const prazoCount = isPrazo ? Math.max(1, Number(form.prazo_count) || 1) : 0;
+    const prazoValue = isPrazo ? (Number(form.prazo_value) || 0) : 0;
+    const unitPrice = isPrazo ? prazoValue : (Number(form.sale_price_manual) || (product && product.sale_price > 0 ? product.sale_price : 0));
     // Para troca: total_amount = caixa recebido + soma dos aparelhos que entraram
     const tradeInValue = form.sale_type === 'troca'
       ? incomingDevices.reduce((sum, d) => sum + Number(d.purchase_price || 0), 0)
       : 0;
-    const totalAmount = unitPrice * form.quantity + tradeInValue;
+    const totalAmount = isPrazo ? prazoCount * prazoValue : (unitPrice * form.quantity + tradeInValue);
 
-    if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
+    if (isPrazo) {
+      if (prazoValue <= 0) { toast.error('Informe o valor da parcela.'); return; }
+      if (!form.prazo_first_due) { toast.error('Informe a data do 1º vencimento.'); return; }
+    } else {
+      if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
+    }
+
+    // Build installments JSON for prazo sales
+    let installmentsJson: string | null = null;
+    if (isPrazo) {
+      const [fy, fm, fd] = form.prazo_first_due.split('-').map(Number);
+      const installments = Array.from({ length: prazoCount }, (_, i) => {
+        const d = new Date(fy, fm - 1 + i, fd);
+        const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return { n: i + 1, due, amount: prazoValue, paid_at: null };
+      });
+      installmentsJson = JSON.stringify(installments);
+    }
 
     // Monta forma de pagamento combinada se split ativo
-    let resolvedPaymentMethod = form.payment_method;
-    if (form.split_payment && Number(form.payment2_amount) > 0) {
+    let resolvedPaymentMethod = isPrazo
+      ? `A Prazo — ${prazoCount}x de ${formatCurrency(prazoValue)}`
+      : form.payment_method;
+    if (!isPrazo && form.split_payment && Number(form.payment2_amount) > 0) {
       const p2 = Number(form.payment2_amount);
       const p1 = Math.max(0, unitPrice * form.quantity - p2);
       const cardMethod = form.payment2_method === 'Cartão de Crédito' ? form.payment2_method : form.payment_method === 'Cartão de Crédito' ? form.payment_method : null;
@@ -400,10 +433,12 @@ export const Vendas: React.FC = () => {
           incoming_devices_json: incomingDevices.filter((d) => d.model.trim()).length > 0
             ? JSON.stringify(incomingDevices.filter((d) => d.model.trim()))
             : null,
+          installments_json: installmentsJson,
         },
-        product
+        // Prazo: itens passados como [] — estoque/custo tratados manualmente abaixo
+        isPrazo ? [] : (product
           ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
-          : []
+          : [])
       );
 
       // For troca: add ALL incoming devices to stock
@@ -439,8 +474,48 @@ export const Vendas: React.FC = () => {
         }
       }
 
-      // Para produtos sem estoque: cria transações financeiras manualmente
-      if (!product) {
+      // Venda a Prazo: decrementa estoque + cria custo (SEM receita — entra ao pagar parcela)
+      if (isPrazo) {
+        const saleDate = new Date(form.sale_date).toISOString().slice(0, 10);
+        if (product) {
+          const newQty = Math.max(0, product.stock_quantity - form.quantity);
+          await dataService.updateProduct(product.id, {
+            name: product.name, category: product.category,
+            purchase_price: product.purchase_price, sale_price: product.sale_price,
+            stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
+            imei: product.imei || '',
+          });
+          if (product.purchase_price > 0) {
+            await dataService.addTransaction({
+              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
+              amount: product.purchase_price * form.quantity,
+              type: 'expense', category: 'stock', date: saleDate,
+            });
+          }
+        } else {
+          const manualCost = Number(form.product_cost_manual);
+          if (manualCost > 0) {
+            await dataService.addTransaction({
+              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
+              amount: manualCost * form.quantity,
+              type: 'expense', category: 'stock', date: saleDate,
+            });
+          }
+          if (form.save_to_stock && productName) {
+            await dataService.addProduct({
+              name: productName, category: 'Smartphones',
+              purchase_price: manualCost || 0, sale_price: prazoValue,
+              stock_quantity: 0, status: 'out_of_stock',
+              imei: form.product_imei || '', product_capacity: form.product_capacity || '',
+              product_color: form.product_color || '', product_condition: form.product_condition || 'Seminovo',
+              entry_date: new Date(form.sale_date).toISOString().split('T')[0],
+            });
+          }
+        }
+      }
+
+      // Para produtos sem estoque (não-prazo): cria transações financeiras manualmente
+      if (!product && !isPrazo) {
         await dataService.addTransaction({
           description: `Receita ${saleNumber} — ${productName || 'Produto'}`,
           amount: unitPrice * form.quantity,
@@ -668,6 +743,33 @@ export const Vendas: React.FC = () => {
       toast.error('Erro: ' + error.message);
     } finally {
       setIsDeletingSale(false);
+    }
+  };
+
+  const handleMarkPaid = async (sale: any, instIndex: number) => {
+    const key = `${sale.id}-${instIndex}`;
+    try {
+      setMarkingPaid(key);
+      const installments: any[] = JSON.parse(sale.installments_json || '[]');
+      const paid_at = new Date().toISOString().slice(0, 10);
+      const updated = installments.map((inst, i) =>
+        i === instIndex ? { ...inst, paid_at } : inst
+      );
+      await dataService.updateSale(sale.id, { installments_json: JSON.stringify(updated) });
+      const inst = installments[instIndex];
+      await dataService.addTransaction({
+        description: `Receita ${sale.sale_number} — Parcela ${instIndex + 1}/${installments.length} (${sale.customer_name || ''})`,
+        amount: inst.amount,
+        type: 'income',
+        category: 'sale',
+        date: paid_at,
+      });
+      toast.success(`Parcela ${instIndex + 1} marcada como paga!`);
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao marcar parcela: ' + error.message);
+    } finally {
+      setMarkingPaid(null);
     }
   };
 
@@ -935,10 +1037,17 @@ export const Vendas: React.FC = () => {
                       const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';
                       const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
-                      const saleProfit = type === 'troca' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
+                      const saleProfit = type === 'troca' || type === 'prazo' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
+                      const prazoInsts: any[] = type === 'prazo' && sale.installments_json
+                        ? (() => { try { return JSON.parse(sale.installments_json); } catch { return []; } })()
+                        : [];
+                      const paidCount = prazoInsts.filter((i: any) => i.paid_at).length;
+                      const isExpanded = expandedPrazoSale === sale.id;
+                      const today = new Date().toISOString().slice(0, 10);
 
                       return (
-                        <div key={sale.id} className="flex items-center gap-2 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-neutral-50 transition-colors">
+                        <React.Fragment key={sale.id}>
+                        <div className="flex items-center gap-2 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-neutral-50 transition-colors">
                           {/* Number + type badge stacked on mobile */}
                           <div className="flex-shrink-0 flex flex-col items-start gap-0.5 min-w-0">
                             <span className="text-[10px] font-mono font-bold text-neutral-500">{num}</span>
@@ -971,19 +1080,37 @@ export const Vendas: React.FC = () => {
                               : sale.payment_method}
                           </span>
 
-                          {/* Signature status */}
-                          <span className={cn(
-                            'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0',
-                            sale.signature_client
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-amber-100 text-amber-700'
-                          )}>
-                            {sale.signature_client ? (
-                              <><CheckCircle2 size={10} /> Assinado</>
-                            ) : (
-                              <><RefreshCw size={10} /> Aguardando</>
-                            )}
-                          </span>
+                          {/* Prazo progress OR signature status */}
+                          {type === 'prazo' ? (
+                            <button
+                              onClick={() => setExpandedPrazoSale(isExpanded ? null : sale.id)}
+                              className={cn(
+                                'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 cursor-pointer transition-colors',
+                                paidCount === prazoInsts.length && prazoInsts.length > 0
+                                  ? 'bg-green-100 text-green-700'
+                                  : prazoInsts.some((i: any) => !i.paid_at && i.due < today)
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-orange-100 text-orange-700'
+                              )}
+                            >
+                              <Clock size={10} />
+                              {paidCount}/{prazoInsts.length} pagas
+                              {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                            </button>
+                          ) : (
+                            <span className={cn(
+                              'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0',
+                              sale.signature_client
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            )}>
+                              {sale.signature_client ? (
+                                <><CheckCircle2 size={10} /> Assinado</>
+                              ) : (
+                                <><RefreshCw size={10} /> Aguardando</>
+                              )}
+                            </span>
+                          )}
 
                           {/* Date */}
                           <span className="hidden md:block text-xs text-neutral-400 flex-shrink-0">
@@ -1063,6 +1190,69 @@ export const Vendas: React.FC = () => {
                             </button>
                           </div>
                         </div>
+
+                        {/* ── Installments panel (prazo) ── */}
+                        {type === 'prazo' && isExpanded && prazoInsts.length > 0 && (
+                          <div className="border-t border-orange-100 bg-orange-50/40 px-5 py-3 space-y-1.5">
+                            <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <Calendar size={11} /> Parcelas — {name}
+                            </p>
+                            {prazoInsts.map((inst: any, i: number) => {
+                              const isOverdue = !inst.paid_at && inst.due < today;
+                              const isPaid = !!inst.paid_at;
+                              const markKey = `${sale.id}-${i}`;
+                              return (
+                                <div key={i} className={cn(
+                                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm',
+                                  isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
+                                )}>
+                                  <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                                    {inst.n}
+                                  </span>
+                                  <span className="text-xs text-neutral-500 flex-shrink-0 w-24">
+                                    {inst.due.split('-').reverse().join('/')}
+                                  </span>
+                                  <span className="font-bold text-neutral-800 flex-1">
+                                    {formatCurrency(inst.amount)}
+                                  </span>
+                                  {isPaid ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                      <CheckCircle2 size={10} /> Pago {inst.paid_at.split('-').reverse().join('/')}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleMarkPaid(sale, i)}
+                                      disabled={markingPaid === markKey}
+                                      className={cn(
+                                        'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors',
+                                        isOverdue
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                          : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
+                                        markingPaid === markKey && 'opacity-50 cursor-not-allowed'
+                                      )}
+                                    >
+                                      {markingPaid === markKey ? (
+                                        <RefreshCw size={10} className="animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 size={10} />
+                                      )}
+                                      {isOverdue ? 'Atrasada — marcar paga' : 'Marcar como paga'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
+                              <span>Total do contrato</span>
+                              <span>{formatCurrency(prazoInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-green-700 font-bold">
+                              <span>Já recebido ({paidCount} parcela{paidCount !== 1 ? 's' : ''})</span>
+                              <span>{formatCurrency(prazoInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                            </div>
+                          </div>
+                        )}
+                        </React.Fragment>
                       );
                     })}
                   </div>
@@ -1636,8 +1826,8 @@ export const Vendas: React.FC = () => {
             </div>
           )}
 
-          {/* Condições de Pagamento */}
-          <div>
+          {/* ─── Condições de Pagamento (venda/troca) ─── */}
+          {form.sale_type !== 'prazo' && <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Condições de Pagamento</p>
               {/* Toggle pagamento dividido */}
@@ -1888,7 +2078,92 @@ export const Vendas: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
+
+          {/* ─── Condições a Prazo ─── */}
+          {form.sale_type === 'prazo' && (
+            <div className="border-2 border-orange-200 bg-orange-50/40 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
+                <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Parcelas do Contrato</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nº de Parcelas</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    inputMode="numeric"
+                    value={form.prazo_count}
+                    onChange={setF('prazo_count')}
+                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                    placeholder="12"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor por Parcela (R$) *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={form.prazo_value}
+                    onChange={setF('prazo_value')}
+                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                    placeholder="500,00"
+                    required={form.sale_type === 'prazo'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">1º Vencimento *</label>
+                  <input
+                    type="date"
+                    value={form.prazo_first_due}
+                    onChange={setF('prazo_first_due')}
+                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                    required={form.sale_type === 'prazo'}
+                  />
+                </div>
+              </div>
+
+              {/* Data da venda */}
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
+                <input
+                  type="datetime-local"
+                  className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                  value={form.sale_date}
+                  onChange={setF('sale_date')}
+                />
+              </div>
+
+              {/* Preview do contrato */}
+              {Number(form.prazo_value) > 0 && Number(form.prazo_count) > 0 && (
+                <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Resumo do Contrato</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-neutral-500">Parcelas</span>
+                    <span className="font-bold">{form.prazo_count}x de {formatCurrency(Number(form.prazo_value))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-orange-100 pt-2">
+                    <span className="font-bold text-neutral-700">Valor total do contrato</span>
+                    <span className="text-xl font-black text-orange-700">
+                      {formatCurrency(Number(form.prazo_count) * Number(form.prazo_value))}
+                    </span>
+                  </div>
+                  {form.prazo_first_due && (
+                    <p className="text-xs text-orange-600 font-medium">
+                      Primeira parcela em: {form.prazo_first_due.split('-').reverse().join('/')}
+                    </p>
+                  )}
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 font-medium mt-2">
+                    A receita entra no Financeiro conforme cada parcela é marcada como paga.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Vendedor responsável — sempre visível */}
           <div className="border-2 border-primary/20 bg-primary/5 rounded-2xl p-4">

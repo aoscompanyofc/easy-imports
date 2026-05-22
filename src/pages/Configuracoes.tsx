@@ -385,7 +385,10 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS product_color TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_condition TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_warranty TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS product_origin TEXT;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;`;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS entry_date DATE;
+
+-- Tabela: sales (venda a prazo)
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments_json TEXT;`;
 
   const copyMigSQL = () => {
     copyToClipboard(MIGRATION_SQL);

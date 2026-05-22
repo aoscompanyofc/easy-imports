@@ -514,7 +514,7 @@ export const Financeiro: React.FC = () => {
               <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Lançamentos do Mês</p>
               <span className="text-[10px] font-bold text-neutral-400">{viewMonthTx.length} lançamento{viewMonthTx.length !== 1 ? 's' : ''}</span>
             </div>
-            <div className="divide-y divide-neutral-100 max-h-80 overflow-y-auto">
+            <div className="divide-y divide-neutral-100">
               {viewMonthTx.map(t => (
                 <div key={t.id} className="flex items-center gap-0 hover:bg-neutral-50 transition-colors">
                   {/* Colored left stripe */}

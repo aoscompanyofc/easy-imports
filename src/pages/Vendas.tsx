@@ -169,6 +169,12 @@ export const Vendas: React.FC = () => {
   const [detailSale, setDetailSale] = useState<any | null>(null);
   const [deleteSale, setDeleteSale] = useState<any | null>(null);
   const [isDeletingSale, setIsDeletingSale] = useState(false);
+  // Edit mode: reuses the create modal pre-populated with existing sale data
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
+  const [editSaleNumber, setEditSaleNumber] = useState('');
+  const [editSaleRevision, setEditSaleRevision] = useState(0);
+  // Legacy — kept only for TypeScript references still in file; no longer used
   const [editSale, setEditSale] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [editIncomingDevices, setEditIncomingDevices] = useState<TradeInDevice[]>([emptyTradeInDevice()]);
@@ -389,6 +395,77 @@ export const Vendas: React.FC = () => {
 
     try {
       setIsSaving(true);
+
+      // ─── EDIT MODE: only update the sale record, no stock/transaction changes ───
+      if (isEditMode && editSaleId) {
+        let customerId = form.selectedCustomer || null;
+        let customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';
+        let customerPhone = form.customer_phone || selectedCustomerData?.phone;
+
+        if (showNewCustomer && newCustomer.name.trim()) {
+          const created = await dataService.addCustomer({
+            name: newCustomer.name.trim(), phone: newCustomer.phone.trim(),
+            email: newCustomer.email.trim(), cpf: newCustomer.cpf.trim(), city: newCustomer.address.trim(),
+          });
+          customerId = created.id; customerName = created.name;
+          customerPhone = created.phone || customerPhone;
+          setCustomers((prev) => [created, ...prev]);
+        }
+
+        const resolvedCpf  = newCustomer.cpf.trim()     || form.customer_cpf  || selectedCustomerData?.cpf  || '';
+        const resolvedCity = newCustomer.address.trim()  || form.customer_city || selectedCustomerData?.city || '';
+        const primaryDevice = incomingDevices[0] || emptyTradeInDevice();
+
+        // Preserve paid_at values from existing installments
+        let editInstJson = installmentsJson;
+        if (isPrazo && installmentsJson) {
+          const origSale = sales.find((s: any) => s.id === editSaleId);
+          const prevInsts: any[] = (() => { try { return JSON.parse(origSale?.installments_json || '[]'); } catch { return []; } })();
+          if (prevInsts.length > 0) {
+            editInstJson = JSON.stringify(
+              (JSON.parse(installmentsJson) as any[]).map((inst, i) => ({ ...inst, paid_at: prevInsts[i]?.paid_at || null }))
+            );
+          }
+        }
+
+        await dataService.updateSale(editSaleId, {
+          sale_type: form.sale_type,
+          customer_id: customerId,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_cpf: resolvedCpf,
+          customer_city: resolvedCity,
+          product_name: productName,
+          product_capacity: form.product_capacity,
+          product_color: form.product_color,
+          product_condition: form.product_condition,
+          product_imei: form.product_imei || selectedProductData?.imei || '',
+          product_accessories: form.product_accessories,
+          pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+          total_amount: totalAmount,
+          payment_method: resolvedPaymentMethod,
+          installments: isPrazo ? prazoCount : (form.split_payment ? 1 : form.installments),
+          created_at: new Date(form.sale_date).toISOString(),
+          incoming_name: deviceFormToProductName(primaryDevice) || primaryDevice.model || '',
+          incoming_imei: primaryDevice.imei || '',
+          incoming_serial: primaryDevice.serial || '',
+          incoming_email: primaryDevice.account_email || '',
+          incoming_capacity: primaryDevice.capacity || '',
+          incoming_color: primaryDevice.color || '',
+          incoming_condition: primaryDevice.condition || '',
+          incoming_battery_health: primaryDevice.battery_health || '',
+          incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
+          installments_json: editInstJson,
+        });
+        await dataService.tryUpdateSaleRevision(editSaleId, editSaleRevision + 1);
+        toast.success(`Venda atualizada! PDF versão ${editSaleNumber}.${editSaleRevision + 1}`);
+        setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null);
+        setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]);
+        setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
+        fetchData();
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────────
 
       // Create new customer on-the-fly if requested
       let customerId = form.selectedCustomer || null;
@@ -1225,34 +1302,42 @@ export const Vendas: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                setEditSale(sale);
-                                setEditForm({
-                                  customer_name: sale.customer_name || '',
+                                const sType = sale.sale_type || 'venda';
+                                const tradeIn = sale.incoming_purchase_price || 0;
+                                const existingInsts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
+                                // sale_price_manual: para troca = caixa recebido (total − troca); prazo/venda = total_amount
+                                const salePriceManual = sType === 'troca'
+                                  ? String(Math.max(0, (sale.total_amount || 0) - tradeIn))
+                                  : String(sale.total_amount || '');
+                                const payMethod = PAYMENT_METHODS.includes(sale.payment_method || '') ? (sale.payment_method || 'PIX') : 'PIX';
+
+                                setForm({
+                                  ...emptyForm(),
+                                  sale_type: sType,
+                                  selectedCustomer: sale.customer_id || '',
                                   customer_phone: sale.customer_phone || sale.customers?.phone || '',
                                   customer_cpf: sale.customer_cpf || '',
                                   customer_city: sale.customer_city || sale.customers?.city || '',
-                                  product_name: sale.product_name || '',
+                                  product_name_manual: sale.product_name || '',
                                   product_capacity: sale.product_capacity || '',
                                   product_color: sale.product_color || '',
                                   product_condition: sale.product_condition || 'Seminovo',
                                   product_imei: sale.product_imei || '',
                                   product_accessories: sale.product_accessories || '',
-                                  sale_type: sale.sale_type || 'venda',
-                                  pdf_type: sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
-                                  total_amount: String(sale.total_amount || ''),
-                                  payment_method: sale.payment_method || 'PIX',
+                                  sale_price_manual: salePriceManual,
+                                  payment_method: payMethod,
                                   installments: sale.installments || 1,
                                   sale_date: sale.created_at
                                     ? new Date(sale.created_at).toISOString().slice(0, 16)
                                     : new Date().toISOString().slice(0, 16),
-                                  // Prazo fields
-                                  sale_price_manual: String(sale.total_amount || ''),
-                                  prazo_count: (() => { try { return String(JSON.parse(sale.installments_json || '[]').length || 1); } catch { return '1'; } })(),
-                                  prazo_value: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.amount ? String(insts[0].amount) : ''; } catch { return ''; } })(),
-                                  prazo_first_due: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.due || ''; } catch { return ''; } })(),
+                                  whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
+                                  pdf_type: sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+                                  prazo_count: String(existingInsts.length || 1),
+                                  prazo_value: existingInsts[0]?.amount ? String(existingInsts[0].amount) : '',
+                                  prazo_first_due: existingInsts[0]?.due || '',
                                 });
-                                // Inicializa apparelho entrante com dados salvos na venda
-                                setEditIncomingDevices([{
+                                // Pré-preenche aparelho entrante
+                                setIncomingDevices(sale.incoming_name?.trim() ? [{
                                   ...emptyTradeInDevice(),
                                   model: sale.incoming_name || '',
                                   imei: sale.incoming_imei || '',
@@ -1260,10 +1345,17 @@ export const Vendas: React.FC = () => {
                                   color: sale.incoming_color || '',
                                   condition: sale.incoming_condition || 'Seminovo — Excelente',
                                   battery_health: sale.incoming_battery_health || '',
-                                  purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
+                                  purchase_price: tradeIn > 0 ? String(tradeIn) : '',
                                   serial: sale.incoming_serial || '',
                                   account_email: sale.incoming_email || '',
-                                }]);
+                                }] : [emptyTradeInDevice()]);
+                                setShowNewCustomer(false);
+                                setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
+                                setIsEditMode(true);
+                                setEditSaleId(sale.id);
+                                setEditSaleNumber(sale.sale_number || '');
+                                setEditSaleRevision(sale.revision || 0);
+                                setIsModalOpen(true);
                               }}
                               className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar venda"
@@ -1369,7 +1461,7 @@ export const Vendas: React.FC = () => {
       )}
 
       {/* ─── NOVA OPERAÇÃO MODAL ─── */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nova Operação" maxWidth="2xl">
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
         <form onSubmit={handleCreateSale} className="space-y-6">
 
           {/* Tipo */}
@@ -2438,9 +2530,9 @@ export const Vendas: React.FC = () => {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>
+            <Button variant="secondary" fullWidth onClick={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} type="button">Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit" leftIcon={<CheckCircle2 size={18} />}>
-              Registrar {TYPE_LABELS[form.sale_type]}
+              {isEditMode ? 'Salvar Alterações' : `Registrar ${TYPE_LABELS[form.sale_type]}`}
             </Button>
           </div>
         </form>
@@ -2622,9 +2714,9 @@ export const Vendas: React.FC = () => {
         )}
       </Modal>
 
-      {/* ─── EDITAR VENDA MODAL ─── */}
-      <Modal isOpen={!!editSale} onClose={() => !isSavingEdit && setEditSale(null)} title={`Editar — ${editSale?.sale_number || ''}`} maxWidth="2xl">
-        {editSale && (
+      {/* ─── EDITAR VENDA MODAL (legacy — never opens; edit now reuses the create modal) ─── */}
+      <Modal isOpen={false} onClose={() => setEditSale(null)} title="" maxWidth="2xl">
+        {false && (
           <form onSubmit={handleSaveEdit} className="space-y-6">
 
             {/* Tipo da operação — editável para corrigir vendas antigas */}

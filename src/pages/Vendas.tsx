@@ -171,6 +171,7 @@ export const Vendas: React.FC = () => {
   const [isDeletingSale, setIsDeletingSale] = useState(false);
   const [editSale, setEditSale] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [editIncomingDevices, setEditIncomingDevices] = useState<TradeInDevice[]>([emptyTradeInDevice()]);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [expandedPrazoSale, setExpandedPrazoSale] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
@@ -697,26 +698,45 @@ export const Vendas: React.FC = () => {
         installments: editForm.installments,
         created_at: new Date(editForm.sale_date).toISOString(),
       };
-      if (editForm.sale_type === 'troca') {
-        updates.incoming_name = editForm.incoming_name;
-        updates.incoming_imei = editForm.incoming_imei;
-        updates.incoming_capacity = editForm.incoming_capacity;
-        updates.incoming_color = editForm.incoming_color;
-        updates.incoming_condition = editForm.incoming_condition;
-        updates.incoming_battery_health = editForm.incoming_battery_health;
-        updates.incoming_purchase_price = Number(editForm.incoming_purchase_price) || 0;
+      // Aparelho entrante (troca e prazo) — lê do DeviceForm
+      const primaryEditDevice = editIncomingDevices[0] || emptyTradeInDevice();
+      if (editForm.sale_type === 'troca' || editForm.sale_type === 'prazo') {
+        const deviceName = deviceFormToProductName(primaryEditDevice) || primaryEditDevice.model || '';
+        updates.incoming_name = deviceName;
+        updates.incoming_imei = primaryEditDevice.imei || '';
+        updates.incoming_serial = primaryEditDevice.serial || '';
+        updates.incoming_email = primaryEditDevice.account_email || '';
+        updates.incoming_capacity = primaryEditDevice.capacity || '';
+        updates.incoming_color = primaryEditDevice.color || '';
+        updates.incoming_condition = primaryEditDevice.condition || '';
+        updates.incoming_battery_health = primaryEditDevice.battery_health || '';
+        updates.incoming_purchase_price = Number(primaryEditDevice.purchase_price) || 0;
+        // Se o aparelho entrante mudou/foi adicionado vs o que estava salvo, adiciona ao estoque
+        const prevName = editSale.incoming_name?.trim() || '';
+        const newName  = deviceName.trim();
+        if (newName && newName !== prevName) {
+          const batteryNote = primaryEditDevice.battery_health ? ` · Bateria: ${primaryEditDevice.battery_health}` : '';
+          await dataService.addProduct({
+            name: newName,
+            category: primaryEditDevice.category || 'iPhone',
+            purchase_price: Number(primaryEditDevice.purchase_price) || 0,
+            sale_price: Number(primaryEditDevice.sale_price) || 0,
+            stock_quantity: 1,
+            status: 'available',
+            imei: primaryEditDevice.imei || '',
+            product_capacity: primaryEditDevice.capacity !== '—' ? primaryEditDevice.capacity : '',
+            product_color: primaryEditDevice.color || '',
+            product_condition: (primaryEditDevice.condition || 'Seminovo — Excelente') + batteryNote,
+            product_warranty: primaryEditDevice.warranty || 'Sem garantia',
+            product_origin: primaryEditDevice.origin || '',
+            entry_date: primaryEditDevice.entry_date || new Date().toISOString().split('T')[0],
+          });
+        }
       }
       if (editForm.sale_type === 'prazo') {
         const productPrice = Number(editForm.sale_price_manual) || amount;
-        const tradeIn = Number(editForm.incoming_purchase_price) || 0;
+        const tradeIn = Number(primaryEditDevice.purchase_price) || 0;
         updates.total_amount = productPrice;
-        updates.incoming_purchase_price = tradeIn;
-        updates.incoming_name = editForm.incoming_name;
-        updates.incoming_imei = editForm.incoming_imei;
-        updates.incoming_capacity = editForm.incoming_capacity;
-        updates.incoming_color = editForm.incoming_color;
-        updates.incoming_condition = editForm.incoming_condition;
-        updates.incoming_battery_health = editForm.incoming_battery_health;
         if (editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due) {
           const count = Math.max(1, Number(editForm.prazo_count) || 1);
           const value = Number(editForm.prazo_value) || 0;
@@ -1225,20 +1245,25 @@ export const Vendas: React.FC = () => {
                                   sale_date: sale.created_at
                                     ? new Date(sale.created_at).toISOString().slice(0, 16)
                                     : new Date().toISOString().slice(0, 16),
-                                  incoming_name: sale.incoming_name || '',
-                                  incoming_imei: sale.incoming_imei || '',
-                                  incoming_capacity: sale.incoming_capacity || '',
-                                  incoming_color: sale.incoming_color || '',
-                                  incoming_condition: sale.incoming_condition || 'Seminovo',
-                                  incoming_battery_health: sale.incoming_battery_health || '',
-                                  incoming_purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
                                   // Prazo fields
                                   sale_price_manual: String(sale.total_amount || ''),
-                                  prazo_trade_in: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '0',
                                   prazo_count: (() => { try { return String(JSON.parse(sale.installments_json || '[]').length || 1); } catch { return '1'; } })(),
                                   prazo_value: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.amount ? String(insts[0].amount) : ''; } catch { return ''; } })(),
                                   prazo_first_due: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.due || ''; } catch { return ''; } })(),
                                 });
+                                // Inicializa apparelho entrante com dados salvos na venda
+                                setEditIncomingDevices([{
+                                  ...emptyTradeInDevice(),
+                                  model: sale.incoming_name || '',
+                                  imei: sale.incoming_imei || '',
+                                  capacity: sale.incoming_capacity || '',
+                                  color: sale.incoming_color || '',
+                                  condition: sale.incoming_condition || 'Seminovo — Excelente',
+                                  battery_health: sale.incoming_battery_health || '',
+                                  purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
+                                  serial: sale.incoming_serial || '',
+                                  account_email: sale.incoming_email || '',
+                                }]);
                               }}
                               className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar venda"
@@ -2744,66 +2769,97 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            {/* Aparelho Entrante (troca E prazo) */}
+            {/* Aparelhos Entrando (troca e prazo) — idêntico ao painel de criação */}
             {(editForm.sale_type === 'troca' || editForm.sale_type === 'prazo') && (
-              <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
-                <p className="text-xs font-black text-purple-600 uppercase tracking-widest">Aparelho Entrando (do cliente)</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <Input label="Modelo do aparelho" placeholder="Ex: Samsung Galaxy S22" value={editForm.incoming_name} onChange={setEF('incoming_name')} autoComplete="off" />
-                  </div>
-                  {(() => {
-                    const isImeiLike = /^\d*$/.test(editForm.incoming_imei);
-                    return (
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-sm font-bold text-neutral-700">IMEI / Número de Série</label>
-                          {isImeiLike && editForm.incoming_imei.length > 0 && (
-                            <span className={`text-xs font-mono ${editForm.incoming_imei.length === 15 ? 'text-emerald-600 font-bold' : 'text-neutral-500'}`}>
-                              {editForm.incoming_imei.length}/15
-                            </span>
-                          )}
-                        </div>
-                        <input
-                          className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
-                          placeholder="IMEI (15 dígitos) ou Número de Série"
-                          value={editForm.incoming_imei}
-                          maxLength={isImeiLike ? 15 : undefined}
-                          onChange={(e) => setEditForm((f: any) => ({ ...f, incoming_imei: e.target.value }))}
-                          autoComplete="off"
-                        />
-                      </div>
-                    );
-                  })()}
-                  <Input label="Capacidade" placeholder="128GB" value={editForm.incoming_capacity} onChange={setEF('incoming_capacity')} autoComplete="off" />
-                  <Input label="Cor" placeholder="Preto" value={editForm.incoming_color} onChange={setEF('incoming_color')} autoComplete="off" />
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Estado</label>
-                    <select className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
-                      value={editForm.incoming_condition} onChange={setEF('incoming_condition')}>
-                      {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
-                    <select className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-400/30"
-                      value={editForm.incoming_battery_health} onChange={setEF('incoming_battery_health')}>
-                      <option value="">Não verificado</option>
-                      {['100%','99%','98%','97%','96%','95%','94%','93%','92%','91%','90%','89%','88%','87%','86%','85%','84%','83%','82%','81%','80%','Abaixo de 80%'].map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <Input label="Valor dado ao cliente (R$)" type="number" step="any" inputMode="decimal"
-                    value={editForm.incoming_purchase_price} onChange={setEF('incoming_purchase_price')} autoComplete="off" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
+                    {editForm.sale_type === 'prazo' ? 'Aparelho na Troca (opcional)' : 'Aparelhos Entrando (do cliente)'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditIncomingDevices((prev) => [...prev, emptyTradeInDevice()])}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
+                  >
+                    <Plus size={13} /> Adicionar aparelho
+                  </button>
                 </div>
+
+                {editIncomingDevices.map((device, idx) => (
+                  <div key={idx} className="border border-purple-200 bg-purple-50/30 rounded-2xl p-5 space-y-4">
+                    <div className="flex items-center justify-between pb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-black text-purple-700">{idx + 1}</span>
+                        </div>
+                        <p className="text-xs font-bold text-purple-700">
+                          {deviceFormToProductName(device) || device.model || 'Aparelho sem modelo'}
+                        </p>
+                      </div>
+                      {editIncomingDevices.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditIncomingDevices((prev) => prev.filter((_, i) => i !== idx))}
+                          className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remover aparelho"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <DeviceForm
+                      value={device}
+                      onChange={(v) =>
+                        setEditIncomingDevices((prev) =>
+                          prev.map((d, i) => i === idx ? { ...d, ...v } : d)
+                        )
+                      }
+                      purchasePriceLabel="Valor dado ao cliente (R$)"
+                      purchasePriceRequired={false}
+                      salePriceLabel="Previsão de revenda (R$) — opcional"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-purple-100">
+                      <Input
+                        label="Número de Série"
+                        placeholder="Ex: C02XG2YJHV2Q"
+                        value={device.serial}
+                        onChange={(e) =>
+                          setEditIncomingDevices((prev) =>
+                            prev.map((d, i) => i === idx ? { ...d, serial: e.target.value } : d)
+                          )
+                        }
+                        autoComplete="off"
+                      />
+                      <Input
+                        label="E-mail da Conta (iCloud/Google)"
+                        placeholder="Ex: joao@icloud.com"
+                        value={device.account_email}
+                        onChange={(e) =>
+                          setEditIncomingDevices((prev) =>
+                            prev.map((d, i) => i === idx ? { ...d, account_email: e.target.value } : d)
+                          )
+                        }
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <p className="text-xs text-purple-500 pl-1">
+                  {editForm.sale_type === 'prazo'
+                    ? 'O aparelho entra no estoque e o crédito dado ao cliente reduz o valor contratado.'
+                    : 'Todos os aparelhos serão adicionados automaticamente ao seu estoque.'
+                  }
+                </p>
               </div>
             )}
 
             {/* ── PRAZO: condições a prazo (idêntico ao painel de criação) ── */}
             {editForm.sale_type === 'prazo' && (() => {
               const productPrice = Number(editForm.sale_price_manual) || 0;
-              const tradeIn = Number(editForm.incoming_purchase_price) || 0;
+              const tradeIn = editIncomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
               const financing = Math.max(0, productPrice - tradeIn);
               const count = Math.max(1, Number(editForm.prazo_count) || 1);
               const autoValue = count > 0 ? financing / count : 0;

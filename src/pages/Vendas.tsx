@@ -706,20 +706,34 @@ export const Vendas: React.FC = () => {
         updates.incoming_battery_health = editForm.incoming_battery_health;
         updates.incoming_purchase_price = Number(editForm.incoming_purchase_price) || 0;
       }
-      if (editForm.sale_type === 'prazo' && editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due) {
-        const count = Math.max(1, Number(editForm.prazo_count) || 1);
-        const value = Number(editForm.prazo_value) || 0;
-        const [fy, fm, fd] = editForm.prazo_first_due.split('-').map(Number);
-        // Keep existing paid_at values if installments already exist
-        const existingInsts: any[] = (() => { try { return JSON.parse(editSale.installments_json || '[]'); } catch { return []; } })();
-        const newInsts = Array.from({ length: count }, (_, i) => {
-          const d = new Date(fy, fm - 1 + i, fd);
-          const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          const existing = existingInsts[i];
-          return { n: i + 1, due, amount: value, paid_at: existing?.paid_at || null };
-        });
-        updates.installments_json = JSON.stringify(newInsts);
-        updates.installments = count;
+      if (editForm.sale_type === 'prazo') {
+        const productPrice = Number(editForm.sale_price_manual) || amount;
+        const tradeIn = Number(editForm.incoming_purchase_price) || 0;
+        updates.total_amount = productPrice;
+        updates.incoming_purchase_price = tradeIn;
+        updates.incoming_name = editForm.incoming_name;
+        updates.incoming_imei = editForm.incoming_imei;
+        updates.incoming_capacity = editForm.incoming_capacity;
+        updates.incoming_color = editForm.incoming_color;
+        updates.incoming_condition = editForm.incoming_condition;
+        updates.incoming_battery_health = editForm.incoming_battery_health;
+        if (editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due) {
+          const count = Math.max(1, Number(editForm.prazo_count) || 1);
+          const value = Number(editForm.prazo_value) || 0;
+          const [fy, fm, fd] = editForm.prazo_first_due.split('-').map(Number);
+          const existingInsts: any[] = (() => { try { return JSON.parse(editSale.installments_json || '[]'); } catch { return []; } })();
+          const newInsts = Array.from({ length: count }, (_, i) => {
+            const d = new Date(fy, fm - 1 + i, fd);
+            const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return { n: i + 1, due, amount: value, paid_at: existingInsts[i]?.paid_at || null };
+          });
+          updates.installments_json = JSON.stringify(newInsts);
+          updates.installments = count;
+          const paymentDesc = tradeIn > 0
+            ? `Troca ${formatCurrency(tradeIn)} + ${count}x de ${formatCurrency(value)} a prazo`
+            : `A Prazo — ${count}x de ${formatCurrency(value)}`;
+          updates.payment_method = paymentDesc;
+        }
       }
       await dataService.updateSale(editSale.id, updates);
       const nextRev = (editSale.revision || 0) + 1;
@@ -1218,7 +1232,9 @@ export const Vendas: React.FC = () => {
                                   incoming_condition: sale.incoming_condition || 'Seminovo',
                                   incoming_battery_health: sale.incoming_battery_health || '',
                                   incoming_purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
-                                  // Prazo fields — preenche se installments_json já existe
+                                  // Prazo fields
+                                  sale_price_manual: String(sale.total_amount || ''),
+                                  prazo_trade_in: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '0',
                                   prazo_count: (() => { try { return String(JSON.parse(sale.installments_json || '[]').length || 1); } catch { return '1'; } })(),
                                   prazo_value: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.amount ? String(insts[0].amount) : ''; } catch { return ''; } })(),
                                   prazo_first_due: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.due || ''; } catch { return ''; } })(),
@@ -2728,8 +2744,8 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            {/* Aparelho Entrante (apenas troca) */}
-            {editForm.sale_type === 'troca' && (
+            {/* Aparelho Entrante (troca E prazo) */}
+            {(editForm.sale_type === 'troca' || editForm.sale_type === 'prazo') && (
               <div className="border border-purple-200 bg-purple-50/50 rounded-2xl p-4 space-y-4">
                 <p className="text-xs font-black text-purple-600 uppercase tracking-widest">Aparelho Entrando (do cliente)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2784,7 +2800,156 @@ export const Vendas: React.FC = () => {
               </div>
             )}
 
-            {/* Pagamento */}
+            {/* ── PRAZO: condições a prazo (idêntico ao painel de criação) ── */}
+            {editForm.sale_type === 'prazo' && (() => {
+              const productPrice = Number(editForm.sale_price_manual) || 0;
+              const tradeIn = Number(editForm.incoming_purchase_price) || 0;
+              const financing = Math.max(0, productPrice - tradeIn);
+              const count = Math.max(1, Number(editForm.prazo_count) || 1);
+              const autoValue = count > 0 ? financing / count : 0;
+              const instValue = Number(editForm.prazo_value) > 0 ? Number(editForm.prazo_value) : autoValue;
+              return (
+                <div className="border-2 border-orange-200 bg-orange-50/40 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
+                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Condições a Prazo</p>
+                  </div>
+
+                  {/* Valor do produto */}
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor do Produto (R$) *</label>
+                    <input type="number" min="0" step="any" inputMode="decimal" required
+                      className="w-full bg-white border-2 border-orange-300 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400"
+                      value={editForm.sale_price_manual}
+                      onChange={(e) => setEditForm((f: any) => ({ ...f, sale_price_manual: e.target.value, total_amount: e.target.value }))}
+                      placeholder="Ex: 5000"
+                    />
+                  </div>
+
+                  {/* Breakdown do Contrato */}
+                  {(productPrice > 0 || tradeIn > 0) && (
+                    <div className="bg-white border border-orange-200 rounded-xl p-3.5 space-y-2">
+                      <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Breakdown do Contrato</p>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-500">Valor do produto</span>
+                        <span className="font-bold text-neutral-900">{formatCurrency(productPrice)}</span>
+                      </div>
+                      {tradeIn > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-purple-700">Crédito da troca</span>
+                          <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-bold border-t border-orange-200 pt-2">
+                        <span className="text-orange-700">A pagar em parcelas</span>
+                        <span className="text-orange-700">{formatCurrency(financing)}</span>
+                      </div>
+                      {autoValue > 0 && (
+                        <p className="text-xs text-orange-500">
+                          Sugestão: {count}x de {formatCurrency(autoValue)}
+                          {!Number(editForm.prazo_value) && (
+                            <button type="button"
+                              onClick={() => setEditForm((f: any) => ({ ...f, prazo_value: String(Math.round(autoValue * 100) / 100) }))}
+                              className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 font-bold rounded-full hover:bg-orange-200 transition-colors"
+                            >
+                              Usar este valor
+                            </button>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Parcelas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nº de Parcelas</label>
+                      <input type="number" min="1" max="60" inputMode="numeric"
+                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                        value={editForm.prazo_count}
+                        onChange={(e) => {
+                          const c = e.target.value;
+                          const newCount = Math.max(1, Number(c) || 1);
+                          const newAuto = financing > 0 && newCount > 0 ? financing / newCount : 0;
+                          setEditForm((f: any) => ({ ...f, prazo_count: c, prazo_value: newAuto > 0 && !f._prazo_value_manual ? String(Math.round(newAuto * 100) / 100) : f.prazo_value }));
+                        }}
+                        placeholder="12"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor por Parcela (R$) *</label>
+                      <input type="number" min="0" step="any" inputMode="decimal"
+                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                        value={editForm.prazo_value}
+                        onChange={(e) => setEditForm((f: any) => ({ ...f, prazo_value: e.target.value, _prazo_value_manual: true }))}
+                        placeholder={autoValue > 0 ? String(Math.round(autoValue * 100) / 100) : '500,00'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">1º Vencimento *</label>
+                      <input type="date"
+                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                        value={editForm.prazo_first_due}
+                        onChange={setEF('prazo_first_due')}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Data da operação */}
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
+                    <input type="datetime-local"
+                      className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                      value={editForm.sale_date} onChange={setEF('sale_date')}
+                    />
+                  </div>
+
+                  {/* Resumo do Contrato */}
+                  {(instValue > 0 || productPrice > 0) && count > 0 && (
+                    <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-2">
+                      <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Resumo do Contrato</p>
+                      {productPrice > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Valor do produto</span>
+                          <span className="font-bold">{formatCurrency(productPrice)}</span>
+                        </div>
+                      )}
+                      {tradeIn > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-purple-700">Crédito da troca</span>
+                          <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                        </div>
+                      )}
+                      {instValue > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Parcelas ({editForm.prazo_count}x)</span>
+                          <span className="font-bold">{editForm.prazo_count}x de {formatCurrency(instValue)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm border-t border-orange-100 pt-2">
+                        <span className="font-bold text-neutral-700">
+                          {tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo'}
+                        </span>
+                        <span className="text-xl font-black text-orange-700">
+                          {formatCurrency(count * instValue + tradeIn)}
+                        </span>
+                      </div>
+                      {editForm.prazo_first_due && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          Primeira parcela em: {editForm.prazo_first_due.split('-').reverse().join('/')}
+                        </p>
+                      )}
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 font-medium mt-2">
+                        A receita entra no Financeiro conforme cada parcela é marcada como paga.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Pagamento (apenas venda e troca) */}
+            {editForm.sale_type !== 'prazo' && (
             <div>
               <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3">Condições de Pagamento</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -2834,58 +2999,6 @@ export const Vendas: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* ── Configurar parcelas (prazo) ── */}
-            {editForm.sale_type === 'prazo' && (
-              <div className="border-2 border-orange-200 bg-orange-50 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar size={15} className="text-orange-600" />
-                  <p className="text-xs font-black text-orange-700 uppercase tracking-widest">
-                    {!editSale?.installments_json ? '⚠️ Configurar Parcelas (obrigatório)' : 'Parcelas a Prazo'}
-                  </p>
-                </div>
-                {!editSale?.installments_json && (
-                  <p className="text-xs text-orange-700">
-                    As parcelas desta venda não foram salvas. Preencha abaixo e salve para corrigir.
-                  </p>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nº de Parcelas</label>
-                    <input
-                      type="number" min="1" max="60"
-                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
-                      value={editForm.prazo_count}
-                      onChange={setEF('prazo_count')}
-                      placeholder="9"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor da Parcela (R$)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
-                      value={editForm.prazo_value}
-                      onChange={setEF('prazo_value')}
-                      placeholder="500,00"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">1º Vencimento</label>
-                    <input
-                      type="date"
-                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
-                      value={editForm.prazo_first_due}
-                      onChange={setEF('prazo_first_due')}
-                    />
-                  </div>
-                </div>
-                {editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due && (
-                  <p className="text-xs text-orange-800 font-semibold">
-                    → {editForm.prazo_count}x de {formatCurrency(Number(editForm.prazo_value))} — 1º venc. {editForm.prazo_first_due.split('-').reverse().join('/')} · Total {formatCurrency(Number(editForm.prazo_count) * Number(editForm.prazo_value))}
-                  </p>
-                )}
-              </div>
             )}
 
             <div className="flex gap-3 pt-2">

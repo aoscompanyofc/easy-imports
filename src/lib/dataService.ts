@@ -166,10 +166,16 @@ export const dataService = {
     // Nível 5: sem colunas de produto extras — garante sale_type e sale_number
     const p5 = { ...base, sale_number, sale_type, installments: inst, sign_token, installments_json };
 
-    // Nível 6: mínimo absoluto — pelo menos sale_type é salvo
-    const p6 = { ...base, sale_type };
+    // Nível 5b: sem sign_token (pode não existir em schemas antigos) — preserva installments_json
+    const p5b = { ...base, sale_number, sale_type, installments: inst, installments_json };
 
-    const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5, p6]);
+    // Nível 6: sem installments_json — preserva ao menos sale_type e sale_number
+    const p6 = { ...base, sale_number, sale_type, installments: inst };
+
+    // Nível 7: mínimo absoluto
+    const p7 = { ...base, sale_type };
+
+    const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5, p5b, p6, p7]);
     const saleId = saleRow.id;
     const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {

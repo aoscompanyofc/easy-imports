@@ -706,6 +706,21 @@ export const Vendas: React.FC = () => {
         updates.incoming_battery_health = editForm.incoming_battery_health;
         updates.incoming_purchase_price = Number(editForm.incoming_purchase_price) || 0;
       }
+      if (editForm.sale_type === 'prazo' && editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due) {
+        const count = Math.max(1, Number(editForm.prazo_count) || 1);
+        const value = Number(editForm.prazo_value) || 0;
+        const [fy, fm, fd] = editForm.prazo_first_due.split('-').map(Number);
+        // Keep existing paid_at values if installments already exist
+        const existingInsts: any[] = (() => { try { return JSON.parse(editSale.installments_json || '[]'); } catch { return []; } })();
+        const newInsts = Array.from({ length: count }, (_, i) => {
+          const d = new Date(fy, fm - 1 + i, fd);
+          const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const existing = existingInsts[i];
+          return { n: i + 1, due, amount: value, paid_at: existing?.paid_at || null };
+        });
+        updates.installments_json = JSON.stringify(newInsts);
+        updates.installments = count;
+      }
       await dataService.updateSale(editSale.id, updates);
       const nextRev = (editSale.revision || 0) + 1;
       await dataService.tryUpdateSaleRevision(editSale.id, nextRev);
@@ -1203,6 +1218,10 @@ export const Vendas: React.FC = () => {
                                   incoming_condition: sale.incoming_condition || 'Seminovo',
                                   incoming_battery_health: sale.incoming_battery_health || '',
                                   incoming_purchase_price: sale.incoming_purchase_price ? String(sale.incoming_purchase_price) : '',
+                                  // Prazo fields — preenche se installments_json já existe
+                                  prazo_count: (() => { try { return String(JSON.parse(sale.installments_json || '[]').length || 1); } catch { return '1'; } })(),
+                                  prazo_value: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.amount ? String(insts[0].amount) : ''; } catch { return ''; } })(),
+                                  prazo_first_due: (() => { try { const insts = JSON.parse(sale.installments_json || '[]'); return insts[0]?.due || ''; } catch { return ''; } })(),
                                 });
                               }}
                               className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -2815,6 +2834,59 @@ export const Vendas: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* ── Configurar parcelas (prazo) ── */}
+            {editForm.sale_type === 'prazo' && (
+              <div className="border-2 border-orange-200 bg-orange-50 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar size={15} className="text-orange-600" />
+                  <p className="text-xs font-black text-orange-700 uppercase tracking-widest">
+                    {!editSale?.installments_json ? '⚠️ Configurar Parcelas (obrigatório)' : 'Parcelas a Prazo'}
+                  </p>
+                </div>
+                {!editSale?.installments_json && (
+                  <p className="text-xs text-orange-700">
+                    As parcelas desta venda não foram salvas. Preencha abaixo e salve para corrigir.
+                  </p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nº de Parcelas</label>
+                    <input
+                      type="number" min="1" max="60"
+                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                      value={editForm.prazo_count}
+                      onChange={setEF('prazo_count')}
+                      placeholder="9"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor da Parcela (R$)</label>
+                    <input
+                      type="number" min="0" step="0.01"
+                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                      value={editForm.prazo_value}
+                      onChange={setEF('prazo_value')}
+                      placeholder="500,00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">1º Vencimento</label>
+                    <input
+                      type="date"
+                      className="w-full bg-white border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                      value={editForm.prazo_first_due}
+                      onChange={setEF('prazo_first_due')}
+                    />
+                  </div>
+                </div>
+                {editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due && (
+                  <p className="text-xs text-orange-800 font-semibold">
+                    → {editForm.prazo_count}x de {formatCurrency(Number(editForm.prazo_value))} — 1º venc. {editForm.prazo_first_due.split('-').reverse().join('/')} · Total {formatCurrency(Number(editForm.prazo_count) * Number(editForm.prazo_value))}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button variant="secondary" fullWidth onClick={() => setEditSale(null)} type="button" disabled={isSavingEdit}>

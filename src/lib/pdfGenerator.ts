@@ -816,11 +816,10 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
     <div class="row">
       ${field('IMEI / Serial', sale.incoming_imei || sale.incoming_serial, 'f2')}
       ${sale.incoming_battery_health ? field('Saúde Bateria', sale.incoming_battery_health) : ''}
-      ${field('Valor de Crédito ao Cliente', fmtMoney(sale.incoming_purchase_price), 'f2')}
     </div>
     <p style="font-size:7.5pt;color:#555;margin-top:4px;">
-      O aparelho acima foi recebido pela Easy Imports como parte do pagamento, reduzindo o valor
-      do contrato. O comprador declara ser o legítimo proprietário e que o aparelho não possui bloqueios ativos.
+      O aparelho acima foi entregue pelo comprador à Easy Imports como parte do acordo comercial.
+      O comprador declara ser o legítimo proprietário e que o aparelho não possui bloqueios ativos (iCloud/Google).
     </p>
   </div>
 </div>` : '';

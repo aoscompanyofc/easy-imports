@@ -233,13 +233,19 @@ export const Financeiro: React.FC = () => {
 
   const hasActiveFilters = filterType !== 'all' || dateFrom || dateTo || searchTerm;
 
-  const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = !searchTerm || t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || t.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || t.type === filterType;
-    const matchesFrom = !dateFrom || new Date(t.date) >= new Date(dateFrom);
-    const matchesTo = !dateTo || new Date(t.date) <= new Date(dateTo + 'T23:59:59');
-    return matchesSearch && matchesType && matchesFrom && matchesTo;
-  });
+  const filteredTransactions = transactions
+    .filter(t => {
+      const matchesSearch = !searchTerm || t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || t.category?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || t.type === filterType;
+      const matchesFrom = !dateFrom || new Date(t.date) >= new Date(dateFrom);
+      const matchesTo = !dateTo || new Date(t.date) <= new Date(dateTo + 'T23:59:59');
+      return matchesSearch && matchesType && matchesFrom && matchesTo;
+    })
+    .sort((a, b) => {
+      const d = (b.date || '').localeCompare(a.date || '');
+      if (d !== 0) return d;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
 
   const summaryBase = hasActiveFilters ? filteredTransactions : transactions;
   const totalIncome = summaryBase.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
@@ -251,7 +257,13 @@ export const Financeiro: React.FC = () => {
 
   // Month view data
   const viewMonthTx = useMemo(
-    () => transactions.filter(t => (t.date || '').slice(0, 7) === viewMonth).sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    () => transactions
+      .filter(t => (t.date || '').slice(0, 7) === viewMonth)
+      .sort((a, b) => {
+        const d = (b.date || '').localeCompare(a.date || '');
+        if (d !== 0) return d;
+        return (b.created_at || '').localeCompare(a.created_at || '');
+      }),
     [transactions, viewMonth]
   );
   const viewMonthProjected = projectedByMonth[viewMonth] || [];

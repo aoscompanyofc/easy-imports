@@ -385,7 +385,7 @@ export const dataService = {
   async getTransactions() {
     if (useMock) return mockDataService.getTransactions();
     const { data, error } = await supabase
-      .from('transactions').select('*').order('date', { ascending: false });
+      .from('transactions').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },

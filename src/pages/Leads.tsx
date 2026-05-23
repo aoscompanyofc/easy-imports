@@ -35,17 +35,17 @@ function fmtDate(iso: string) {
 }
 
 const AVATAR_COLORS = [
-  'bg-blue-500','bg-violet-500','bg-emerald-500','bg-rose-500',
-  'bg-amber-500','bg-cyan-500','bg-fuchsia-500','bg-teal-500',
+  'bg-neutral-900','bg-neutral-700','bg-neutral-600','bg-neutral-500',
+  'bg-neutral-800','bg-primary','bg-neutral-400','bg-neutral-300',
 ];
 function avatarColor(name: string) {
   return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
 }
 
 const TAG_PALETTE = [
-  'bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700',
-  'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700', 'bg-cyan-100 text-cyan-700',
+  'bg-neutral-200 text-neutral-700', 'bg-primary/20 text-neutral-900',
+  'bg-neutral-100 text-neutral-600', 'bg-neutral-900 text-white',
+  'bg-primary/10 text-neutral-800', 'bg-neutral-700 text-white',
 ];
 function tagColor(tag: string) {
   let h = 0;
@@ -60,10 +60,10 @@ const SOURCES = [
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [
-  { id: 'new',         label: 'Novo Lead',   accent: '#3B82F6' },
+  { id: 'new',         label: 'Novo Lead',   accent: '#525252' },
   { id: 'interested',  label: 'Interessado', accent: '#EAB308' },
-  { id: 'proposal',    label: 'Follow Up',   accent: '#8B5CF6' },
-  { id: 'negotiating', label: 'Negociando',  accent: '#EC4899' },
+  { id: 'proposal',    label: 'Follow Up',   accent: '#737373' },
+  { id: 'negotiating', label: 'Negociando',  accent: '#171717' },
   { id: 'closed',      label: 'Cliente',     accent: '#10B981' },
 ] as const;
 
@@ -139,7 +139,7 @@ const CardContent = ({
         {lead.follow_up_date && (
           <div className={cn(
             'flex items-center gap-1 text-[10px] font-bold pl-0.5',
-            new Date(lead.follow_up_date + 'T00:00:00') <= new Date() ? 'text-red-500' : 'text-amber-600'
+            new Date(lead.follow_up_date + 'T00:00:00') <= new Date() ? 'text-red-500' : 'text-neutral-600'
           )}>
             <Clock size={9} />
             Follow-up: {new Date(lead.follow_up_date + 'T00:00:00').toLocaleDateString('pt-BR')}
@@ -156,7 +156,7 @@ const CardContent = ({
           ) : <div />}
           <div className="flex items-center gap-1 flex-shrink-0">
             {lead.status === 'closed' && (
-              <span className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              <span className="flex items-center gap-0.5 text-[9px] font-black text-neutral-900 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                 <CheckCircle2 size={8} /> Cliente
               </span>
             )}

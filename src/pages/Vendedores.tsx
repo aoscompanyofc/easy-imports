@@ -225,7 +225,7 @@ export const Vendedores: React.FC = () => {
 
       {/* SQL hint */}
       {showSQL && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-neutral-200 bg-neutral-50">
           <p className="text-sm font-bold text-neutral-700 mb-2">
             Execute no Supabase → SQL Editor para habilitar vendedores:
           </p>
@@ -252,12 +252,12 @@ export const Vendedores: React.FC = () => {
       ) : sellers.length === 0 ? (
         <div className="space-y-4">
           {/* Setup hint — shown automatically since table may not exist yet */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5">
             <div className="flex items-start gap-3 mb-3">
-              <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle size={18} className="text-neutral-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-amber-800">Configure a tabela no Supabase primeiro</p>
-                <p className="text-xs text-amber-700 mt-1">
+                <p className="text-sm font-bold text-neutral-800">Configure a tabela no Supabase primeiro</p>
+                <p className="text-xs text-neutral-700 mt-1">
                   Execute o script abaixo no Supabase → SQL Editor para criar a tabela de vendedores.
                   Depois volte aqui e adicione o primeiro vendedor.
                 </p>
@@ -316,7 +316,7 @@ export const Vendedores: React.FC = () => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEdit(seller)}
-                      className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
                       title="Editar"
                     >
                       <Pencil size={14} />
@@ -360,7 +360,7 @@ export const Vendedores: React.FC = () => {
                       </div>
                       <span className={cn(
                         'text-xs font-black',
-                        pct >= 100 ? 'text-green-600' : pct >= 70 ? 'text-amber-500' : 'text-neutral-500'
+                        pct >= 100 ? 'text-green-600' : pct >= 70 ? 'text-primary' : 'text-neutral-500'
                       )}>
                         {Math.round(pct)}%
                       </span>
@@ -421,7 +421,7 @@ export const Vendedores: React.FC = () => {
                         <div className="flex items-center gap-2.5">
                           <span className={cn(
                             'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0',
-                            rank === 0 ? 'bg-amber-100 text-amber-700' : 'bg-neutral-100 text-neutral-500'
+                            rank === 0 ? 'bg-primary text-neutral-900' : 'bg-neutral-100 text-neutral-500'
                           )}>
                             {rank + 1}
                           </span>

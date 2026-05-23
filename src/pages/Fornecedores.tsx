@@ -345,7 +345,7 @@ export const Fornecedores: React.FC = () => {
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} — {s.country}</option>)}
               </select>
               {suppliers.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1.5">
+                <p className="text-xs text-neutral-600 mt-1.5">
                   Nenhum fornecedor.{' '}
                   <button type="button" className="underline font-bold" onClick={() => { setIsPurchaseModalOpen(false); setIsSupplierModalOpen(true); }}>
                     Cadastrar agora.

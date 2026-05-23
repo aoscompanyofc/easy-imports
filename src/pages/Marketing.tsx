@@ -36,7 +36,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   'TikTok Ads':           'bg-neutral-800 text-white',
   'YouTube Ads':          'bg-neutral-100 text-neutral-700',
   'WhatsApp Easy Imports':'bg-primary/10 text-primary-700',
-  'WhatsApp João':        'bg-amber-50 text-amber-700',
+  'WhatsApp João':        'bg-primary/10 text-neutral-900',
   'Pinterest Ads':        'bg-neutral-100 text-neutral-700',
   'LinkedIn Ads':         'bg-neutral-100 text-neutral-700',
   'Outros':               'bg-neutral-100 text-neutral-600',
@@ -203,7 +203,7 @@ export const Marketing: React.FC = () => {
 
       {/* SQL setup hint */}
       {showSQL && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-neutral-200 bg-neutral-50">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <p className="text-sm font-bold text-neutral-700 mb-2">
@@ -228,9 +228,9 @@ export const Marketing: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Orçamento Total', value: formatCurrency(totalBudget), icon: DollarSign, color: 'bg-primary/10 text-primary-900' },
-          { label: 'Total Investido', value: formatCurrency(totalSpent), icon: TrendingUp, color: 'bg-blue-100 text-blue-700' },
-          { label: 'Leads Gerados', value: `${totalLeads}`, icon: Users, color: 'bg-green-100 text-green-700' },
-          { label: 'CPL Médio', value: formatCurrency(avgCpl), icon: Target, color: 'bg-purple-100 text-purple-700' },
+          { label: 'Total Investido', value: formatCurrency(totalSpent), icon: TrendingUp, color: 'bg-neutral-100 text-neutral-700' },
+          { label: 'Leads Gerados', value: `${totalLeads}`, icon: Users, color: 'bg-neutral-100 text-neutral-700' },
+          { label: 'CPL Médio', value: formatCurrency(avgCpl), icon: Target, color: 'bg-neutral-100 text-neutral-700' },
         ].map((kpi) => (
           <Card key={kpi.label} className="flex items-center gap-4">
             <div className={cn('p-3 rounded-xl flex-shrink-0', kpi.color)}>

@@ -158,12 +158,12 @@ function getPaymentLabel(method: string) {
   return map[method] || method || 'Outro';
 }
 const PAYMENT_COLORS: Record<string, string> = {
-  pix: 'bg-emerald-100 text-emerald-700',
-  credit_card: 'bg-blue-100 text-blue-700',
-  debit_card: 'bg-indigo-100 text-indigo-700',
-  cash: 'bg-green-100 text-green-700',
-  boleto: 'bg-orange-100 text-orange-700',
-  transfer: 'bg-purple-100 text-purple-700',
+  pix: 'bg-primary/10 text-neutral-900',
+  credit_card: 'bg-neutral-900 text-white',
+  debit_card: 'bg-neutral-200 text-neutral-700',
+  cash: 'bg-neutral-100 text-neutral-700',
+  boleto: 'bg-neutral-100 text-neutral-600',
+  transfer: 'bg-neutral-800 text-white',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -492,23 +492,23 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
               {dueSoonInstallments.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-                  <Clock size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-start gap-3">
+                  <Clock size={18} className="text-primary flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-amber-700">
+                    <p className="text-sm font-black text-neutral-800">
                       {dueSoonInstallments.length} parcela{dueSoonInstallments.length !== 1 ? 's' : ''} vencendo nos próximos 7 dias
                     </p>
                     <div className="mt-1.5 space-y-1">
                       {dueSoonInstallments.slice(0, 3).map(({ sale, inst, index }) => (
-                        <p key={`${sale.id}-${index}`} className="text-xs text-amber-700">
+                        <p key={`${sale.id}-${index}`} className="text-xs text-neutral-800">
                           <strong>{sale.customer_name}</strong> — Parcela {inst.n} — {formatCurrency(inst.amount)} — vence {inst.due.split('-').reverse().join('/')}
                         </p>
                       ))}
                       {dueSoonInstallments.length > 3 && (
-                        <p className="text-xs text-amber-500 font-bold">+ {dueSoonInstallments.length - 3} mais...</p>
+                        <p className="text-xs text-neutral-500 font-bold">+ {dueSoonInstallments.length - 3} mais...</p>
                       )}
                     </div>
-                    <button onClick={() => navigate('/vendas')} className="mt-2 text-xs font-black text-amber-700 underline">
+                    <button onClick={() => navigate('/vendas')} className="mt-2 text-xs font-black text-neutral-800 underline">
                       Ver em Vendas →
                     </button>
                   </div>
@@ -578,7 +578,7 @@ export const Dashboard: React.FC = () => {
                   <div
                     className={cn(
                       'h-full rounded-full transition-all duration-700',
-                      metaPct >= 100 ? 'bg-emerald-500' : metaPct >= 70 ? 'bg-primary' : metaPct >= 40 ? 'bg-amber-400' : 'bg-red-400'
+                      metaPct >= 100 ? 'bg-green-500' : metaPct >= 70 ? 'bg-primary' : metaPct >= 40 ? 'bg-neutral-400' : 'bg-red-400'
                     )}
                     style={{ width: `${metaPct}%` }}
                   />
@@ -622,7 +622,7 @@ export const Dashboard: React.FC = () => {
                   <div className="mt-2 rounded-xl border border-neutral-100 overflow-hidden">
                     {thisMonthSales.map((s) => {
                       const stype = s.sale_type || 'venda';
-                      const typeBadge = stype === 'troca' ? 'bg-purple-100 text-purple-700' : stype === 'compra' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700';
+                      const typeBadge = stype === 'troca' ? 'bg-primary text-neutral-900' : stype === 'compra' ? 'bg-neutral-100 text-neutral-600' : 'bg-neutral-900 text-white';
                       const typeLabel = stype === 'troca' ? 'T' : stype === 'compra' ? 'C' : 'V';
                       return (
                         <div key={s.id} className="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-50 last:border-0 bg-white">
@@ -839,9 +839,9 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
               { label: 'Faturamento',   value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
-              { label: 'Vendas',        value: `${salesCount}`,            icon: ShoppingCart, color: 'text-blue-600'    },
+              { label: 'Vendas',        value: `${salesCount}`,            icon: ShoppingCart, color: 'text-neutral-700'  },
               { label: 'Lucro',         value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
-              { label: 'Estoque',       value: formatCurrency(stockValue),icon: Package,     color: 'text-purple-600'   },
+              { label: 'Estoque',       value: formatCurrency(stockValue),icon: Package,     color: 'text-neutral-700'   },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-neutral-100 shadow-sm min-w-0 overflow-hidden">
                 <div className={cn('p-1.5 sm:p-2 bg-neutral-50 rounded-lg flex-shrink-0', item.color)}>

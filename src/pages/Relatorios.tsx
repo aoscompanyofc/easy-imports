@@ -300,19 +300,19 @@ export const Relatorios: React.FC = () => {
           <Section
             title="Estoque & Custo"
             icon={Package}
-            iconColor="bg-blue-100 text-blue-700"
+            iconColor="bg-neutral-100 text-neutral-700"
             onExport={exportEstoque}
             exportLabel="Exportar CSV"
           >
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="Aparelhos em estoque" value={String(estoque.inStock)} sub={`${estoque.sold} vendidos`} />
-              <Stat label="Valor de venda" value={formatCurrency(estoque.valorVenda)} color="text-blue-700" />
+              <Stat label="Valor de venda" value={formatCurrency(estoque.valorVenda)} color="text-neutral-900" />
               <Stat label="Custo total" value={formatCurrency(estoque.valorCusto)} />
               <Stat
                 label="Margem potencial"
                 value={`${estoque.margemPotencial.toFixed(1)}%`}
                 sub="Se vender tudo pelo preço de venda"
-                color={estoque.margemPotencial > 20 ? 'text-green-700' : 'text-amber-600'}
+                color={estoque.margemPotencial > 20 ? 'text-green-700' : 'text-neutral-600'}
               />
             </div>
             {estoque.inStockList.length > 0 && (
@@ -334,7 +334,7 @@ export const Relatorios: React.FC = () => {
           <Section
             title="Lucratividade"
             icon={TrendingUp}
-            iconColor="bg-purple-100 text-purple-700"
+            iconColor="bg-neutral-100 text-neutral-700"
             onExport={exportLucro}
             exportLabel="Exportar CSV"
           >
@@ -342,7 +342,7 @@ export const Relatorios: React.FC = () => {
               <p className="text-sm text-neutral-400 py-4 text-center">Nenhuma transação em {monthLabel}.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Stat label="Receita bruta" value={formatCurrency(lucro.receita)} color="text-purple-700" />
+                <Stat label="Receita bruta" value={formatCurrency(lucro.receita)} color="text-neutral-700" />
                 <Stat label="Custo mercadoria" value={formatCurrency(lucro.custoMerc)} />
                 <Stat label="Outros custos" value={formatCurrency(lucro.outrosCustos)} />
                 <Stat
@@ -359,7 +359,7 @@ export const Relatorios: React.FC = () => {
           <Section
             title="Performance dos Leads"
             icon={Users}
-            iconColor="bg-amber-100 text-amber-700"
+            iconColor="bg-primary/10 text-neutral-900"
             onExport={exportLeads}
             exportLabel="Exportar CSV"
           >
@@ -374,7 +374,7 @@ export const Relatorios: React.FC = () => {
                   <Stat
                     label="Taxa de conversão"
                     value={`${leadsData.taxa.toFixed(1)}%`}
-                    color={leadsData.taxa >= 20 ? 'text-green-700' : 'text-amber-600'}
+                    color={leadsData.taxa >= 20 ? 'text-green-700' : 'text-neutral-600'}
                   />
                 </div>
                 {Object.keys(leadsData.bySource).length > 0 && (
@@ -382,7 +382,7 @@ export const Relatorios: React.FC = () => {
                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2">Por fonte</p>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(leadsData.bySource).sort((a, b) => b[1] - a[1]).map(([src, count]) => (
-                        <span key={src} className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-bold text-amber-700">
+                        <span key={src} className="px-3 py-1 bg-primary/5 border border-primary/20 rounded-full text-xs font-bold text-neutral-800">
                           {src}: {count}
                         </span>
                       ))}

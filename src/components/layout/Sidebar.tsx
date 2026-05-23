@@ -48,7 +48,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
       aria-current={isActive ? 'page' : undefined}
       title={isCollapsed ? label : undefined}
       className={cn(
-        'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 overflow-hidden',
+        'group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 overflow-hidden',
         isCollapsed ? 'justify-center' : '',
         isActive
           ? 'bg-neutral-900 text-white'

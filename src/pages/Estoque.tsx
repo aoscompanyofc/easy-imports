@@ -333,7 +333,7 @@ export const Estoque: React.FC = () => {
                 icon={<AlertTriangle size={14} />}
                 label="Dias parado"
                 value={`${daysInStock} dia${daysInStock !== 1 ? 's' : ''}${isStale ? ' ⚠️' : ''}`}
-                valueClass={isStale ? 'text-amber-600' : ''}
+                valueClass={isStale ? 'text-primary' : ''}
               />
             </div>
           </div>
@@ -371,7 +371,7 @@ export const Estoque: React.FC = () => {
       <tr
         className={[
           'group border-b border-neutral-100 last:border-0 transition-colors cursor-pointer',
-          isSoldView ? 'opacity-50 hover:opacity-70 bg-neutral-50' : isStale ? 'bg-amber-50/60 hover:bg-amber-50' : 'bg-white hover:bg-neutral-50',
+          isSoldView ? 'opacity-50 hover:opacity-70 bg-neutral-50' : isStale ? 'bg-primary/5 hover:bg-primary/10' : 'bg-white hover:bg-neutral-50',
         ].join(' ')}
         onClick={() => !isSoldView && setDetailProduct(p)}
       >
@@ -396,14 +396,14 @@ export const Estoque: React.FC = () => {
         {/* Nome */}
         <td className="pl-2 pr-2 py-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : isStale ? 'bg-amber-400' : 'bg-primary'}`} />
+            <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${isSoldView ? 'bg-neutral-300' : isStale ? 'bg-neutral-400' : 'bg-primary'}`} />
             <div className="min-w-0">
               <p className={`text-sm font-bold ${isSoldView ? 'text-neutral-500' : 'text-neutral-900'}`}>{p.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-px rounded">{p.category}</span>
                 {p.imei && <span className="text-[10px] font-mono text-neutral-400">{p.imei.length === 15 && /^\d+$/.test(p.imei) ? 'IMEI' : 'S/N'}: {p.imei}</span>}
                 {isSoldView && <span className="text-[10px] font-bold text-neutral-400 bg-neutral-200 px-1.5 py-px rounded">Vendido</span>}
-                {isStale && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-px rounded flex items-center gap-0.5"><AlertTriangle size={9} />{daysInStock}d</span>}
+                {isStale && <span className="text-[10px] font-bold text-neutral-900 bg-primary/10 px-1.5 py-px rounded flex items-center gap-0.5"><AlertTriangle size={9} />{daysInStock}d</span>}
               </div>
             </div>
           </div>
@@ -436,7 +436,7 @@ export const Estoque: React.FC = () => {
         {/* Dias */}
         <td className="px-3 py-3 text-center whitespace-nowrap">
           {entryDate ? (
-            <span className={`text-xs font-bold px-2 py-1 rounded-full ${isStale ? 'bg-amber-100 text-amber-700' : 'bg-neutral-100 text-neutral-500'}`}>
+            <span className={`text-xs font-bold px-2 py-1 rounded-full ${isStale ? 'bg-primary/10 text-neutral-900' : 'bg-neutral-100 text-neutral-500'}`}>
               {daysInStock}d
             </span>
           ) : <span className="text-neutral-300 text-xs">—</span>}
@@ -452,8 +452,8 @@ export const Estoque: React.FC = () => {
             if (!cond) return <span className="text-neutral-300 text-xs">—</span>;
             return (
               <span className={`text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap ${
-                isNovo ? 'bg-green-100 text-green-700' :
-                isSemi ? 'bg-blue-100 text-blue-700' :
+                isNovo ? 'bg-neutral-900 text-white' :
+                isSemi ? 'bg-neutral-200 text-neutral-700' :
                 'bg-neutral-100 text-neutral-500'
               }`}>
                 {isNovo ? 'Novo' : isSemi ? 'Seminovo' : cond.split(' ')[0]}
@@ -515,7 +515,7 @@ export const Estoque: React.FC = () => {
         onClick={() => !isSoldView && setDetailProduct(p)}
         className={[
           'flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 last:border-0 transition-colors',
-          isSoldView ? 'opacity-60 bg-neutral-50/80' : isStale ? 'bg-amber-50/60' : 'bg-white',
+          isSoldView ? 'opacity-60 bg-neutral-50/80' : isStale ? 'bg-primary/5' : 'bg-white',
           !isSoldView ? 'cursor-pointer active:bg-neutral-50' : '',
         ].join(' ')}
       >
@@ -542,13 +542,13 @@ export const Estoque: React.FC = () => {
             <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">{p.category}</span>
             {condBase && (
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                isNovo ? 'bg-green-100 text-green-700' : isSemi ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-500'
+                isNovo ? 'bg-neutral-900 text-white' : isSemi ? 'bg-neutral-200 text-neutral-700' : 'bg-neutral-100 text-neutral-500'
               }`}>
                 {isNovo ? 'Novo' : isSemi ? 'Seminovo' : condBase.split(' ')[0]}
               </span>
             )}
             {isStale && (
-              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+              <span className="text-[10px] font-bold text-neutral-900 bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                 <AlertTriangle size={9} /> {daysInStock}d
               </span>
             )}

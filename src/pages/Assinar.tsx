@@ -58,7 +58,7 @@ export const Assinar: React.FC = () => {
   if (notFound) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-neutral-50 px-4">
-        <AlertTriangle size={48} className="text-amber-400" />
+        <AlertTriangle size={48} className="text-primary" />
         <h1 className="text-xl font-bold text-neutral-800">Link inválido ou expirado</h1>
         <p className="text-neutral-500 text-center">Este link de assinatura não foi encontrado.</p>
       </div>

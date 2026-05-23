@@ -16,15 +16,15 @@ import { useProfileStore } from '../stores/profileStore';
 const CATEGORIES = ['Vendas', 'Trocas', 'Compras', 'Procedimentos', 'Manuais', 'Financeiro', 'Marketing', 'Contratos', 'Importação', 'Outros'];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Vendas: 'bg-green-100 text-green-700',
-  Trocas: 'bg-purple-100 text-purple-700',
-  Compras: 'bg-blue-100 text-blue-700',
-  Procedimentos: 'bg-indigo-100 text-indigo-700',
-  Manuais: 'bg-teal-100 text-teal-700',
-  Financeiro: 'bg-emerald-100 text-emerald-700',
-  Marketing: 'bg-pink-100 text-pink-700',
-  Contratos: 'bg-amber-100 text-amber-700',
-  Importação: 'bg-cyan-100 text-cyan-700',
+  Vendas: 'bg-neutral-900 text-white',
+  Trocas: 'bg-primary text-neutral-900',
+  Compras: 'bg-neutral-200 text-neutral-700',
+  Procedimentos: 'bg-neutral-700 text-white',
+  Manuais: 'bg-neutral-100 text-neutral-700',
+  Financeiro: 'bg-neutral-900 text-white',
+  Marketing: 'bg-primary/20 text-neutral-900',
+  Contratos: 'bg-primary/10 text-neutral-900',
+  Importação: 'bg-neutral-800 text-white',
   Outros: 'bg-neutral-100 text-neutral-600',
 };
 

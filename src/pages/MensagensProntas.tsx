@@ -33,14 +33,14 @@ export const CATEGORIES = [
 ];
 
 const CAT_STYLE: Record<string, { text: string; bg: string; border: string; pill: string }> = {
-  'Follow-up':   { text: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200',    pill: 'bg-blue-100 text-blue-700' },
-  'Aniversário': { text: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200',   pill: 'bg-amber-100 text-amber-700' },
-  'Pós-venda':   { text: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-200',   pill: 'bg-green-100 text-green-700' },
-  'Promoção':    { text: 'text-violet-700',  bg: 'bg-violet-50',  border: 'border-violet-200',  pill: 'bg-violet-100 text-violet-700' },
-  'Recuperação': { text: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200',    pill: 'bg-rose-100 text-rose-700' },
-  'Boas-vindas': { text: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200',    pill: 'bg-teal-100 text-teal-700' },
-  'Cobrança':    { text: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200',  pill: 'bg-orange-100 text-orange-700' },
-  'Geral':       { text: 'text-neutral-600', bg: 'bg-neutral-50', border: 'border-neutral-200', pill: 'bg-neutral-100 text-neutral-600' },
+  'Follow-up':   { text: 'text-neutral-700',  bg: 'bg-neutral-50',   border: 'border-neutral-200',  pill: 'bg-neutral-200 text-neutral-700' },
+  'Aniversário': { text: 'text-neutral-900',  bg: 'bg-primary/5',    border: 'border-primary/20',   pill: 'bg-primary text-neutral-900' },
+  'Pós-venda':   { text: 'text-neutral-700',  bg: 'bg-neutral-50',   border: 'border-neutral-200',  pill: 'bg-neutral-100 text-neutral-700' },
+  'Promoção':    { text: 'text-neutral-900',  bg: 'bg-primary/10',   border: 'border-primary/20',   pill: 'bg-primary/20 text-neutral-900' },
+  'Recuperação': { text: 'text-red-700',      bg: 'bg-red-50',       border: 'border-red-200',      pill: 'bg-red-100 text-red-700' },
+  'Boas-vindas': { text: 'text-neutral-700',  bg: 'bg-neutral-50',   border: 'border-neutral-200',  pill: 'bg-neutral-200 text-neutral-700' },
+  'Cobrança':    { text: 'text-neutral-900',  bg: 'bg-neutral-900',  border: 'border-neutral-900',  pill: 'bg-neutral-900 text-white' },
+  'Geral':       { text: 'text-neutral-600',  bg: 'bg-neutral-50',   border: 'border-neutral-200',  pill: 'bg-neutral-100 text-neutral-600' },
 };
 
 function catStyle(cat: string) {

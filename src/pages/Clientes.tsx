@@ -44,8 +44,8 @@ function toWhatsApp(phone: string) {
 }
 
 const AVATAR_COLORS = [
-  'bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-rose-500',
-  'bg-amber-500', 'bg-cyan-500', 'bg-fuchsia-500', 'bg-teal-500',
+  'bg-neutral-900', 'bg-neutral-700', 'bg-neutral-600', 'bg-neutral-500',
+  'bg-neutral-800', 'bg-primary', 'bg-neutral-400', 'bg-neutral-300',
 ];
 function avatarColor(name: string) {
   return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
@@ -91,9 +91,9 @@ const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormDa
 );
 
 const TYPE_BADGE: Record<string, string> = {
-  venda: 'bg-green-100 text-green-700',
-  troca: 'bg-purple-100 text-purple-700',
-  compra: 'bg-blue-100 text-blue-700',
+  venda: 'bg-neutral-900 text-white',
+  troca: 'bg-primary text-neutral-900',
+  compra: 'bg-neutral-100 text-neutral-600',
 };
 const TYPE_LABEL: Record<string, string> = { venda: 'Venda', troca: 'Troca', compra: 'Compra' };
 
@@ -642,8 +642,8 @@ export const Clientes: React.FC = () => {
       {customers.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Users size={16} className="text-blue-600" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-neutral-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Users size={16} className="text-neutral-700" />
             </div>
             <div className="min-w-0">
               <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">Total</p>
@@ -653,8 +653,8 @@ export const Clientes: React.FC = () => {
           </div>
 
           <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={16} className="text-emerald-600" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-neutral-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={16} className="text-neutral-700" />
             </div>
             <div className="min-w-0">
               <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">Faturamento</p>
@@ -675,8 +675,8 @@ export const Clientes: React.FC = () => {
           </div>
 
           <div className="bg-white border border-neutral-200 rounded-2xl p-3 sm:p-5 flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <RepeatIcon size={16} className="text-violet-600" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-neutral-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <RepeatIcon size={16} className="text-neutral-700" />
             </div>
             <div className="min-w-0">
               <p className="text-[9px] sm:text-[10px] font-black text-neutral-400 uppercase tracking-widest">LTV</p>
@@ -713,12 +713,12 @@ export const Clientes: React.FC = () => {
             className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-2xl border text-sm font-bold transition-all whitespace-nowrap',
               showInactive
-                ? 'bg-amber-100 border-amber-300 text-amber-800'
-                : 'bg-white border-neutral-200 text-neutral-600 hover:border-amber-300'
+                ? 'bg-primary/10 border-primary/30 text-neutral-900'
+                : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary/30'
             )}
           >
             <Clock size={14} />
-            Inativos {inactiveCustomers.length > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 text-[11px]">{inactiveCustomers.length}</span>}
+            Inativos {inactiveCustomers.length > 0 && <span className="bg-neutral-200 text-neutral-800 rounded-full px-1.5 py-0.5 text-[11px]">{inactiveCustomers.length}</span>}
           </button>
           <button
             onClick={() => setShowMassModal(true)}
@@ -729,12 +729,12 @@ export const Clientes: React.FC = () => {
           </button>
           <button
             onClick={() => setShowBirthdayModal(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-amber-200 bg-amber-50 text-sm font-bold text-amber-700 hover:bg-amber-100 transition-all whitespace-nowrap relative"
+            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-primary/30 bg-primary/5 text-sm font-bold text-neutral-800 hover:bg-primary/10 transition-all whitespace-nowrap relative"
           >
             <Cake size={14} />
             Aniversariantes
             {birthdayCustomers.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-neutral-900 text-[10px] font-black rounded-full flex items-center justify-center">
                 {birthdayCustomers.length}
               </span>
             )}
@@ -797,10 +797,10 @@ export const Clientes: React.FC = () => {
           onClick={() => { setShowBirthdayModal(false); setBirthdayMonthOffset(0); }}
         >
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-neutral-100 flex-shrink-0 bg-amber-50">
+            <div className="px-6 py-5 border-b border-neutral-100 flex-shrink-0 bg-primary/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Cake size={18} className="text-amber-500" />
+                  <Cake size={18} className="text-primary" />
                   <h2 className="font-black text-lg text-neutral-900">Aniversariantes</h2>
                 </div>
                 <button onClick={() => { setShowBirthdayModal(false); setBirthdayMonthOffset(0); }}
@@ -812,22 +812,22 @@ export const Clientes: React.FC = () => {
               <div className="flex items-center gap-3 mt-3">
                 <button
                   onClick={() => setBirthdayMonthOffset(o => o - 1)}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors font-black text-base flex-shrink-0"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors font-black text-base flex-shrink-0"
                 >
                   ←
                 </button>
                 <div className="flex-1 text-center">
-                  <p className="font-black text-sm text-amber-800">
+                  <p className="font-black text-sm text-neutral-900">
                     {targetDate.toLocaleString('pt-BR', { month: 'long' }).replace(/^./, c => c.toUpperCase())} {targetDate.getFullYear()}
                   </p>
                   <div className="flex items-center justify-center gap-2 mt-0.5">
-                    <span className="text-xs text-amber-600">
+                    <span className="text-xs text-neutral-600">
                       {birthdayCustomers.length} aniversariante{birthdayCustomers.length !== 1 ? 's' : ''}
                     </span>
                     {birthdayMonthOffset !== 0 && (
                       <button
                         onClick={() => setBirthdayMonthOffset(0)}
-                        className="text-[10px] font-bold text-amber-500 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full transition-colors"
+                        className="text-[10px] font-bold text-neutral-900 bg-primary/10 hover:bg-primary/15 px-2 py-0.5 rounded-full transition-colors"
                       >
                         mês atual
                       </button>
@@ -836,7 +836,7 @@ export const Clientes: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setBirthdayMonthOffset(o => o + 1)}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors font-black text-base flex-shrink-0"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border-2 border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors font-black text-base flex-shrink-0"
                 >
                   →
                 </button>
@@ -846,7 +846,7 @@ export const Clientes: React.FC = () => {
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">Mensagem de Parabéns</label>
                 <textarea
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 resize-none"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary resize-none"
                   rows={4}
                   value={birthdayMessage}
                   onChange={e => setBirthdayMessage(e.target.value)}
@@ -879,7 +879,7 @@ export const Clientes: React.FC = () => {
                       return (
                         <div key={c.id} className={cn(
                           'flex items-center gap-3 rounded-xl px-4 py-2.5 border',
-                          isToday ? 'bg-amber-50 border-amber-200' : 'bg-neutral-50 border-transparent'
+                          isToday ? 'bg-primary/5 border-primary/20' : 'bg-neutral-50 border-transparent'
                         )}>
                           <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black flex-shrink-0', avatarColor(c.name))}>
                             {getInitials(c.name)}
@@ -887,7 +887,7 @@ export const Clientes: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-bold text-neutral-900 truncate">{c.name}</p>
-                              {isToday && <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">Hoje! 🎂</span>}
+                              {isToday && <span className="text-[10px] font-black text-neutral-900 bg-primary px-1.5 py-0.5 rounded-full flex-shrink-0">Hoje! 🎂</span>}
                             </div>
                             <p className="text-xs text-neutral-400">
                               {`Dia ${dayNum}`}{c.phone ? ` · ${c.phone}` : ''}
@@ -898,7 +898,7 @@ export const Clientes: React.FC = () => {
                               href={`https://wa.me/${toWhatsApp(c.phone)}?text=${encodeURIComponent(birthdayMessage.replace(/\{nome\}/g, c.name.split(' ')[0]))}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors flex-shrink-0"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold transition-colors flex-shrink-0"
                             >
                               <Send size={11} />
                               Enviar

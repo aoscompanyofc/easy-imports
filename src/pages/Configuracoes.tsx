@@ -526,9 +526,9 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
           <div className="space-y-6 animate-in fade-in duration-300">
 
             {/* ── Migração SQL ── */}
-            <Card className="border-amber-300 bg-amber-50">
+            <Card className="border-neutral-200 bg-neutral-50">
               <div className="flex items-start gap-4 mb-4">
-                <div className="p-3 bg-amber-400 text-white rounded-xl flex-shrink-0">
+                <div className="p-3 bg-neutral-900 text-white rounded-xl flex-shrink-0">
                   <Database size={24} />
                 </div>
                 <div>
@@ -551,7 +551,7 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                   {copiedMigSQL ? 'Copiado!' : 'Copiar SQL'}
                 </button>
               </div>
-              <p className="text-xs text-amber-700 mt-3 font-medium">
+              <p className="text-xs text-neutral-700 mt-3 font-medium">
                 ✅ Depois de executar o SQL, todos os campos serão salvos normalmente — sem precisar de mais nada.
               </p>
             </Card>
@@ -589,7 +589,7 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Setup card if table doesn't exist */}
             {teamTableExists === false && (
-              <Card className="border-amber-200 bg-amber-50">
+              <Card className="border-neutral-200 bg-neutral-50">
                 <h4 className="font-bold text-neutral-900 mb-1">Configuração necessária</h4>
                 <p className="text-sm text-neutral-600 mb-3">
                   Execute o SQL abaixo no <strong>Supabase Dashboard → SQL Editor</strong> para ativar o gerenciamento de equipe.
@@ -693,8 +693,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
             {/* Google Calendar */}
             <Card>
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Calendar size={24} className="text-blue-600" />
+                <div className="w-12 h-12 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                  <Calendar size={24} className="text-neutral-700" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-neutral-900">Google Agenda</h3>
@@ -713,7 +713,7 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                   <label className="block text-sm font-bold text-neutral-700 mb-1.5">Client ID do Google</label>
                   <input
                     type="text"
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                     placeholder="000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
                     value={gcClientId}
                     onChange={(e) => setGcClientId(e.target.value)}
@@ -721,7 +721,7 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                   />
                   <p className="text-xs text-neutral-400 mt-1.5">
                     Crie em{' '}
-                    <span className="font-mono text-blue-600">console.cloud.google.com</span>
+                    <span className="font-mono text-neutral-700">console.cloud.google.com</span>
                     {' '}→ APIs e Serviços → Credenciais → Criar credencial → ID do cliente OAuth 2.0 → tipo <strong>Aplicativo da Web</strong>.
                     Adicione <code className="bg-neutral-100 px-1 rounded">{window.location.origin}</code> em "Origens JavaScript autorizadas".
                   </p>
@@ -766,9 +766,9 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                 </div>
 
                 {/* How it works */}
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2 text-sm text-blue-800">
-                  <p className="font-bold text-blue-900">Como funciona</p>
-                  <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 space-y-2 text-sm text-neutral-700">
+                  <p className="font-bold text-neutral-900">Como funciona</p>
+                  <ol className="list-decimal list-inside space-y-1 text-neutral-600">
                     <li>Conecte com sua conta Google clicando no botão acima.</li>
                     <li>A cada venda ou troca registrada, um evento é criado automaticamente no seu Google Calendar.</li>
                     <li>O evento contém: cliente, produto, IMEI, valor, forma de pagamento e link de assinatura.</li>

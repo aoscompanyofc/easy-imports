@@ -436,7 +436,7 @@ export const Financeiro: React.FC = () => {
               )}
             >
               {fmtMonthKey(viewMonth)}
-              {viewMonth > todayKey && <span className="ml-1.5 text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-black">Previsto</span>}
+              {viewMonth > todayKey && <span className="ml-1.5 text-[9px] bg-primary/10 text-neutral-900 px-1.5 py-0.5 rounded-full font-black">Previsto</span>}
               {viewMonth === todayKey && <span className="ml-1.5 text-[9px] bg-primary/10 text-primary-900 px-1.5 py-0.5 rounded-full font-black">Atual</span>}
             </button>
             <button
@@ -460,20 +460,20 @@ export const Financeiro: React.FC = () => {
             <p className="text-lg font-black text-red-500">{formatCurrency(viewMonthRealExpense)}</p>
           </div>
           <div className="px-4 py-3 text-center">
-            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
+            <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
               <Clock size={10} /> Previsto a prazo
             </p>
-            <p className="text-lg font-black text-orange-600">{formatCurrency(viewMonthProjectedTotal)}</p>
+            <p className="text-lg font-black text-neutral-900">{formatCurrency(viewMonthProjectedTotal)}</p>
           </div>
         </div>
 
         {/* Projected installments for this month */}
         {viewMonthProjected.length > 0 && (
-          <div className="border-b border-orange-100">
-            <div className="px-5 py-2 bg-orange-50 border-b border-orange-100">
-              <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Parcelas a Prazo — Aguardando Pagamento</p>
+          <div className="border-b border-neutral-100">
+            <div className="px-5 py-2 bg-primary/5 border-b border-primary/10">
+              <p className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">Parcelas a Prazo — Aguardando Pagamento</p>
             </div>
-            <div className="divide-y divide-orange-50">
+            <div className="divide-y divide-neutral-50">
               {viewMonthProjected.map(({ sale, inst, index }) => {
                 const key = `${sale.id}-${index}`;
                 const today = new Date().toISOString().slice(0, 10);
@@ -492,10 +492,10 @@ export const Financeiro: React.FC = () => {
                         {isOverdue && <span className="ml-1.5 text-red-600 font-bold">ATRASADA</span>}
                       </p>
                     </div>
-                    <span className={cn('text-sm font-black', isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                    <span className={cn('text-sm font-black', isOverdue ? 'text-red-600' : 'text-neutral-900')}>
                       {formatCurrency(inst.amount)}
                     </span>
-                    <span className="text-[10px] font-bold text-orange-500 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full hidden sm:block">
+                    <span className="text-[10px] font-bold text-neutral-900 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full hidden sm:block">
                       Previsto
                     </span>
                     <button
@@ -505,7 +505,7 @@ export const Financeiro: React.FC = () => {
                         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex-shrink-0',
                         isOverdue
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200',
+                          : 'bg-primary text-neutral-900 hover:bg-primary-700',
                         effectingKey === key && 'opacity-50 cursor-not-allowed'
                       )}
                     >
@@ -590,7 +590,7 @@ export const Financeiro: React.FC = () => {
             <BarChart3 size={16} className="text-neutral-400" />
             <p className="font-black text-sm text-neutral-700 uppercase tracking-widest">Fluxo de Caixa Mensal</p>
             {projectedIncome !== null && (
-              <span className="ml-auto text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+              <span className="ml-auto text-xs font-bold text-neutral-700 bg-neutral-100 border border-neutral-200 px-2 py-1 rounded-lg">
                 Projeção mês atual: {formatCurrency(projectedIncome)}
               </span>
             )}
@@ -608,7 +608,7 @@ export const Financeiro: React.FC = () => {
                 <tr className="border-b border-neutral-100">
                   <th className="text-left px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Mês</th>
                   <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Entr.</th>
-                  <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-orange-400 uppercase tracking-widest">Previsto</th>
+                  <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-primary uppercase tracking-widest">Previsto</th>
                   <th className="text-right px-2 sm:px-4 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Saíd.</th>
                   <th className="text-right px-3 sm:px-5 py-2.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
                 </tr>
@@ -630,13 +630,13 @@ export const Financeiro: React.FC = () => {
                       <td className="px-3 sm:px-5 py-3 font-semibold text-neutral-800 capitalize text-xs sm:text-sm">
                         {fmtMonthKey(m.key)}
                         {isCurrent && <span className="ml-1.5 text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Atual</span>}
-                        {isFuture && m.projected > 0 && <span className="ml-1.5 text-[9px] font-black text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">Previsto</span>}
+                        {isFuture && m.projected > 0 && <span className="ml-1.5 text-[9px] font-black text-neutral-900 bg-primary/10 px-1.5 py-0.5 rounded-full">Previsto</span>}
                       </td>
                       <td className="px-2 sm:px-4 py-3 text-right font-bold text-emerald-600 text-xs sm:text-sm">{m.income > 0 ? formatCurrency(m.income) : '—'}</td>
-                      <td className="px-2 sm:px-4 py-3 text-right font-bold text-orange-500 text-xs sm:text-sm">{m.projected > 0 ? formatCurrency(m.projected) : '—'}</td>
+                      <td className="px-2 sm:px-4 py-3 text-right font-bold text-primary text-xs sm:text-sm">{m.projected > 0 ? formatCurrency(m.projected) : '—'}</td>
                       <td className="px-2 sm:px-4 py-3 text-right font-bold text-red-500 text-xs sm:text-sm">{m.expense > 0 ? formatCurrency(m.expense) : '—'}</td>
                       <td className={cn('px-3 sm:px-5 py-3 text-right font-black text-xs sm:text-sm',
-                        isFuture && m.income === 0 ? 'text-orange-500' : m.profit >= 0 ? 'text-neutral-900' : 'text-red-600'
+                        isFuture && m.income === 0 ? 'text-primary' : m.profit >= 0 ? 'text-neutral-900' : 'text-red-600'
                       )}>
                         {isFuture && m.income === 0 && m.projected > 0
                           ? `+${formatCurrency(m.projected)}`
@@ -729,11 +729,11 @@ export const Financeiro: React.FC = () => {
               className={cn(
                 'flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all',
                 formData.type === 'income'
-                  ? 'bg-white text-emerald-700 shadow-sm'
+                  ? 'bg-white text-neutral-900 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-700'
               )}
             >
-              <ArrowUpCircle size={16} className={formData.type === 'income' ? 'text-emerald-500' : ''} />
+              <ArrowUpCircle size={16} className={formData.type === 'income' ? 'text-primary' : ''} />
               Receita
             </button>
             <button
@@ -804,7 +804,7 @@ export const Financeiro: React.FC = () => {
               className={cn(
                 'flex-1 flex items-center justify-center gap-2 h-11 rounded-lg font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50',
                 formData.type === 'income'
-                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  ? 'bg-primary hover:bg-primary-700 text-neutral-900'
                   : 'bg-red-500 hover:bg-red-600 text-white'
               )}
             >
@@ -850,14 +850,14 @@ export const Financeiro: React.FC = () => {
                 <label key={opt.value} className={cn(
                   'flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all',
                   editForm.type === opt.value
-                    ? opt.value === 'income' ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
+                    ? opt.value === 'income' ? 'border-primary bg-primary/10' : 'border-red-400 bg-red-50'
                     : 'border-neutral-200 hover:border-neutral-300'
                 )}>
                   <input type="radio" className="hidden" value={opt.value} checked={editForm.type === opt.value}
                     onChange={() => setEditForm({ ...editForm, type: opt.value })} />
                   <div className={cn('w-3.5 h-3.5 rounded-full border-2 flex-shrink-0',
                     editForm.type === opt.value
-                      ? opt.value === 'income' ? 'border-green-500 bg-green-500' : 'border-red-500 bg-red-500'
+                      ? opt.value === 'income' ? 'border-primary bg-primary' : 'border-red-500 bg-red-500'
                       : 'border-neutral-300'
                   )} />
                   <span className="text-sm font-bold text-neutral-800">{opt.label}</span>

@@ -48,10 +48,10 @@ const emptyTradeInDevice = (): TradeInDevice => ({
 });
 
 const TYPE_COLORS: Record<string, string> = {
-  compra: 'bg-blue-100 text-blue-700',
-  venda: 'bg-green-100 text-green-700',
-  troca: 'bg-purple-100 text-purple-700',
-  prazo: 'bg-orange-100 text-orange-700',
+  compra: 'bg-neutral-100 text-neutral-600',
+  venda: 'bg-neutral-900 text-white',
+  troca: 'bg-primary text-neutral-900',
+  prazo: 'bg-neutral-200 text-neutral-800',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -1257,12 +1257,12 @@ export const Vendas: React.FC = () => {
                               className={cn(
                                 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold flex-shrink-0 transition-all border active:scale-95',
                                 !sale.installments_json
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                  ? 'bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200'
                                   : paidCount === prazoInsts.length && prazoInsts.length > 0
-                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                  ? 'bg-primary/10 text-neutral-900 border-primary/20 hover:bg-primary/15'
                                   : prazoInsts.some((i: any) => !i.paid_at && i.due < today)
                                   ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                  : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
+                                  : 'bg-neutral-100 text-neutral-700 border-neutral-200 hover:bg-neutral-200'
                               )}
                               title="Ver parcelas"
                             >
@@ -1279,8 +1279,8 @@ export const Vendas: React.FC = () => {
                             <span className={cn(
                               'hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0',
                               sale.signature_client
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-amber-100 text-amber-700'
+                                ? 'bg-primary/10 text-neutral-900'
+                                : 'bg-neutral-100 text-neutral-500'
                             )}>
                               {sale.signature_client ? (
                                 <><CheckCircle2 size={10} /> Assinado</>
@@ -1318,7 +1318,7 @@ export const Vendas: React.FC = () => {
                             </button>
                             <button
                               onClick={() => handleGeneratePDF(sale)}
-                              className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors hidden sm:block"
+                              className="p-2 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors hidden sm:block"
                               title="Baixar PDF"
                             >
                               <Download size={16} />
@@ -1380,7 +1380,7 @@ export const Vendas: React.FC = () => {
                                 setEditSaleRevision(sale.revision || 0);
                                 setIsModalOpen(true);
                               }}
-                              className="p-2 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+                              className="p-2 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
                               title="Editar venda"
                             >
                               <Pencil size={16} />
@@ -1397,18 +1397,18 @@ export const Vendas: React.FC = () => {
 
                         {/* ── Installments panel (prazo) ── */}
                         {type === 'prazo' && isExpanded && (
-                          <div className="border-t border-orange-100 bg-orange-50/40 px-5 py-3 space-y-1.5">
-                            <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <div className="border-t border-neutral-100 bg-neutral-50/60 px-5 py-3 space-y-1.5">
+                            <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                               <Calendar size={11} /> Parcelas — {name}
                             </p>
 
                             {!sale.installments_json ? (
-                              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+                              <div className="flex items-start gap-3 bg-neutral-100 border border-neutral-200 rounded-xl p-4">
+                                <span className="text-neutral-500 text-lg flex-shrink-0">⚠️</span>
                                 <div>
-                                  <p className="text-sm font-bold text-amber-800">Dados das parcelas não encontrados</p>
-                                  <p className="text-xs text-amber-700 mt-1">
-                                    A coluna <code className="bg-amber-100 px-1 rounded">installments_json</code> não existe no banco. Execute a migração SQL em{' '}
+                                  <p className="text-sm font-bold text-neutral-800">Dados das parcelas não encontrados</p>
+                                  <p className="text-xs text-neutral-600 mt-1">
+                                    A coluna <code className="bg-neutral-200 px-1 rounded">installments_json</code> não existe no banco. Execute a migração SQL em{' '}
                                     <strong>Configurações → Banco de Dados</strong> e recrie esta venda a prazo.
                                   </p>
                                 </div>
@@ -1421,10 +1421,10 @@ export const Vendas: React.FC = () => {
                                   const markKey = `${sale.id}-${i}`;
                                   return (
                                     <div key={i} className={cn(
-                                      'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm',
-                                      isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
+                                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm',
+                                      isPaid ? 'bg-white border border-neutral-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-neutral-200'
                                     )}>
-                                      <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                                      <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-neutral-400' : isOverdue ? 'text-red-600' : 'text-neutral-700')}>
                                         {inst.n}
                                       </span>
                                       <span className="text-xs text-neutral-500 flex-shrink-0 w-24">
@@ -1434,8 +1434,8 @@ export const Vendas: React.FC = () => {
                                         {formatCurrency(inst.amount)}
                                       </span>
                                       {isPaid ? (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                                          <CheckCircle2 size={10} /> Pago {inst.paid_at.split('-').reverse().join('/')}
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+                                          <CheckCircle2 size={10} className="text-primary" /> Pago {inst.paid_at.split('-').reverse().join('/')}
                                         </span>
                                       ) : (
                                         <button
@@ -1445,7 +1445,7 @@ export const Vendas: React.FC = () => {
                                             'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors',
                                             isOverdue
                                               ? 'bg-red-500 text-white hover:bg-red-600'
-                                              : 'bg-orange-500 text-white hover:bg-orange-600',
+                                              : 'bg-neutral-900 text-white hover:bg-neutral-800',
                                             markingPaid === markKey && 'opacity-50 cursor-not-allowed'
                                           )}
                                         >
@@ -1460,13 +1460,13 @@ export const Vendas: React.FC = () => {
                                     </div>
                                   );
                                 })}
-                                <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
+                                <div className="flex items-center justify-between pt-2 border-t border-neutral-200 text-xs font-bold text-neutral-700">
                                   <span>Total do contrato</span>
                                   <span>{formatCurrency(prazoInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
                                 </div>
-                                <div className="flex items-center justify-between text-xs text-green-700 font-bold">
+                                <div className="flex items-center justify-between text-xs text-neutral-500 font-bold">
                                   <span>Já recebido ({paidCount} parcela{paidCount !== 1 ? 's' : ''})</span>
-                                  <span>{formatCurrency(prazoInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
+                                  <span className="text-primary font-black">{formatCurrency(prazoInsts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + i.amount, 0))}</span>
                                 </div>
                               </>
                             )}
@@ -1532,8 +1532,8 @@ export const Vendas: React.FC = () => {
 
                 {/* New customer inline form */}
                 {showNewCustomer ? (
-                  <div className="sm:col-span-2 bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-bold text-blue-700 flex items-center gap-1.5">
+                  <div className="sm:col-span-2 bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
                       <UserPlus size={13} /> Novo Cliente — será salvo na sua base
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1621,7 +1621,7 @@ export const Vendas: React.FC = () => {
               {/* WhatsApp — always visible so the signing link can be sent */}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5 flex items-center gap-1.5">
-                  <MessageCircle size={15} className="text-green-500" />
+                  <MessageCircle size={15} className="text-primary" />
                   WhatsApp do Cliente <span className="text-neutral-400 font-normal text-xs">(para envio do link de assinatura)</span>
                 </label>
                 <input
@@ -1630,7 +1630,7 @@ export const Vendas: React.FC = () => {
                   value={form.whatsapp_number}
                   onChange={setF('whatsapp_number')}
                   autoComplete="off"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400/30 focus:border-green-400"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                 />
               </div>
               </div>
@@ -1669,11 +1669,11 @@ export const Vendas: React.FC = () => {
               </div>
 
               {!form.selectedProduct && (
-                <div className="sm:col-span-2 border-2 border-orange-200 bg-orange-50/60 rounded-2xl p-4 space-y-3">
+                <div className="sm:col-span-2 border-2 border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
-                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Produto Sob Demanda</p>
-                    <span className="text-xs text-orange-500 font-normal normal-case">— comprado e vendido direto</span>
+                    <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+                    <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Produto Sob Demanda</p>
+                    <span className="text-xs text-neutral-500 font-normal normal-case">— comprado e vendido direto</span>
                   </div>
 
                   <Input
@@ -1690,11 +1690,11 @@ export const Vendas: React.FC = () => {
                   {/* Live profit preview */}
                   {hasCost && salePrice > 0 && (
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className="bg-white rounded-xl border border-orange-100 p-2.5 text-center">
+                      <div className="bg-white rounded-xl border border-neutral-200 p-2.5 text-center">
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Custo</p>
                         <p className="text-sm font-black text-neutral-700 mt-0.5">{formatCurrency(totalCost)}</p>
                       </div>
-                      <div className="bg-white rounded-xl border border-orange-100 p-2.5 text-center">
+                      <div className="bg-white rounded-xl border border-neutral-200 p-2.5 text-center">
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Venda</p>
                         <p className="text-sm font-black text-neutral-700 mt-0.5">{formatCurrency(salePrice)}</p>
                       </div>
@@ -1721,7 +1721,7 @@ export const Vendas: React.FC = () => {
                       />
                       <div className={cn(
                         'w-10 h-6 rounded-full transition-colors',
-                        form.save_to_stock ? 'bg-orange-400' : 'bg-neutral-200'
+                        form.save_to_stock ? 'bg-primary' : 'bg-neutral-200'
                       )} />
                       <div className={cn(
                         'absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform',
@@ -1767,7 +1767,7 @@ export const Vendas: React.FC = () => {
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-sm font-bold text-neutral-700">{idLabel}{isImeiOnly ? ' *' : ''}</label>
                       {idMax && (
-                        <span className={`text-xs font-mono ${form.product_imei.length === idMax ? 'text-emerald-600 font-bold' : form.product_imei.length > 0 ? 'text-neutral-500' : 'text-neutral-300'}`}>
+                        <span className={`text-xs font-mono ${form.product_imei.length === idMax ? 'text-primary font-bold' : form.product_imei.length > 0 ? 'text-neutral-500' : 'text-neutral-300'}`}>
                           {form.product_imei.length}/{idMax}
                         </span>
                       )}
@@ -1808,8 +1808,8 @@ export const Vendas: React.FC = () => {
               <label className={cn(
                 'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
                 form.pdf_type === 'novo'
-                  ? 'border-amber-400 bg-amber-50 shadow-sm'
-                  : 'border-neutral-200 bg-white hover:border-amber-300'
+                  ? 'border-primary bg-primary/10 shadow-sm'
+                  : 'border-neutral-200 bg-white hover:border-primary/40'
               )}>
                 <input type="radio" name="pdf_type" value="novo"
                   checked={form.pdf_type === 'novo'}
@@ -1817,20 +1817,20 @@ export const Vendas: React.FC = () => {
                   className="hidden" />
                 <div className="flex items-center gap-2.5">
                   <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
-                    form.pdf_type === 'novo' ? 'border-amber-500' : 'border-neutral-300')}>
-                    {form.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                    form.pdf_type === 'novo' ? 'border-primary' : 'border-neutral-300')}>
+                    {form.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
                   <span className="font-bold text-sm text-neutral-900">Aparelho Novo (Lacrado)</span>
                 </div>
                 <p className="text-xs text-neutral-500 pl-6.5">Garantia do Fabricante · 12 meses (Apple)</p>
-                <p className="text-[10px] text-amber-600 font-semibold pl-6.5">→ PDF imprime: Garantia Oficial do Fabricante</p>
+                <p className="text-[10px] text-neutral-600 font-semibold pl-6.5">→ PDF imprime: Garantia Oficial do Fabricante</p>
               </label>
 
               <label className={cn(
                 'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
                 form.pdf_type === 'seminovo'
-                  ? 'border-blue-400 bg-blue-50 shadow-sm'
-                  : 'border-neutral-200 bg-white hover:border-blue-300'
+                  ? 'border-neutral-700 bg-neutral-100 shadow-sm'
+                  : 'border-neutral-200 bg-white hover:border-neutral-400'
               )}>
                 <input type="radio" name="pdf_type" value="seminovo"
                   checked={form.pdf_type === 'seminovo'}
@@ -1838,13 +1838,13 @@ export const Vendas: React.FC = () => {
                   className="hidden" />
                 <div className="flex items-center gap-2.5">
                   <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
-                    form.pdf_type === 'seminovo' ? 'border-blue-500' : 'border-neutral-300')}>
-                    {form.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                    form.pdf_type === 'seminovo' ? 'border-neutral-700' : 'border-neutral-300')}>
+                    {form.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-neutral-700" />}
                   </div>
                   <span className="font-bold text-sm text-neutral-900">Seminovo / Usado</span>
                 </div>
                 <p className="text-xs text-neutral-500 pl-6.5">Garantia Easy Imports · 90 dias (CDC art. 26)</p>
-                <p className="text-[10px] text-blue-600 font-semibold pl-6.5">→ PDF imprime: Garantia Easy Imports 90 dias</p>
+                <p className="text-[10px] text-neutral-600 font-semibold pl-6.5">→ PDF imprime: Garantia Easy Imports 90 dias</p>
               </label>
             </div>
 
@@ -1853,12 +1853,12 @@ export const Vendas: React.FC = () => {
               const cLower = (form.product_condition || '').toLowerCase();
               const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
               if (condIsNovo && form.pdf_type !== 'novo') return (
-                <p className="mt-3 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                <p className="mt-3 text-xs text-neutral-700 bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-medium">
                   ⚠️ O estado selecionado é "Novo" mas a garantia do PDF está como Seminovo — verifique se está correto!
                 </p>
               );
               if (!condIsNovo && form.pdf_type === 'novo') return (
-                <p className="mt-3 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                <p className="mt-3 text-xs text-neutral-700 bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-medium">
                   ⚠️ O estado selecionado é Seminovo/Usado mas a garantia do PDF está como Novo — verifique se está correto!
                 </p>
               );
@@ -1876,26 +1876,26 @@ export const Vendas: React.FC = () => {
           {(form.sale_type === 'troca' || form.sale_type === 'prazo') && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
+                <p className="text-xs font-black text-neutral-700 uppercase tracking-widest">
                   {form.sale_type === 'prazo' ? 'Aparelho na Troca (opcional)' : 'Aparelhos Entrando (do cliente)'}
                 </p>
                 <button
                   type="button"
                   onClick={() => setIncomingDevices((prev) => [...prev, emptyTradeInDevice()])}
-                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
                   <Plus size={13} /> Adicionar aparelho
                 </button>
               </div>
 
               {incomingDevices.map((device, idx) => (
-                <div key={idx} className="border border-purple-200 bg-purple-50/30 rounded-2xl p-5 space-y-4">
+                <div key={idx} className="border border-neutral-200 bg-neutral-50/40 rounded-2xl p-5 space-y-4">
                   <div className="flex items-center justify-between pb-1">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-black text-purple-700">{idx + 1}</span>
+                      <div className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-black text-neutral-700">{idx + 1}</span>
                       </div>
-                      <p className="text-xs font-bold text-purple-700">
+                      <p className="text-xs font-bold text-neutral-700">
                         {deviceFormToProductName(device) || device.model || 'Aparelho sem modelo'}
                       </p>
                     </div>
@@ -1923,7 +1923,7 @@ export const Vendas: React.FC = () => {
                     salePriceLabel="Previsão de revenda (R$) — opcional"
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-purple-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-100">
                     <Input
                       label="Número de Série"
                       placeholder="Ex: C02XG2YJHV2Q"
@@ -1950,7 +1950,7 @@ export const Vendas: React.FC = () => {
                 </div>
               ))}
 
-              <p className="text-xs text-purple-500 pl-1">
+              <p className="text-xs text-neutral-500 pl-1">
                 {form.sale_type === 'prazo'
                   ? 'O aparelho entra no estoque e o crédito dado ao cliente reduz o valor contratado.'
                   : 'Todos os aparelhos serão adicionados automaticamente ao seu estoque.'
@@ -1974,8 +1974,8 @@ export const Vendas: React.FC = () => {
                   v > 0 ? 'text-green-700' : v < 0 ? 'text-red-600' : 'text-neutral-600';
 
                 return (
-                  <div className="bg-white border border-purple-200 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-black text-purple-700 uppercase tracking-widest">Análise da Troca</p>
+                  <div className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-black text-neutral-700 uppercase tracking-widest">Análise da Troca</p>
 
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
@@ -2035,7 +2035,7 @@ export const Vendas: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="border-t-2 border-purple-200 pt-3 space-y-1.5 text-sm">
+                    <div className="border-t-2 border-neutral-200 pt-3 space-y-1.5 text-sm">
                       <div className="flex justify-between text-base">
                         <span className="font-black text-neutral-800">
                           {profitIncoming !== null ? 'Lucro total esperado' : 'Lucro bruto'}
@@ -2176,7 +2176,7 @@ export const Vendas: React.FC = () => {
                         {total > 0 && (
                           <div className={cn(
                             'flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold',
-                            Math.abs(remainder) < 0.01 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            Math.abs(remainder) < 0.01 ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-700'
                           )}>
                             <span>{Math.abs(remainder) < 0.01 ? '✓ Pagamento completo' : 'Restante a distribuir'}</span>
                             <span>{Math.abs(remainder) < 0.01 ? formatCurrency(total) : formatCurrency(Math.abs(remainder))}</span>
@@ -2218,13 +2218,13 @@ export const Vendas: React.FC = () => {
 
             {/* Taxa de cartão — aparece quando Cartão de Crédito é selecionado */}
             {(form.payment_method === 'Cartão de Crédito' || (form.split_payment && form.payment2_method === 'Cartão de Crédito')) && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <label className="block text-xs font-black text-amber-700 uppercase tracking-widest mb-0.5">
+                    <label className="block text-xs font-black text-neutral-700 uppercase tracking-widest mb-0.5">
                       Taxa / juros do banco (R$)
                     </label>
-                    <p className="text-[10px] text-amber-600">
+                    <p className="text-[10px] text-neutral-500">
                       Quanto fica pro banco — será descontado do seu lucro
                     </p>
                   </div>
@@ -2235,15 +2235,15 @@ export const Vendas: React.FC = () => {
                     placeholder="0,00"
                     value={form.card_fee_amount}
                     onChange={setF('card_fee_amount')}
-                    className="w-32 flex-shrink-0 bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-300 text-right"
+                    className="w-32 flex-shrink-0 bg-white border border-neutral-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 text-right"
                   />
                 </div>
                 {Number(form.card_fee_amount) > 0 && salePrice > 0 && (
-                  <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-amber-200">
-                    <span className="text-amber-700 font-bold">Cliente paga:</span>
-                    <span className="font-black text-amber-900">{formatCurrency(salePrice)}</span>
-                    <span className="text-amber-700 font-bold">Você recebe:</span>
-                    <span className="font-black text-emerald-700">{formatCurrency(salePrice - Number(form.card_fee_amount))}</span>
+                  <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-neutral-200">
+                    <span className="text-neutral-700 font-bold">Cliente paga:</span>
+                    <span className="font-black text-neutral-900">{formatCurrency(salePrice)}</span>
+                    <span className="text-neutral-700 font-bold">Você recebe:</span>
+                    <span className="font-black text-primary-900">{formatCurrency(salePrice - Number(form.card_fee_amount))}</span>
                   </div>
                 )}
               </div>
@@ -2263,7 +2263,7 @@ export const Vendas: React.FC = () => {
                   </div>
                 )}
                 {Number(form.card_fee_amount) > 0 && (
-                  <div className="flex items-center justify-between text-sm text-amber-600">
+                  <div className="flex items-center justify-between text-sm text-neutral-600">
                     <span>Taxa banco (cartão)</span>
                     <span className="font-semibold">− {formatCurrency(Number(form.card_fee_amount))}</span>
                   </div>
@@ -2296,7 +2296,7 @@ export const Vendas: React.FC = () => {
                   <span className="font-bold">{formatCurrency(salePrice)}</span>
                 </div>
                 {incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0) > 0 && (
-                  <div className="flex items-center justify-between text-sm text-purple-700">
+                  <div className="flex items-center justify-between text-sm text-neutral-700">
                     <span>
                       Aparelhos da troca ({incomingDevices.filter((d) => d.purchase_price).length}x)
                     </span>
@@ -2317,10 +2317,10 @@ export const Vendas: React.FC = () => {
 
           {/* ─── Condições a Prazo ─── */}
           {form.sale_type === 'prazo' && (
-            <div className="border-2 border-orange-200 bg-orange-50/40 rounded-2xl p-5 space-y-4">
+            <div className="border-2 border-primary/20 bg-primary/5 rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
-                <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Condições a Prazo</p>
+                <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+                <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Condições a Prazo</p>
               </div>
 
               {/* Valor do produto — sempre visível para prazo */}
@@ -2328,7 +2328,7 @@ export const Vendas: React.FC = () => {
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">
                   Valor do Produto (R$) *
                   {selectedProductData && selectedProductData.sale_price > 0 && (
-                    <span className="ml-2 text-[10px] font-normal text-orange-500">
+                    <span className="ml-2 text-[10px] font-normal text-neutral-500">
                       auto-preenchido do estoque
                     </span>
                   )}
@@ -2339,7 +2339,7 @@ export const Vendas: React.FC = () => {
                   inputMode="decimal"
                   value={form.sale_price_manual}
                   onChange={setF('sale_price_manual')}
-                  className="w-full bg-white border-2 border-orange-300 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full bg-white border-2 border-primary/40 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                   placeholder="Ex: 5000"
                 />
               </div>
@@ -2353,30 +2353,30 @@ export const Vendas: React.FC = () => {
                 const suggested = cnt > 0 ? diff / cnt : 0;
                 if (prodPrice === 0 && tradeIn === 0) return null;
                 return (
-                  <div className="bg-white border border-orange-200 rounded-xl p-3.5 space-y-2">
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Breakdown do Contrato</p>
+                  <div className="bg-white border border-neutral-200 rounded-xl p-3.5 space-y-2">
+                    <p className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">Breakdown do Contrato</p>
                     <div className="flex justify-between text-sm">
                       <span className="text-neutral-500">Valor do produto</span>
                       <span className="font-bold text-neutral-900">{formatCurrency(prodPrice)}</span>
                     </div>
                     {tradeIn > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-purple-700">Crédito da troca ({incomingDevices.filter(d => d.model.trim()).length}x aparelho)</span>
-                        <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                        <span className="text-neutral-700">Crédito da troca ({incomingDevices.filter(d => d.model.trim()).length}x aparelho)</span>
+                        <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm font-bold border-t border-orange-200 pt-2">
-                      <span className="text-orange-700">A pagar em parcelas</span>
-                      <span className="text-orange-700">{formatCurrency(diff)}</span>
+                    <div className="flex justify-between text-sm font-bold border-t border-neutral-200 pt-2">
+                      <span className="text-neutral-900">A pagar em parcelas</span>
+                      <span className="text-neutral-900">{formatCurrency(diff)}</span>
                     </div>
                     {suggested > 0 && (
-                      <p className="text-xs text-orange-500">
+                      <p className="text-xs text-neutral-600">
                         Sugestão: {cnt}x de {formatCurrency(suggested)}
                         {!Number(form.prazo_value) && (
                           <button
                             type="button"
                             onClick={() => setForm(f => ({ ...f, prazo_value: String(Math.round(suggested * 100) / 100) }))}
-                            className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 font-bold rounded-full hover:bg-orange-200 transition-colors"
+                            className="ml-2 px-2 py-0.5 bg-primary/10 text-neutral-900 font-bold rounded-full hover:bg-primary/15 transition-colors"
                           >
                             Usar este valor
                           </button>
@@ -2397,7 +2397,7 @@ export const Vendas: React.FC = () => {
                     inputMode="numeric"
                     value={form.prazo_count}
                     onChange={setF('prazo_count')}
-                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
                     placeholder="12"
                   />
                 </div>
@@ -2409,7 +2409,7 @@ export const Vendas: React.FC = () => {
                     inputMode="decimal"
                     value={form.prazo_value}
                     onChange={setF('prazo_value')}
-                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
                     placeholder="500,00"
                   />
                 </div>
@@ -2419,7 +2419,7 @@ export const Vendas: React.FC = () => {
                     type="date"
                     value={form.prazo_first_due}
                     onChange={setF('prazo_first_due')}
-                    className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                     required={form.sale_type === 'prazo'}
                   />
                 </div>
@@ -2430,7 +2430,7 @@ export const Vendas: React.FC = () => {
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
                 <input
                   type="datetime-local"
-                  className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                   value={form.sale_date}
                   onChange={setF('sale_date')}
                 />
@@ -2438,8 +2438,8 @@ export const Vendas: React.FC = () => {
 
               {/* Preview do contrato — mostra breakdown completo */}
               {(Number(form.prazo_value) > 0 || Number(form.sale_price_manual) > 0) && Number(form.prazo_count) > 0 && (
-                <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-2">
-                  <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Resumo do Contrato</p>
+                <div className="bg-white border border-neutral-200 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Resumo do Contrato</p>
 
                   {Number(form.sale_price_manual) > 0 && (
                     <div className="flex justify-between text-sm">
@@ -2453,8 +2453,8 @@ export const Vendas: React.FC = () => {
                     if (tradeIn <= 0) return null;
                     return (
                       <div className="flex justify-between text-sm">
-                        <span className="text-purple-700">Crédito da troca</span>
-                        <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                        <span className="text-neutral-700">Crédito da troca</span>
+                        <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                       </div>
                     );
                   })()}
@@ -2466,14 +2466,14 @@ export const Vendas: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex justify-between text-sm border-t border-orange-100 pt-2">
+                  <div className="flex justify-between text-sm border-t border-neutral-100 pt-2">
                     <span className="font-bold text-neutral-700">
                       {(() => {
                         const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
                         return tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo';
                       })()}
                     </span>
-                    <span className="text-xl font-black text-orange-700">
+                    <span className="text-xl font-black text-neutral-900">
                       {(() => {
                         const cnt = Math.max(1, Number(form.prazo_count) || 1);
                         const val = Number(form.prazo_value) > 0
@@ -2490,11 +2490,11 @@ export const Vendas: React.FC = () => {
                   </div>
 
                   {form.prazo_first_due && (
-                    <p className="text-xs text-orange-600 font-medium">
+                    <p className="text-xs text-neutral-600 font-medium">
                       Primeira parcela em: {form.prazo_first_due.split('-').reverse().join('/')}
                     </p>
                   )}
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 font-medium mt-2">
+                  <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 font-medium mt-2">
                     A receita entra no Financeiro conforme cada parcela é marcada como paga.
                   </p>
                 </div>
@@ -2628,7 +2628,7 @@ export const Vendas: React.FC = () => {
                     Enviar link ao cliente
                   </a>
                 ) : (
-                  <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <div className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-xl p-3">
                     Número de WhatsApp não informado. Copie o link abaixo e envie manualmente.
                   </div>
                 )}
@@ -2766,7 +2766,7 @@ export const Vendas: React.FC = () => {
                 ))}
               </div>
               {editForm.sale_type !== (editSale.sale_type || 'venda') && (
-                <p className="mt-2 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-medium">
+                <p className="mt-2 text-xs text-neutral-700 bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-medium">
                   ⚠️ Tipo alterado — o PDF gerado após salvar refletirá o novo tipo de documento.
                 </p>
               )}
@@ -2822,7 +2822,7 @@ export const Vendas: React.FC = () => {
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-sm font-bold text-neutral-700">IMEI / Número de Série</label>
                         {isImeiLike && editForm.product_imei.length > 0 && (
-                          <span className={`text-xs font-mono ${editForm.product_imei.length === 15 ? 'text-emerald-600 font-bold' : 'text-neutral-500'}`}>
+                          <span className={`text-xs font-mono ${editForm.product_imei.length === 15 ? 'text-primary font-bold' : 'text-neutral-500'}`}>
                             {editForm.product_imei.length}/15
                           </span>
                         )}
@@ -2853,14 +2853,14 @@ export const Vendas: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className={cn(
                   'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
-                  editForm.pdf_type === 'novo' ? 'border-amber-400 bg-amber-50 shadow-sm' : 'border-neutral-200 bg-white hover:border-amber-300'
+                  editForm.pdf_type === 'novo' ? 'border-primary bg-primary/10 shadow-sm' : 'border-neutral-200 bg-white hover:border-primary/40'
                 )}>
                   <input type="radio" name="edit_pdf_type" value="novo" checked={editForm.pdf_type === 'novo'}
                     onChange={() => setEditForm((f: any) => ({ ...f, pdf_type: 'novo' }))} className="hidden" />
                   <div className="flex items-center gap-2.5">
                     <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
-                      editForm.pdf_type === 'novo' ? 'border-amber-500' : 'border-neutral-300')}>
-                      {editForm.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                      editForm.pdf_type === 'novo' ? 'border-primary' : 'border-neutral-300')}>
+                      {editForm.pdf_type === 'novo' && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
                     <span className="font-bold text-sm text-neutral-900">Aparelho Novo (Lacrado)</span>
                   </div>
@@ -2868,14 +2868,14 @@ export const Vendas: React.FC = () => {
                 </label>
                 <label className={cn(
                   'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none',
-                  editForm.pdf_type === 'seminovo' ? 'border-blue-400 bg-blue-50 shadow-sm' : 'border-neutral-200 bg-white hover:border-blue-300'
+                  editForm.pdf_type === 'seminovo' ? 'border-neutral-700 bg-neutral-100 shadow-sm' : 'border-neutral-200 bg-white hover:border-neutral-400'
                 )}>
                   <input type="radio" name="edit_pdf_type" value="seminovo" checked={editForm.pdf_type === 'seminovo'}
                     onChange={() => setEditForm((f: any) => ({ ...f, pdf_type: 'seminovo' }))} className="hidden" />
                   <div className="flex items-center gap-2.5">
                     <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
-                      editForm.pdf_type === 'seminovo' ? 'border-blue-500' : 'border-neutral-300')}>
-                      {editForm.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                      editForm.pdf_type === 'seminovo' ? 'border-neutral-700' : 'border-neutral-300')}>
+                      {editForm.pdf_type === 'seminovo' && <div className="w-2 h-2 rounded-full bg-neutral-700" />}
                     </div>
                     <span className="font-bold text-sm text-neutral-900">Seminovo / Usado</span>
                   </div>
@@ -2888,26 +2888,26 @@ export const Vendas: React.FC = () => {
             {(editForm.sale_type === 'troca' || editForm.sale_type === 'prazo') && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
+                  <p className="text-xs font-black text-neutral-700 uppercase tracking-widest">
                     {editForm.sale_type === 'prazo' ? 'Aparelho na Troca (opcional)' : 'Aparelhos Entrando (do cliente)'}
                   </p>
                   <button
                     type="button"
                     onClick={() => setEditIncomingDevices((prev) => [...prev, emptyTradeInDevice()])}
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors"
                   >
                     <Plus size={13} /> Adicionar aparelho
                   </button>
                 </div>
 
                 {editIncomingDevices.map((device, idx) => (
-                  <div key={idx} className="border border-purple-200 bg-purple-50/30 rounded-2xl p-5 space-y-4">
+                  <div key={idx} className="border border-neutral-200 bg-neutral-50/40 rounded-2xl p-5 space-y-4">
                     <div className="flex items-center justify-between pb-1">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-black text-purple-700">{idx + 1}</span>
+                        <div className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-black text-neutral-700">{idx + 1}</span>
                         </div>
-                        <p className="text-xs font-bold text-purple-700">
+                        <p className="text-xs font-bold text-neutral-700">
                           {deviceFormToProductName(device) || device.model || 'Aparelho sem modelo'}
                         </p>
                       </div>
@@ -2935,7 +2935,7 @@ export const Vendas: React.FC = () => {
                       salePriceLabel="Previsão de revenda (R$) — opcional"
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-purple-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-100">
                       <Input
                         label="Número de Série"
                         placeholder="Ex: C02XG2YJHV2Q"
@@ -2962,7 +2962,7 @@ export const Vendas: React.FC = () => {
                   </div>
                 ))}
 
-                <p className="text-xs text-purple-500 pl-1">
+                <p className="text-xs text-neutral-500 pl-1">
                   {editForm.sale_type === 'prazo'
                     ? 'O aparelho entra no estoque e o crédito dado ao cliente reduz o valor contratado.'
                     : 'Todos os aparelhos serão adicionados automaticamente ao seu estoque.'
@@ -2980,17 +2980,17 @@ export const Vendas: React.FC = () => {
               const autoValue = count > 0 ? financing / count : 0;
               const instValue = Number(editForm.prazo_value) > 0 ? Number(editForm.prazo_value) : autoValue;
               return (
-                <div className="border-2 border-orange-200 bg-orange-50/40 rounded-2xl p-5 space-y-4">
+                <div className="border-2 border-neutral-200 bg-primary/5 rounded-2xl p-5 space-y-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-5 bg-orange-400 rounded-full flex-shrink-0" />
-                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Condições a Prazo</p>
+                    <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+                    <p className="text-xs font-black text-neutral-700 uppercase tracking-widest">Condições a Prazo</p>
                   </div>
 
                   {/* Valor do produto */}
                   <div>
                     <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor do Produto (R$) *</label>
                     <input type="number" min="0" step="any" inputMode="decimal" required
-                      className="w-full bg-white border-2 border-orange-300 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400"
+                      className="w-full bg-white border-2 border-primary/40 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                       value={editForm.sale_price_manual}
                       onChange={(e) => setEditForm((f: any) => ({ ...f, sale_price_manual: e.target.value, total_amount: e.target.value }))}
                       placeholder="Ex: 5000"
@@ -2999,29 +2999,29 @@ export const Vendas: React.FC = () => {
 
                   {/* Breakdown do Contrato */}
                   {(productPrice > 0 || tradeIn > 0) && (
-                    <div className="bg-white border border-orange-200 rounded-xl p-3.5 space-y-2">
-                      <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Breakdown do Contrato</p>
+                    <div className="bg-white border border-neutral-200 rounded-xl p-3.5 space-y-2">
+                      <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Breakdown do Contrato</p>
                       <div className="flex justify-between text-sm">
                         <span className="text-neutral-500">Valor do produto</span>
                         <span className="font-bold text-neutral-900">{formatCurrency(productPrice)}</span>
                       </div>
                       {tradeIn > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-purple-700">Crédito da troca</span>
-                          <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                          <span className="text-neutral-700">Crédito da troca</span>
+                          <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm font-bold border-t border-orange-200 pt-2">
-                        <span className="text-orange-700">A pagar em parcelas</span>
-                        <span className="text-orange-700">{formatCurrency(financing)}</span>
+                      <div className="flex justify-between text-sm font-bold border-t border-neutral-200 pt-2">
+                        <span className="text-neutral-700">A pagar em parcelas</span>
+                        <span className="text-neutral-700">{formatCurrency(financing)}</span>
                       </div>
                       {autoValue > 0 && (
-                        <p className="text-xs text-orange-500">
+                        <p className="text-xs text-neutral-500">
                           Sugestão: {count}x de {formatCurrency(autoValue)}
                           {!Number(editForm.prazo_value) && (
                             <button type="button"
                               onClick={() => setEditForm((f: any) => ({ ...f, prazo_value: String(Math.round(autoValue * 100) / 100) }))}
-                              className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 font-bold rounded-full hover:bg-orange-200 transition-colors"
+                              className="ml-2 px-2 py-0.5 bg-primary/10 text-neutral-700 font-bold rounded-full hover:bg-primary/15 transition-colors"
                             >
                               Usar este valor
                             </button>
@@ -3036,7 +3036,7 @@ export const Vendas: React.FC = () => {
                     <div>
                       <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nº de Parcelas</label>
                       <input type="number" min="1" max="60" inputMode="numeric"
-                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
                         value={editForm.prazo_count}
                         onChange={(e) => {
                           const c = e.target.value;
@@ -3050,7 +3050,7 @@ export const Vendas: React.FC = () => {
                     <div>
                       <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor por Parcela (R$) *</label>
                       <input type="number" min="0" step="any" inputMode="decimal"
-                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
                         value={editForm.prazo_value}
                         onChange={(e) => setEditForm((f: any) => ({ ...f, prazo_value: e.target.value, _prazo_value_manual: true }))}
                         placeholder={autoValue > 0 ? String(Math.round(autoValue * 100) / 100) : '500,00'}
@@ -3059,7 +3059,7 @@ export const Vendas: React.FC = () => {
                     <div>
                       <label className="block text-sm font-bold text-neutral-700 mb-1.5">1º Vencimento *</label>
                       <input type="date"
-                        className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                         value={editForm.prazo_first_due}
                         onChange={setEF('prazo_first_due')}
                       />
@@ -3070,15 +3070,15 @@ export const Vendas: React.FC = () => {
                   <div>
                     <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
                     <input type="datetime-local"
-                      className="w-full bg-neutral-50 border border-orange-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                       value={editForm.sale_date} onChange={setEF('sale_date')}
                     />
                   </div>
 
                   {/* Resumo do Contrato */}
                   {(instValue > 0 || productPrice > 0) && count > 0 && (
-                    <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-2">
-                      <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Resumo do Contrato</p>
+                    <div className="bg-white border border-neutral-200 rounded-xl p-4 space-y-2">
+                      <p className="text-xs font-black text-neutral-700 uppercase tracking-widest">Resumo do Contrato</p>
                       {productPrice > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-neutral-500">Valor do produto</span>
@@ -3087,8 +3087,8 @@ export const Vendas: React.FC = () => {
                       )}
                       {tradeIn > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-purple-700">Crédito da troca</span>
-                          <span className="font-bold text-purple-700">− {formatCurrency(tradeIn)}</span>
+                          <span className="text-neutral-700">Crédito da troca</span>
+                          <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                         </div>
                       )}
                       {instValue > 0 && (
@@ -3097,20 +3097,20 @@ export const Vendas: React.FC = () => {
                           <span className="font-bold">{editForm.prazo_count}x de {formatCurrency(instValue)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm border-t border-orange-100 pt-2">
+                      <div className="flex justify-between text-sm border-t border-neutral-100 pt-2">
                         <span className="font-bold text-neutral-700">
                           {tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo'}
                         </span>
-                        <span className="text-xl font-black text-orange-700">
+                        <span className="text-xl font-black text-neutral-900">
                           {formatCurrency(count * instValue + tradeIn)}
                         </span>
                       </div>
                       {editForm.prazo_first_due && (
-                        <p className="text-xs text-orange-600 font-medium">
+                        <p className="text-xs text-neutral-600 font-medium">
                           Primeira parcela em: {editForm.prazo_first_due.split('-').reverse().join('/')}
                         </p>
                       )}
-                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 font-medium mt-2">
+                      <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 font-medium mt-2">
                         A receita entra no Financeiro conforme cada parcela é marcada como paga.
                       </p>
                     </div>
@@ -3315,14 +3315,14 @@ export const Vendas: React.FC = () => {
               const dToday = new Date().toISOString().slice(0, 10);
               const dPaid = dInsts.filter((i: any) => i.paid_at).length;
               return (
-                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-2">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-2">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-black text-orange-700 uppercase tracking-widest flex items-center gap-1.5">
+                    <p className="text-xs font-black text-neutral-700 uppercase tracking-widest flex items-center gap-1.5">
                       <Calendar size={12} /> Parcelas a Prazo
                     </p>
                     {dInsts.length > 0 && (
                       <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full',
-                        dPaid === dInsts.length ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        dPaid === dInsts.length ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-neutral-700'
                       )}>
                         {dPaid}/{dInsts.length} recebidas
                       </span>
@@ -3330,9 +3330,9 @@ export const Vendas: React.FC = () => {
                   </div>
 
                   {!detailSale.installments_json ? (
-                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                      <span className="text-amber-500 flex-shrink-0">⚠️</span>
-                      <p className="text-xs text-amber-800 font-medium">
+                    <div className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl p-3">
+                      <span className="text-neutral-500 flex-shrink-0">⚠️</span>
+                      <p className="text-xs text-neutral-800 font-medium">
                         Dados de parcelas não salvos. Execute a migração SQL em <strong>Configurações → Banco de Dados</strong> e recrie esta venda.
                       </p>
                     </div>
@@ -3345,9 +3345,9 @@ export const Vendas: React.FC = () => {
                         return (
                           <div key={i} className={cn(
                             'flex items-center gap-3 px-3 py-2.5 rounded-xl',
-                            isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-orange-100'
+                            isPaid ? 'bg-green-50 border border-green-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-neutral-200'
                           )}>
-                            <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-orange-700')}>
+                            <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-neutral-700')}>
                               {inst.n}
                             </span>
                             <span className="text-xs text-neutral-500 flex-shrink-0 w-20">{inst.due.split('-').reverse().join('/')}</span>
@@ -3370,7 +3370,7 @@ export const Vendas: React.FC = () => {
                                 disabled={markingPaid === markKey || markingPaid === `${detailSale.id}-${i}`}
                                 className={cn(
                                   'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors text-white',
-                                  isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600',
+                                  isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-neutral-900 hover:bg-neutral-800',
                                   (markingPaid === markKey || markingPaid === `${detailSale.id}-${i}`) && 'opacity-50 cursor-not-allowed'
                                 )}
                               >
@@ -3381,7 +3381,7 @@ export const Vendas: React.FC = () => {
                           </div>
                         );
                       })}
-                      <div className="flex items-center justify-between pt-2 border-t border-orange-200 text-xs font-bold text-orange-800">
+                      <div className="flex items-center justify-between pt-2 border-t border-neutral-200 text-xs font-bold text-neutral-800">
                         <span>Total do contrato</span>
                         <span>{formatCurrency(dInsts.reduce((s: number, i: any) => s + i.amount, 0))}</span>
                       </div>
@@ -3400,7 +3400,7 @@ export const Vendas: React.FC = () => {
             {/* Signature status */}
             <div className="flex items-center gap-2 text-sm">
               <div className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold',
-                detailSale.signature_client ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
+                detailSale.signature_client ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-600')}>
                 {detailSale.signature_client ? <CheckCircle2 size={13} /> : <Package size={13} />}
                 {detailSale.signature_client ? 'Cliente assinou' : 'Aguardando assinatura do cliente'}
               </div>

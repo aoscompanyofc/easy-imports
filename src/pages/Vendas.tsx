@@ -189,6 +189,7 @@ export const Vendas: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
   const [showSQL, setShowSQL] = useState(false);
 
@@ -1079,27 +1080,10 @@ export const Vendas: React.FC = () => {
             <strong>{formatCurrency(sales.reduce((a, s) => a + Number(s.total_amount || 0), 0))}</strong> total
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowSQL(!showSQL)} className="text-xs text-neutral-400 hover:text-neutral-700 underline">
-            SQL campos extras
-          </button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
-            Nova Operação
-          </Button>
-        </div>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
+          Nova Operação
+        </Button>
       </div>
-
-      {/* SQL hint */}
-      {showSQL && (
-        <Card className="border-amber-200 bg-amber-50">
-          <p className="text-sm font-bold text-neutral-700 mb-2">Execute no Supabase → SQL Editor para habilitar todos os campos:</p>
-          <pre className="text-xs bg-neutral-900 text-green-400 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{SALES_SQL}</pre>
-          <Button variant="secondary" size="sm" className="mt-2"
-            onClick={() => { navigator.clipboard.writeText(SALES_SQL); toast.success('SQL copiado!'); }}>
-            Copiar SQL
-          </Button>
-        </Card>
-      )}
 
       {/* Search & Filters */}
       <div className="flex flex-col gap-2">
@@ -1113,27 +1097,45 @@ export const Vendas: React.FC = () => {
               className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
             />
           </div>
+          <button
+            onClick={() => setShowDateFilter(v => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2.5 border rounded-xl text-sm font-bold flex-shrink-0 transition-all',
+              (showDateFilter || dateFrom || dateTo)
+                ? 'border-primary/40 bg-primary/8 text-primary-900'
+                : 'border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50'
+            )}
+            title="Filtrar por período"
+          >
+            <Calendar size={16} />
+            <span className="hidden sm:inline">Período</span>
+            {(dateFrom || dateTo) && <span className="w-2 h-2 bg-primary rounded-full" />}
+          </button>
           {(searchTerm || dateFrom || dateTo) && (
-            <button onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
+            <button onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); setShowDateFilter(false); }}
               className="p-2.5 border border-neutral-200 rounded-xl text-neutral-500 hover:text-danger hover:border-danger transition-colors flex-shrink-0">
               <X size={18} />
             </button>
           )}
         </div>
-        <div className="flex gap-2">
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">De</span>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-            />
+
+        {/* Collapsible date filter */}
+        {showDateFilter && (
+          <div className="flex gap-2 animate-in slide-in-from-top-1 duration-150">
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">De</span>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">Até</span>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+              />
+            </div>
           </div>
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">Até</span>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-              className="w-full min-w-0 px-3 py-2 border border-neutral-200 rounded-xl bg-neutral-50 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Summary bar */}
@@ -1253,19 +1255,25 @@ export const Vendas: React.FC = () => {
                             <button
                               onClick={() => setExpandedPrazoSale(isExpanded ? null : sale.id)}
                               className={cn(
-                                'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 cursor-pointer transition-colors',
+                                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold flex-shrink-0 transition-all border active:scale-95',
                                 !sale.installments_json
-                                  ? 'bg-amber-100 text-amber-700'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                                   : paidCount === prazoInsts.length && prazoInsts.length > 0
-                                  ? 'bg-green-100 text-green-700'
+                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                                   : prazoInsts.some((i: any) => !i.paid_at && i.due < today)
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-orange-100 text-orange-700'
+                                  ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                  : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
                               )}
+                              title="Ver parcelas"
                             >
-                              <Clock size={10} />
-                              {!sale.installments_json ? 'Migração necessária' : `${paidCount}/${prazoInsts.length} pagas`}
-                              {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                              <Clock size={11} />
+                              <span className="hidden sm:inline">
+                                {!sale.installments_json ? 'Migração' : `${paidCount}/${prazoInsts.length} pagas`}
+                              </span>
+                              <span className="sm:hidden">
+                                {!sale.installments_json ? '!' : `${paidCount}/${prazoInsts.length}`}
+                              </span>
+                              {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                             </button>
                           ) : (
                             <span className={cn(
@@ -1300,20 +1308,20 @@ export const Vendas: React.FC = () => {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
                             <button
                               onClick={() => setDetailSale(sale)}
-                              className="p-1.5 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                              className="p-2 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
                               title="Ver detalhes"
                             >
-                              <Eye size={15} />
+                              <Eye size={16} />
                             </button>
                             <button
                               onClick={() => handleGeneratePDF(sale)}
-                              className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors hidden sm:block"
                               title="Baixar PDF"
                             >
-                              <Download size={15} />
+                              <Download size={16} />
                             </button>
                             <button
                               onClick={() => {
@@ -1372,17 +1380,17 @@ export const Vendas: React.FC = () => {
                                 setEditSaleRevision(sale.revision || 0);
                                 setIsModalOpen(true);
                               }}
-                              className="p-1.5 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              className="p-2 text-neutral-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
                               title="Editar venda"
                             >
-                              <Pencil size={15} />
+                              <Pencil size={16} />
                             </button>
                             <button
                               onClick={() => handleDelete(sale)}
-                              className="p-1.5 text-neutral-400 hover:text-danger hover:bg-danger-light rounded-lg transition-colors"
-                              title="Cancelar venda"
+                              className="p-2 text-neutral-400 hover:text-danger hover:bg-danger-light rounded-xl transition-colors"
+                              title="Remover venda"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>

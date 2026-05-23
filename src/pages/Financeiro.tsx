@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   DollarSign, Plus, Search, ArrowUpCircle, ArrowDownCircle, TrendingUp,
   Filter, Calendar, PieChart as PieChartIcon, Trash2, X, Pencil, BarChart3,
-  ChevronLeft, ChevronRight, CheckCircle2, Clock,
+  ChevronLeft, ChevronRight, CheckCircle2, Clock, RefreshCw,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -343,11 +343,15 @@ export const Financeiro: React.FC = () => {
           <p className="text-neutral-500">Controle de caixa, lucros e despesas</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="danger" leftIcon={<Plus size={20} />} onClick={() => { setFormData({...formData, type: 'expense'}); setIsModalOpen(true); }}>
-            Nova Despesa
-          </Button>
+          <button
+            onClick={() => { setFormData({...formData, type: 'expense'}); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-4 h-11 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 font-semibold text-base hover:bg-red-100 hover:border-red-300 transition-all active:scale-[0.98]"
+          >
+            <Plus size={18} />
+            <span className="hidden sm:inline">Nova</span> Despesa
+          </button>
           <Button leftIcon={<Plus size={20} />} onClick={() => { setFormData({...formData, type: 'income'}); setIsModalOpen(true); }}>
-            Nova Receita
+            <span className="hidden sm:inline">Nova</span> Receita
           </Button>
         </div>
       </div>
@@ -714,15 +718,46 @@ export const Financeiro: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={formData.type === 'income' ? 'Registrar Receita' : 'Registrar Despesa'}
+        title="Novo Lançamento"
       >
         <form onSubmit={handleSave} className="space-y-4">
+          {/* Type toggle */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setFormData({...formData, type: 'income'})}
+              className={cn(
+                'flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all',
+                formData.type === 'income'
+                  ? 'bg-white text-emerald-700 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700'
+              )}
+            >
+              <ArrowUpCircle size={16} className={formData.type === 'income' ? 'text-emerald-500' : ''} />
+              Receita
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({...formData, type: 'expense'})}
+              className={cn(
+                'flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all',
+                formData.type === 'expense'
+                  ? 'bg-white text-red-600 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700'
+              )}
+            >
+              <ArrowDownCircle size={16} className={formData.type === 'expense' ? 'text-red-500' : ''} />
+              Despesa
+            </button>
+          </div>
+
           <Input
             label="Descrição"
-            placeholder="Ex: Aluguel da Loja, Venda de iPhone"
+            placeholder={formData.type === 'income' ? 'Ex: Venda de iPhone 15' : 'Ex: Aluguel da Loja'}
             required
             value={formData.description}
             onChange={(e) => setFormData({...formData, description: e.target.value})}
+            autoComplete="off"
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -730,6 +765,7 @@ export const Financeiro: React.FC = () => {
               type="number"
               step="any"
               inputMode="decimal"
+              placeholder="0,00"
               required
               value={formData.amount}
               onChange={(e) => setFormData({...formData, amount: e.target.value})}
@@ -743,9 +779,9 @@ export const Financeiro: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Categoria</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">Categoria</label>
             <select
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+              className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-3 text-neutral-900 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
               value={formData.category}
               onChange={(e) => setFormData({...formData, category: e.target.value})}
             >
@@ -760,9 +796,21 @@ export const Financeiro: React.FC = () => {
               <option value="other">Outros</option>
             </select>
           </div>
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setIsModalOpen(false)} type="button">Cancelar</Button>
-            <Button fullWidth loading={isSaving} type="submit">Confirmar Lançamento</Button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 h-11 rounded-lg font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50',
+                formData.type === 'income'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              )}
+            >
+              {isSaving ? <RefreshCw size={16} className="animate-spin" /> : (formData.type === 'income' ? <ArrowUpCircle size={16} /> : <ArrowDownCircle size={16} />)}
+              {formData.type === 'income' ? 'Registrar Receita' : 'Registrar Despesa'}
+            </button>
           </div>
         </form>
       </Modal>

@@ -547,6 +547,14 @@ export const Financeiro: React.FC = () => {
                         {t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}
                       </span>
                     </div>
+                    {/* Delete */}
+                    <button
+                      onClick={() => handleDeleteTransaction(t.id, t.description)}
+                      className="ml-2 p-1.5 text-neutral-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                      title="Remover lançamento"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}

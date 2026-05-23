@@ -3398,31 +3398,46 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex gap-3 flex-col sm:flex-row">
-              {detailSale.sign_token && (detailSale.customer_phone || detailSale.seller_phone) && (
-                <a
-                  href={(() => {
-                    const phone = detailSale.customer_phone || detailSale.seller_phone || '';
-                    const link = `${window.location.origin}/assinar/${detailSale.sign_token}`;
-                    const name = detailSale.customer_name || detailSale.customers?.name || 'Cliente';
-                    const msg = `Olá ${name}! 👋\n\nAqui é a *${useProfileStore.getState().name || 'Five Akon'}*.\n\nSeu documento *${detailSale.sale_number || ''}* está pronto! ✅\n\nPara assinar digitalmente:\n👉 ${link}\n\nQualquer dúvida é só chamar! 😊`;
-                    return `https://wa.me/${toWhatsAppNumber(phone)}?text=${encodeURIComponent(msg)}`;
-                  })()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-sm transition-colors"
+            {/* Action buttons */}
+            <div className="pt-1 border-t border-neutral-100 space-y-2">
+              {/* Primary CTA */}
+              <button
+                onClick={() => handleGeneratePDF(detailSale)}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-primary hover:bg-primary-700 active:scale-[.98] text-white font-black text-sm transition-all shadow-sm"
+              >
+                <Download size={17} />
+                Gerar PDF do Contrato
+              </button>
+
+              {/* Secondary row */}
+              <div className="grid grid-cols-2 gap-2">
+                {detailSale.sign_token && (detailSale.customer_phone || detailSale.seller_phone) ? (
+                  <a
+                    href={(() => {
+                      const phone = detailSale.customer_phone || detailSale.seller_phone || '';
+                      const link = `${window.location.origin}/assinar/${detailSale.sign_token}`;
+                      const name = detailSale.customer_name || detailSale.customers?.name || 'Cliente';
+                      const msg = `Olá ${name}! 👋\n\nAqui é a *${useProfileStore.getState().name || 'Five Akon'}*.\n\nSeu documento *${detailSale.sale_number || ''}* está pronto! ✅\n\nPara assinar digitalmente:\n👉 ${link}\n\nQualquer dúvida é só chamar! 😊`;
+                      return `https://wa.me/${toWhatsAppNumber(phone)}?text=${encodeURIComponent(msg)}`;
+                    })()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-green-500 hover:bg-green-600 active:scale-[.98] text-white font-bold text-sm transition-all"
+                  >
+                    <MessageCircle size={15} />
+                    WhatsApp
+                  </a>
+                ) : (
+                  <div />
+                )}
+                <button
+                  onClick={() => handleCopySignLink(detailSale)}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl border-2 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 active:scale-[.98] text-neutral-700 font-bold text-sm transition-all"
                 >
-                  <MessageCircle size={16} />
-                  WhatsApp
-                </a>
-              )}
-              <Button fullWidth={!(detailSale.customer_phone || detailSale.seller_phone)} leftIcon={<Link2 size={16} />} variant="secondary"
-                onClick={() => handleCopySignLink(detailSale)}>
-                Copiar Link
-              </Button>
-              <Button fullWidth leftIcon={<Download size={16} />} onClick={() => handleGeneratePDF(detailSale)}>
-                Gerar PDF
-              </Button>
+                  <Link2 size={15} />
+                  Copiar Link
+                </button>
+              </div>
             </div>
           </div>
         )}

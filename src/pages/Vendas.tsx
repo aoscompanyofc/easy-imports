@@ -223,17 +223,23 @@ export const Vendas: React.FC = () => {
       const thisMonth = format(new Date(), 'yyyy-MM');
       setOpenMonths(new Set([thisMonth]));
 
-      // Auto-fix: vendas salvas sem sale_type mas com aparelho entrante → são trocas
+      // Auto-fix 1: vendas sem sale_type com aparelho entrante → troca (só onde sale_type está vazio)
       const toFix = (salesData || []).filter(
-        (s: any) => s.incoming_name?.trim() && s.sale_type !== 'troca'
+        (s: any) => s.incoming_name?.trim() && !s.sale_type
       );
-      if (toFix.length > 0) {
-        await Promise.all(
-          toFix.map((s: any) =>
+      // Auto-fix 2: vendas classificadas erroneamente como 'troca' mas que têm installments_json → são 'prazo'
+      const prazoMisclassified = (salesData || []).filter(
+        (s: any) => s.sale_type === 'troca' && s.installments_json
+      );
+      if (toFix.length > 0 || prazoMisclassified.length > 0) {
+        await Promise.all([
+          ...toFix.map((s: any) =>
             dataService.updateSale(s.id, { sale_type: 'troca' }).catch(() => {})
-          )
-        );
-        // Re-busca com os tipos corrigidos
+          ),
+          ...prazoMisclassified.map((s: any) =>
+            dataService.updateSale(s.id, { sale_type: 'prazo' }).catch(() => {})
+          ),
+        ]);
         const fixed = await dataService.getSales();
         if (fixed) setSales(fixed);
       }
@@ -1224,7 +1230,7 @@ export const Vendas: React.FC = () => {
                             <p className="text-xs text-neutral-400 truncate">
                               {sale.product_name}
                               {sale.product_imei ? ` · IMEI ${sale.product_imei}` : ''}
-                              {type === 'troca' && sale.incoming_name?.trim() ? ` ⇄ ${sale.incoming_name}` : ''}
+                              {(type === 'troca' || type === 'prazo') && sale.incoming_name?.trim() ? ` ⇄ ${sale.incoming_name}` : ''}
                             </p>
                           </div>
 

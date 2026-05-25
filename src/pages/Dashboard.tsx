@@ -267,7 +267,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -288,8 +288,6 @@ export const Dashboard: React.FC = () => {
       return acc + Number(s.total_amount || 0);
     }, 0);
 
-
-
     // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
     const costMap: Record<string, number> = {};
     for (const t of allTransactions) {
@@ -306,18 +304,26 @@ export const Dashboard: React.FC = () => {
     const totalCost = filtered.reduce((acc, s) =>
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
 
+    // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
+    // (esses itens ainda estavam no estoque durante o período consultado)
+    const salesAfterPeriod = allSales.filter(s => s.created_at && new Date(s.created_at) >= end);
+    const costSoldAfterPeriod = salesAfterPeriod.reduce((acc, s) =>
+      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+    const stockSnapshot = stockValue + costSoldAfterPeriod;
+
     return {
-      filteredSales: filtered,
-      revenue:       rev,
-      cash:          cashReceived,
-      salesCount:    count,
-      netProfit:     rev - totalCost,
-      chartData:     buildChartDataForRange(filtered, start, end),
-      channelData:   buildChannelData(filtered),
-      topProducts:   buildTopProducts(filtered),
-      saleTypeData:  buildSaleTypeData(filtered),
+      filteredSales:  filtered,
+      revenue:        rev,
+      cash:           cashReceived,
+      salesCount:     count,
+      netProfit:      rev - totalCost,
+      stockAtPeriod:  stockSnapshot,
+      chartData:      buildChartDataForRange(filtered, start, end),
+      channelData:    buildChannelData(filtered),
+      topProducts:    buildTopProducts(filtered),
+      saleTypeData:   buildSaleTypeData(filtered),
     };
-  }, [allSales, allTransactions, period, customFrom, customTo]);
+  }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
 
@@ -564,11 +570,11 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Estoque — sempre total */}
+            {/* Estoque — valor no período selecionado */}
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockValue)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400">Valor em estoque</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
             </div>
           </div>
 

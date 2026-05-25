@@ -66,7 +66,11 @@ export const Financeiro: React.FC = () => {
         dataService.getTransactions(),
         dataService.getSales(),
       ]);
-      setTransactions(txData || []);
+          // Normalize: old "Aparelho Recebido" records were incorrectly saved as income — treat as expense
+      const normalized = (txData || []).map((t: any) =>
+        (t.category === 'trade' && t.type === 'income') ? { ...t, type: 'expense' } : t
+      );
+      setTransactions(normalized);
       setSales(salesData || []);
     } catch (error: any) {
       toast.error('Erro ao carregar: ' + error.message);

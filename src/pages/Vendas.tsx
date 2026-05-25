@@ -581,8 +581,8 @@ export const Vendas: React.FC = () => {
             await dataService.addTransaction({
               description: `Aparelho Recebido ${saleNumber} — ${deviceName.trim()}`,
               amount: Number(device.purchase_price),
-              type: 'income',
-              category: 'trade',
+              type: 'expense',
+              category: 'stock',
               date: new Date(form.sale_date).toISOString().slice(0, 10),
             });
           }

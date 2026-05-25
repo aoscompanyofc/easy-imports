@@ -497,7 +497,7 @@ export const Dashboard: React.FC = () => {
       {isLoading ? <Skeleton /> : (
         <>
           {/* ── Metric Cards ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {/* Faturamento */}
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
@@ -510,18 +510,6 @@ export const Dashboard: React.FC = () => {
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Recebido · {periodLabel}</p>
-            </div>
-
-            {/* Vendas a Prazo */}
-            <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
-              prazoCount > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white border-neutral-200',
-            )}>
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Prazo</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{prazoTotal > 0 ? formatCurrency(prazoTotal) : '—'}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                {prazoCount > 0 ? `${prazoCount} venda${prazoCount !== 1 ? 's' : ''} · ${periodLabel}` : `Sem vendas a prazo · ${periodLabel}`}
-              </p>
             </div>
 
             {/* Contas a Receber */}

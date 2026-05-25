@@ -66,11 +66,7 @@ export const Financeiro: React.FC = () => {
         dataService.getTransactions(),
         dataService.getSales(),
       ]);
-          // Normalize: old "Aparelho Recebido" records were incorrectly saved as income — treat as expense
-      const normalized = (txData || []).map((t: any) =>
-        (t.category === 'trade' && t.type === 'income') ? { ...t, type: 'expense' } : t
-      );
-      setTransactions(normalized);
+          setTransactions(txData || []);
       setSales(salesData || []);
     } catch (error: any) {
       toast.error('Erro ao carregar: ' + error.message);
@@ -98,10 +94,28 @@ export const Financeiro: React.FC = () => {
     return map;
   }, [sales]);
 
+  // Resumo global das vendas a prazo
+  const { prazoTotal, prazoReceived, praxoPending, prazoSalesCount } = useMemo(() => {
+    let total = 0, received = 0, pending = 0, count = 0;
+    for (const sale of sales) {
+      if (sale.sale_type !== 'prazo' || !sale.installments_json) continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(sale.installments_json); } catch { continue; }
+      const saleTotal = insts.reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+      const saleReceived = insts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+      total += saleTotal;
+      received += saleReceived;
+      pending += saleTotal - saleReceived;
+      count++;
+    }
+    return { prazoTotal: total, prazoReceived: received, praxoPending: pending, prazoSalesCount: count };
+  }, [sales]);
+
   // Extended monthly flow: past (real) + future (projected)
   const extendedFlow = useMemo(() => {
     const realMap: Record<string, { income: number; expense: number }> = {};
     for (const t of transactions) {
+      if (t.category === 'trade') continue; // "Aparelho Recebido" — entrada de estoque, não afeta P&L
       const key = (t.date || '').slice(0, 7);
       if (!key) continue;
       if (!realMap[key]) realMap[key] = { income: 0, expense: 0 };
@@ -251,7 +265,7 @@ export const Financeiro: React.FC = () => {
       return (b.created_at || '').localeCompare(a.created_at || '');
     });
 
-  const summaryBase = hasActiveFilters ? filteredTransactions : transactions;
+  const summaryBase = (hasActiveFilters ? filteredTransactions : transactions).filter(t => t.category !== 'trade');
   const totalIncome = summaryBase.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpense = summaryBase.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
@@ -271,8 +285,8 @@ export const Financeiro: React.FC = () => {
     [transactions, viewMonth]
   );
   const viewMonthProjected = projectedByMonth[viewMonth] || [];
-  const viewMonthRealIncome = viewMonthTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount || 0), 0);
-  const viewMonthRealExpense = viewMonthTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthRealIncome = viewMonthTx.filter(t => t.type === 'income' && t.category !== 'trade').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthRealExpense = viewMonthTx.filter(t => t.type === 'expense' && t.category !== 'trade').reduce((s, t) => s + Number(t.amount || 0), 0);
   const viewMonthProjectedTotal = viewMonthProjected.reduce((s, { inst }) => s + inst.amount, 0);
 
   const thisMonthKey = todayKey;
@@ -413,6 +427,33 @@ export const Financeiro: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Vendas a Prazo — resumo global */}
+      {prazoSalesCount > 0 && (
+        <div className="bg-white border border-neutral-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-neutral-100 flex items-center gap-2">
+            <Clock size={15} className="text-neutral-400" />
+            <p className="font-black text-sm text-neutral-700 uppercase tracking-widest">Vendas a Prazo</p>
+            <span className="ml-auto text-[10px] font-bold bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
+              {prazoSalesCount} venda{prazoSalesCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-neutral-100">
+            <div className="px-4 py-3 text-center">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Total vendido</p>
+              <p className="text-lg font-black text-neutral-900">{formatCurrency(prazoTotal)}</p>
+            </div>
+            <div className="px-4 py-3 text-center">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Já recebido</p>
+              <p className="text-lg font-black text-emerald-600">{formatCurrency(prazoReceived)}</p>
+            </div>
+            <div className="px-4 py-3 text-center">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">A receber</p>
+              <p className="text-lg font-black text-primary-900">{formatCurrency(praxoPending)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Navegador de Meses ── */}
       <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">

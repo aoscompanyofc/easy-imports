@@ -267,7 +267,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, futureProfit, salesCount, netProfit, tradeCount, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -289,17 +289,6 @@ export const Dashboard: React.FC = () => {
     }, 0);
 
 
-    // Lucro futuro = previsão de revenda dos aparelhos recebidos em troca
-    const futureP = filtered.reduce((acc, s) => {
-      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-      if (t !== 'troca') return acc;
-      const devs: any[] = (() => { try { return JSON.parse(s.incoming_devices_json || '[]'); } catch { return []; } })();
-      const resale = Number(devs[0]?.sale_price || 0);
-      if (resale > 0) return acc + (resale - Number(s.incoming_purchase_price || 0));
-      return acc;
-    }, 0);
-
-    const trades = filtered.filter(s => (s.sale_type || (s.incoming_name?.trim() ? 'troca' : '')) === 'troca').length;
 
     // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
     const costMap: Record<string, number> = {};
@@ -318,17 +307,15 @@ export const Dashboard: React.FC = () => {
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
 
     return {
-      filteredSales:      filtered,
-      revenue:            rev,
-      cash:               cashReceived,
-      futureProfit:       futureP,
-      salesCount:         count,
-      netProfit:          rev - totalCost,
-      tradeCount:         trades,
-      chartData:          buildChartDataForRange(filtered, start, end),
-      channelData:        buildChannelData(filtered),
-      topProducts:        buildTopProducts(filtered),
-      saleTypeData:       buildSaleTypeData(filtered),
+      filteredSales: filtered,
+      revenue:       rev,
+      cash:          cashReceived,
+      salesCount:    count,
+      netProfit:     rev - totalCost,
+      chartData:     buildChartDataForRange(filtered, start, end),
+      channelData:   buildChannelData(filtered),
+      topProducts:   buildTopProducts(filtered),
+      saleTypeData:  buildSaleTypeData(filtered),
     };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
@@ -349,6 +336,34 @@ export const Dashboard: React.FC = () => {
     }
     return { pendingReceivables: total, pendingSalesCount: salesWithPending };
   }, [allSales]);
+
+  // Lucro Futuro = GLOBAL — todos os aparelhos recebidos em troca com previsão de revenda
+  const { futureProfit, futureProfitItems } = useMemo(() => {
+    type Item = { name: string; customer: string; tradeIn: number; resale: number; profit: number; date: string };
+    const items: Item[] = [];
+    for (const s of allSales) {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t !== 'troca') continue;
+      let devs: any[] = [];
+      try { devs = JSON.parse(s.incoming_devices_json || '[]'); } catch { devs = []; }
+      const tradeIn = Number(s.incoming_purchase_price || 0);
+      const resale  = Number(devs[0]?.sale_price || 0);
+      if (resale > 0) {
+        items.push({
+          name:     s.incoming_name || devs[0]?.model || 'Aparelho',
+          customer: s.customer_name || '—',
+          tradeIn,
+          resale,
+          profit:   resale - tradeIn,
+          date:     s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '',
+        });
+      }
+    }
+    const total = items.reduce((acc, i) => acc + i.profit, 0);
+    return { futureProfit: total, futureProfitItems: items };
+  }, [allSales]);
+
+  const [showFutureDetail, setShowFutureDetail] = useState(false);
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
@@ -511,15 +526,42 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Lucro Futuro */}
-            <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
-              futureProfit > 0 ? 'bg-white border-neutral-200' : 'bg-white border-neutral-200',
-            )}>
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Futuro</p>
-              <p className={cn('text-base sm:text-2xl font-black truncate', futureProfit > 0 ? 'text-neutral-700' : 'text-neutral-400')}>
-                {futureProfit > 0 ? formatCurrency(futureProfit) : '—'}
-              </p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{tradeCount > 0 ? `${tradeCount} troca${tradeCount !== 1 ? 's' : ''}` : 'Sem trocas'}</p>
+            <div className="rounded-2xl border border-neutral-200 shadow-sm bg-white min-w-0 overflow-hidden">
+              <button
+                onClick={() => futureProfitItems.length > 0 && setShowFutureDetail(v => !v)}
+                className={cn('w-full p-3 sm:p-5 flex flex-col gap-1 text-left', futureProfitItems.length > 0 && 'hover:bg-neutral-50 transition-colors')}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Futuro</p>
+                  {futureProfitItems.length > 0 && (
+                    showFutureDetail ? <ChevronUp size={13} className="text-neutral-400 flex-shrink-0" /> : <ChevronDown size={13} className="text-neutral-400 flex-shrink-0" />
+                  )}
+                </div>
+                <p className={cn('text-base sm:text-2xl font-black truncate', futureProfit > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                  {futureProfit > 0 ? formatCurrency(futureProfit) : '—'}
+                </p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
+                  {futureProfitItems.length > 0
+                    ? `${futureProfitItems.length} aparelho${futureProfitItems.length !== 1 ? 's' : ''} em troca`
+                    : 'Sem previsão cadastrada'}
+                </p>
+              </button>
+              {showFutureDetail && futureProfitItems.length > 0 && (
+                <div className="border-t border-neutral-100 divide-y divide-neutral-100 max-h-64 overflow-y-auto">
+                  {futureProfitItems.map((item, i) => (
+                    <div key={i} className="px-4 py-2.5 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-neutral-900 truncate">{item.name}</p>
+                        <p className="text-[10px] text-neutral-400 truncate">{item.customer} · {item.date}</p>
+                        <p className="text-[10px] text-neutral-500">Entrou {formatCurrency(item.tradeIn)} → revenda {formatCurrency(item.resale)}</p>
+                      </div>
+                      <span className={cn('text-xs font-black flex-shrink-0 mt-0.5', item.profit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                        {item.profit >= 0 ? '+' : ''}{formatCurrency(item.profit)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Estoque — sempre total */}

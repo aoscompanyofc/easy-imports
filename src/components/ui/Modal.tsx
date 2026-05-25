@@ -63,6 +63,7 @@ export const Modal: React.FC<ModalProps> = ({
           maxWidths[maxWidth],
           'max-h-[92vh] sm:max-h-[calc(100vh-2rem)]'
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         {title && (
           <div className="flex items-center justify-between px-5 py-4 sm:px-6 border-b border-neutral-100 flex-shrink-0">

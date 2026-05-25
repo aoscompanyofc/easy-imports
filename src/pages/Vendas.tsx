@@ -330,6 +330,9 @@ export const Vendas: React.FC = () => {
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Nunca processar se não estiver no passo final do wizard
+    if (wizardStep < 3) return;
+
     if (!form.selectedCustomer && !form.product_name_manual && !form.selectedProduct) {
       toast.error('Selecione um cliente e um produto.');
       return;
@@ -1501,7 +1504,11 @@ export const Vendas: React.FC = () => {
 
       {/* ─── NOVA OPERAÇÃO MODAL ─── */}
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
-        <form onSubmit={handleCreateSale} className="space-y-0">
+        <form
+          onSubmit={handleCreateSale}
+          className="space-y-0"
+          onKeyDown={(e) => { if (e.key === 'Enter' && wizardStep < 3) e.preventDefault(); }}
+        >
 
           {/* ── Wizard: Progress indicator ── */}
           {(() => {

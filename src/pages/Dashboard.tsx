@@ -267,7 +267,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, pendingReceivables, futureProfit, salesCount, netProfit, tradeCount, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, futureProfit, salesCount, netProfit, tradeCount, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -288,12 +288,6 @@ export const Dashboard: React.FC = () => {
       return acc + Number(s.total_amount || 0);
     }, 0);
 
-    // Contas a receber = parcelas de prazo ainda não pagas no período
-    const pending = filtered.reduce((acc, s) => {
-      if ((s.sale_type || '') !== 'prazo') return acc;
-      const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
-      return acc + insts.filter((i: any) => !i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
-    }, 0);
 
     // Lucro futuro = previsão de revenda dos aparelhos recebidos em troca
     const futureP = filtered.reduce((acc, s) => {
@@ -327,7 +321,6 @@ export const Dashboard: React.FC = () => {
       filteredSales:      filtered,
       revenue:            rev,
       cash:               cashReceived,
-      pendingReceivables: pending,
       futureProfit:       futureP,
       salesCount:         count,
       netProfit:          rev - totalCost,
@@ -340,6 +333,22 @@ export const Dashboard: React.FC = () => {
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
+
+  // A Receber = saldo GLOBAL de todas as parcelas a prazo ainda não pagas (não filtra por período)
+  const { pendingReceivables, pendingSalesCount } = useMemo(() => {
+    let total = 0;
+    let salesWithPending = 0;
+    for (const s of allSales) {
+      if ((s.sale_type || '') !== 'prazo' || !s.installments_json) continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(s.installments_json); } catch { continue; }
+      const pendingAmt = insts
+        .filter((i: any) => !i.paid_at)
+        .reduce((acc: number, i: any) => acc + Number(i.amount || 0), 0);
+      if (pendingAmt > 0) { total += pendingAmt; salesWithPending++; }
+    }
+    return { pendingReceivables: total, pendingSalesCount: salesWithPending };
+  }, [allSales]);
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
@@ -483,8 +492,10 @@ export const Dashboard: React.FC = () => {
               pendingReceivables > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white border-neutral-200',
             )}>
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">A Receber</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(pendingReceivables)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Parcelas pendentes</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
+                {pendingSalesCount > 0 ? `${pendingSalesCount} venda${pendingSalesCount !== 1 ? 's' : ''} a prazo em aberto` : 'Sem pendências'}
+              </p>
             </div>
 
             {/* Lucro Imediato */}

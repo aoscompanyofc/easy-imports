@@ -274,13 +274,7 @@ export const Dashboard: React.FC = () => {
       const d = new Date(s.created_at);
       return d >= start && d < end;
     });
-    // Para trocas: total_amount inclui o valor do aparelho recebido (que vai pro estoque,
-    // não é caixa). Receita real = total_amount - incoming_purchase_price.
-    const rev = filtered.reduce((acc, s) => {
-      const amount = Number(s.total_amount || 0);
-      const tradeIn = s.sale_type === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-      return acc + amount - tradeIn;
-    }, 0);
+    const rev = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const count = filtered.length;
 
     // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)

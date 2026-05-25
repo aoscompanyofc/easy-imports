@@ -1046,10 +1046,7 @@ export const Vendas: React.FC = () => {
     return format(d, 'MMMM yyyy', { locale: ptBR });
   };
 
-  const totalRevenue = filteredSales.reduce((a, s) => {
-    const tradeIn = s.sale_type === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-    return a + Number(s.total_amount || 0) - tradeIn;
-  }, 0);
+  const totalRevenue = filteredSales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
 
   const exportMonthCSV = (monthSales: any[], monthKey: string) => {
     const header = ['Nº', 'Tipo', 'Cliente', 'Produto', 'IMEI', 'Valor (R$)', 'Pagamento', 'Data'];
@@ -1171,10 +1168,7 @@ export const Vendas: React.FC = () => {
         <div className="space-y-4">
           {salesByMonth.map(([monthKey, monthSales]) => {
             const isOpen = openMonths.has(monthKey);
-            const monthTotal = monthSales.reduce((a, s) => {
-              const tradeIn = s.sale_type === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-              return a + Number(s.total_amount || 0) - tradeIn;
-            }, 0);
+            const monthTotal = monthSales.reduce((a, s) => a + Number(s.total_amount || 0), 0);
 
             return (
               <div key={monthKey} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
@@ -1214,10 +1208,7 @@ export const Vendas: React.FC = () => {
                       const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';
                       const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
-                      const cashAmount = type === 'troca'
-                        ? Number(sale.total_amount) - Number(sale.incoming_purchase_price || 0)
-                        : Number(sale.total_amount);
-                      const saleProfit = type === 'prazo' ? null : (saleCost !== null ? cashAmount - saleCost : null);
+                      const saleProfit = type === 'prazo' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
                       // Para trocas: lucro potencial do aparelho recebido
                       const tradeDevs: any[] = type === 'troca' ? (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })() : [];
                       const tradeResale = type === 'troca' ? Number(tradeDevs[0]?.sale_price || 0) : 0;
@@ -3321,8 +3312,9 @@ export const Vendas: React.FC = () => {
 
               if (dtype === 'troca') {
                 const tradeInValue = Number(detailSale.incoming_purchase_price || 0);
-                const cashOnly = Number(detailSale.total_amount) - tradeInValue;
-                const lucroVenda = dcost !== null ? cashOnly - dcost : null;
+                const faturamento = Number(detailSale.total_amount);
+                const cashOnly = faturamento - tradeInValue;
+                const lucroVenda = dcost !== null ? faturamento - dcost : null;
                 // Previsão de revenda do aparelho recebido (salva no incoming_devices_json)
                 const storedDevs: any[] = (() => { try { return JSON.parse(detailSale.incoming_devices_json || '[]'); } catch { return []; } })();
                 const resaleEstimate = Number(storedDevs[0]?.sale_price || 0);
@@ -3349,10 +3341,17 @@ export const Vendas: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between px-4 py-3">
                           <div>
-                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Caixa recebido</p>
-                            <p className="text-xs text-neutral-500">{detailSale.payment_method || 'Dinheiro'}</p>
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Faturamento</p>
+                            <p className="text-xs text-neutral-500">Preço cheio do produto</p>
                           </div>
-                          <span className="text-sm font-black text-green-600">+ {formatCurrency(cashOnly)}</span>
+                          <span className="text-sm font-black text-neutral-900">+ {formatCurrency(faturamento)}</span>
+                        </div>
+                        <div className="flex items-center justify-between px-4 py-3 bg-neutral-50">
+                          <div>
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Recebimento em caixa</p>
+                            <p className="text-xs text-neutral-500">{detailSale.payment_method || 'Dinheiro'} (excl. troca)</p>
+                          </div>
+                          <span className="text-sm font-bold text-neutral-500">{formatCurrency(cashOnly)}</span>
                         </div>
                         {lucroVenda !== null && (
                           <div className={cn('flex items-center justify-between px-4 py-3', lucroVenda >= 0 ? 'bg-green-50' : 'bg-red-50')}>

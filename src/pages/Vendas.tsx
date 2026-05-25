@@ -165,6 +165,7 @@ export const Vendas: React.FC = () => {
   const [incomingDevices, setIncomingDevices] = useState<TradeInDevice[]>([emptyTradeInDevice()]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [detailSale, setDetailSale] = useState<any | null>(null);
   const [deleteSale, setDeleteSale] = useState<any | null>(null);
@@ -1083,7 +1084,7 @@ export const Vendas: React.FC = () => {
             <strong>{formatCurrency(sales.reduce((a, s) => a + Number(s.total_amount || 0), 0))}</strong> total
           </p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setIsModalOpen(true); }}>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setWizardStep(1); setIsModalOpen(true); }}>
           Nova Operação
         </Button>
       </div>
@@ -1400,6 +1401,7 @@ export const Vendas: React.FC = () => {
                                 setEditSaleId(sale.id);
                                 setEditSaleNumber(sale.sale_number || '');
                                 setEditSaleRevision(sale.revision || 0);
+                                setWizardStep(1);
                                 setIsModalOpen(true);
                               }}
                               className="p-2 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
@@ -1507,7 +1509,55 @@ export const Vendas: React.FC = () => {
 
       {/* ─── NOVA OPERAÇÃO MODAL ─── */}
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
-        <form onSubmit={handleCreateSale} className="space-y-6">
+        <form onSubmit={handleCreateSale} className="space-y-0">
+
+          {/* ── Wizard: Progress indicator ── */}
+          {(() => {
+            const steps = [
+              { n: 1, label: 'Operação & Cliente' },
+              { n: 2, label: form.sale_type === 'troca' ? 'Produtos & Troca' : form.sale_type === 'prazo' ? 'Produto & Parcelas' : 'Produto' },
+              { n: 3, label: 'Negociação' },
+            ];
+            return (
+              <div className="mb-6">
+                <div className="flex items-center gap-0">
+                  {steps.map((s, i) => (
+                    <React.Fragment key={s.n}>
+                      <button
+                        type="button"
+                        onClick={() => wizardStep > s.n && setWizardStep(s.n)}
+                        className={cn(
+                          'flex flex-col items-center gap-1 flex-1 py-2 transition-all',
+                          wizardStep > s.n ? 'cursor-pointer' : 'cursor-default'
+                        )}
+                      >
+                        <div className={cn(
+                          'w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all',
+                          wizardStep === s.n ? 'bg-neutral-900 text-white scale-110' :
+                          wizardStep > s.n  ? 'bg-primary text-neutral-900' :
+                          'bg-neutral-100 text-neutral-400'
+                        )}>
+                          {wizardStep > s.n ? <CheckCircle2 size={14} /> : s.n}
+                        </div>
+                        <span className={cn(
+                          'text-[10px] font-bold text-center leading-tight hidden sm:block',
+                          wizardStep === s.n ? 'text-neutral-900' : wizardStep > s.n ? 'text-primary' : 'text-neutral-400'
+                        )}>{s.label}</span>
+                      </button>
+                      {i < steps.length - 1 && (
+                        <div className={cn('flex-1 h-0.5 mb-5 transition-all', wizardStep > s.n ? 'bg-primary' : 'bg-neutral-200')} />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ══════════════════════════════════════════
+              ETAPA 1 — Operação & Cliente
+          ══════════════════════════════════════════ */}
+          {wizardStep === 1 && <div className="space-y-6">
 
           {/* Tipo */}
           <div>
@@ -1657,6 +1707,13 @@ export const Vendas: React.FC = () => {
               </div>
               </div>
             </div>
+
+          </div>} {/* ── fim etapa 1 ── */}
+
+          {/* ══════════════════════════════════════════
+              ETAPA 2 — Produto(s)
+          ══════════════════════════════════════════ */}
+          {wizardStep === 2 && <div className="space-y-6">
 
           {/* Dados do Produto (que sai do estoque) */}
           <div>
@@ -2082,6 +2139,13 @@ export const Vendas: React.FC = () => {
               })()}
             </div>
           )}
+
+          </div>} {/* ── fim etapa 2 ── */}
+
+          {/* ══════════════════════════════════════════
+              ETAPA 3 — Negociação
+          ══════════════════════════════════════════ */}
+          {wizardStep === 3 && <div className="space-y-6">
 
           {/* ─── Condições de Pagamento (venda/troca) ─── */}
           {form.sale_type !== 'prazo' && <div>
@@ -2574,11 +2638,43 @@ export const Vendas: React.FC = () => {
             )}
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} type="button">Cancelar</Button>
-            <Button fullWidth loading={isSaving} type="submit" leftIcon={<CheckCircle2 size={18} />}>
-              {isEditMode ? 'Salvar Alterações' : `Registrar ${TYPE_LABELS[form.sale_type]}`}
-            </Button>
+          </div>} {/* ── fim etapa 3 ── */}
+
+          {/* ── Wizard navigation buttons ── */}
+          <div className="flex gap-3 pt-4 border-t border-neutral-100 mt-4">
+            {wizardStep === 1 ? (
+              <Button variant="secondary" fullWidth onClick={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} type="button">
+                Cancelar
+              </Button>
+            ) : (
+              <Button variant="secondary" fullWidth onClick={() => setWizardStep(w => w - 1)} type="button">
+                ← Voltar
+              </Button>
+            )}
+
+            {wizardStep < 3 ? (
+              <Button
+                fullWidth
+                type="button"
+                onClick={() => {
+                  if (wizardStep === 1) {
+                    const hasCustomer = form.selectedCustomer || (showNewCustomer && newCustomer.name.trim()) || form.seller_name.trim();
+                    if (!hasCustomer) { toast.error('Informe o cliente para continuar.'); return; }
+                  }
+                  if (wizardStep === 2) {
+                    const hasProduct = form.selectedProduct || form.product_name_manual.trim();
+                    if (!hasProduct) { toast.error('Informe o produto para continuar.'); return; }
+                  }
+                  setWizardStep(w => w + 1);
+                }}
+              >
+                Próximo →
+              </Button>
+            ) : (
+              <Button fullWidth loading={isSaving} type="submit" leftIcon={<CheckCircle2 size={18} />}>
+                {isEditMode ? 'Salvar Alterações' : `Registrar ${TYPE_LABELS[form.sale_type]}`}
+              </Button>
+            )}
           </div>
         </form>
       </Modal>

@@ -115,7 +115,6 @@ export const Financeiro: React.FC = () => {
   const extendedFlow = useMemo(() => {
     const realMap: Record<string, { income: number; expense: number }> = {};
     for (const t of transactions) {
-      if (t.category === 'trade') continue; // "Aparelho Recebido" — entrada de estoque, não afeta P&L
       const key = (t.date || '').slice(0, 7);
       if (!key) continue;
       if (!realMap[key]) realMap[key] = { income: 0, expense: 0 };
@@ -265,7 +264,7 @@ export const Financeiro: React.FC = () => {
       return (b.created_at || '').localeCompare(a.created_at || '');
     });
 
-  const summaryBase = (hasActiveFilters ? filteredTransactions : transactions).filter(t => t.category !== 'trade');
+  const summaryBase = hasActiveFilters ? filteredTransactions : transactions;
   const totalIncome = summaryBase.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpense = summaryBase.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
@@ -285,8 +284,8 @@ export const Financeiro: React.FC = () => {
     [transactions, viewMonth]
   );
   const viewMonthProjected = projectedByMonth[viewMonth] || [];
-  const viewMonthRealIncome = viewMonthTx.filter(t => t.type === 'income' && t.category !== 'trade').reduce((s, t) => s + Number(t.amount || 0), 0);
-  const viewMonthRealExpense = viewMonthTx.filter(t => t.type === 'expense' && t.category !== 'trade').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthRealIncome = viewMonthTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount || 0), 0);
+  const viewMonthRealExpense = viewMonthTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount || 0), 0);
   const viewMonthProjectedTotal = viewMonthProjected.reduce((s, { inst }) => s + inst.amount, 0);
 
   const thisMonthKey = todayKey;

@@ -2360,70 +2360,112 @@ export const Vendas: React.FC = () => {
               );
             })()}
 
-            {/* Preview total + Lucro */}
-            {salePrice > 0 && form.sale_type !== 'troca' && (
-              <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-neutral-700">Total da operação</span>
-                  <span className="text-2xl font-black text-primary-900">{formatCurrency(salePrice)}</span>
-                </div>
-                {hasCost && (
-                  <div className="flex items-center justify-between text-sm text-neutral-500">
-                    <span>Custo do produto</span>
-                    <span className="font-semibold">− {formatCurrency(totalCost)}</span>
+            {/* ── Resumo da Negociação — aparece para venda e troca ── */}
+            {salePrice > 0 && (() => {
+              const tradeCredit = incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+              const tradeResale = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
+              const tradeProfit = tradeResale - tradeCredit;
+              const faturamento = salePrice + (form.sale_type === 'troca' ? tradeCredit : 0);
+              const lucroVenda = hasCost ? salePrice - totalCost - cardFee : null;
+              const lucroTotal = lucroVenda !== null ? lucroVenda + (tradeResale > 0 ? tradeProfit : 0) : null;
+              return (
+                <div className="mt-3 border-2 border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Resumo da Negociação</p>
                   </div>
-                )}
-                {Number(form.card_fee_amount) > 0 && (
-                  <div className="flex items-center justify-between text-sm text-neutral-600">
-                    <span>Taxa banco (cartão)</span>
-                    <span className="font-semibold">− {formatCurrency(Number(form.card_fee_amount))}</span>
-                  </div>
-                )}
-                <div className={cn('flex items-center justify-between pt-2 border-t', 'border-primary/20')}>
-                  <span className="font-bold text-neutral-800">Lucro estimado</span>
-                  <div className="text-right">
-                    {hasCost ? (
-                      <div className="flex items-center gap-2">
-                        <span className={cn('text-xl font-black', vendaProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
-                          {formatCurrency(vendaProfit)}
+                  <div className="divide-y divide-neutral-100">
+
+                    {/* Seu produto — o que você está vendendo */}
+                    <div className="px-4 py-3 space-y-1.5">
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Seu produto</p>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-600">Preço de venda</span>
+                        <span className="font-bold text-neutral-900">{formatCurrency(salePrice)}</span>
+                      </div>
+                      {hasCost ? (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">Custo do produto</span>
+                          <span className="font-bold text-red-500">− {formatCurrency(totalCost)}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-400 italic">Custo não cadastrado</span>
+                          <span className="text-neutral-300">—</span>
+                        </div>
+                      )}
+                      {cardFee > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">Taxa do cartão</span>
+                          <span className="font-bold text-red-400">− {formatCurrency(cardFee)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-black pt-1 border-t border-neutral-100">
+                        <span className={lucroVenda !== null ? (lucroVenda >= 0 ? 'text-green-700' : 'text-red-600') : 'text-neutral-400'}>
+                          Lucro da venda
                         </span>
-                        <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', vendaProfit >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600')}>
-                          {vendaMargin}%
+                        <span className={lucroVenda !== null ? (lucroVenda >= 0 ? 'text-green-600' : 'text-red-600') : 'text-neutral-400'}>
+                          {lucroVenda !== null ? formatCurrency(lucroVenda) : '—'}
+                          {lucroVenda !== null && salePrice > 0 && (
+                            <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
+                              {Math.round((lucroVenda / salePrice) * 100)}%
+                            </span>
+                          )}
                         </span>
                       </div>
-                    ) : (
-                      <span className="text-sm text-neutral-400 font-medium">— custo não cadastrado</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+                    </div>
 
-            {/* Preview troca — mostra breakdown */}
-            {form.sale_type === 'troca' && salePrice > 0 && (
-              <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-sm text-neutral-600">
-                  <span>Você recebe em caixa</span>
-                  <span className="font-bold">{formatCurrency(salePrice)}</span>
-                </div>
-                {incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0) > 0 && (
-                  <div className="flex items-center justify-between text-sm text-neutral-700">
-                    <span>
-                      Aparelhos da troca ({incomingDevices.filter((d) => d.purchase_price).length}x)
-                    </span>
-                    <span className="font-bold">
-                      + {formatCurrency(incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0))}
-                    </span>
+                    {/* Troca — aparelho do cliente */}
+                    {form.sale_type === 'troca' && tradeCredit > 0 && (
+                      <div className="px-4 py-3 space-y-1.5">
+                        <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho da Troca</p>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">Crédito dado ao cliente</span>
+                          <span className="font-bold text-neutral-900">− {formatCurrency(tradeCredit)}</span>
+                        </div>
+                        {tradeResale > 0 ? (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-600">Previsão de revenda</span>
+                              <span className="font-bold text-neutral-900">+ {formatCurrency(tradeResale)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm font-black pt-1 border-t border-neutral-100">
+                              <span className={tradeProfit >= 0 ? 'text-green-700' : 'text-red-600'}>Lucro da troca</span>
+                              <span className={tradeProfit >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(tradeProfit)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-neutral-400 italic">Previsão de revenda não informada</span>
+                            <span className="text-neutral-300">—</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Totais */}
+                    <div className="px-4 py-3 bg-neutral-50 space-y-1.5">
+                      {form.sale_type === 'troca' && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">Faturamento total</span>
+                          <span className="font-bold text-neutral-900">{formatCurrency(faturamento)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-sm text-neutral-800">
+                          {form.sale_type === 'troca' && tradeResale > 0 ? 'Lucro total (venda + troca)' : 'Lucro da operação'}
+                        </span>
+                        <span className={cn(
+                          'text-xl font-black',
+                          lucroTotal === null ? 'text-neutral-400' : lucroTotal >= 0 ? 'text-green-600' : 'text-red-600'
+                        )}>
+                          {lucroTotal !== null ? formatCurrency(lucroTotal) : '—'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center justify-between pt-2 border-t border-primary/20">
-                  <span className="font-bold text-neutral-700">Valor total recebido</span>
-                  <span className="text-2xl font-black text-primary-900">
-                    {formatCurrency(salePrice + incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0))}
-                  </span>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>}
 
           {/* ─── Condições a Prazo ─── */}
@@ -2608,6 +2650,58 @@ export const Vendas: React.FC = () => {
                   <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 font-medium mt-2">
                     A receita entra no Financeiro conforme cada parcela é marcada como paga.
                   </p>
+
+                  {/* Lucro estimado no prazo */}
+                  {(() => {
+                    const prodPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price || 0);
+                    const tradeCredit = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                    const tradeResale = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.sale_price || 0), 0);
+                    const tradeProfit = tradeResale - tradeCredit;
+                    const lucroVenda = hasCost ? prodPrice - totalCost : null;
+                    const lucroTotal = lucroVenda !== null ? lucroVenda + (tradeResale > 0 ? tradeProfit : 0) : null;
+                    if (prodPrice === 0 && !hasCost) return null;
+                    return (
+                      <div className="mt-3 border border-neutral-200 rounded-xl overflow-hidden">
+                        <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100">
+                          <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro da Operação</p>
+                        </div>
+                        <div className="px-3 py-2.5 space-y-1.5">
+                          {prodPrice > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-500">Preço do produto</span>
+                              <span className="font-bold text-neutral-900">{formatCurrency(prodPrice)}</span>
+                            </div>
+                          )}
+                          {hasCost && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-500">Custo do produto</span>
+                              <span className="font-bold text-red-500">− {formatCurrency(totalCost)}</span>
+                            </div>
+                          )}
+                          {tradeCredit > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-500">Crédito da troca dado</span>
+                              <span className="font-bold text-neutral-700">− {formatCurrency(tradeCredit)}</span>
+                            </div>
+                          )}
+                          {tradeResale > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-500">Previsão revenda troca</span>
+                              <span className="font-bold text-neutral-700">+ {formatCurrency(tradeResale)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm font-black border-t border-neutral-100 pt-2">
+                            <span className={lucroTotal === null ? 'text-neutral-400' : lucroTotal >= 0 ? 'text-green-700' : 'text-red-600'}>
+                              Lucro estimado
+                            </span>
+                            <span className={lucroTotal === null ? 'text-neutral-400' : lucroTotal >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {lucroTotal !== null ? formatCurrency(lucroTotal) : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

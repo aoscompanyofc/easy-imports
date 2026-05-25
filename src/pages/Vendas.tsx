@@ -1217,6 +1217,10 @@ export const Vendas: React.FC = () => {
                         ? Number(sale.total_amount) - Number(sale.incoming_purchase_price || 0)
                         : Number(sale.total_amount);
                       const saleProfit = type === 'prazo' ? null : (saleCost !== null ? cashAmount - saleCost : null);
+                      // Para trocas: lucro potencial do aparelho recebido
+                      const tradeDevs: any[] = type === 'troca' ? (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })() : [];
+                      const tradeResale = type === 'troca' ? Number(tradeDevs[0]?.sale_price || 0) : 0;
+                      const tradePotential = tradeResale > 0 ? tradeResale - Number(sale.incoming_purchase_price || 0) : null;
                       const prazoInsts: any[] = type === 'prazo' && sale.installments_json
                         ? (() => { try { return JSON.parse(sale.installments_json); } catch { return []; } })()
                         : [];
@@ -1312,6 +1316,9 @@ export const Vendas: React.FC = () => {
                             {saleProfit !== null && (
                               <p className={cn('text-[10px] font-bold leading-tight', saleProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                                 {saleProfit >= 0 ? '+' : ''}{formatCurrency(saleProfit)}
+                                {tradePotential !== null && (
+                                  <span className="text-neutral-400"> + {formatCurrency(tradePotential)}</span>
+                                )}
                               </p>
                             )}
                           </div>
@@ -1368,9 +1375,12 @@ export const Vendas: React.FC = () => {
                                   prazo_value: existingInsts[0]?.amount ? String(existingInsts[0].amount) : '',
                                   prazo_first_due: existingInsts[0]?.due || '',
                                 });
-                                // Pré-preenche aparelho entrante
+                                // Pré-preenche aparelho entrante — restaura todos os campos do json salvo
+                                const storedDevices: any[] = (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })();
+                                const sd0 = storedDevices[0];
                                 setIncomingDevices(sale.incoming_name?.trim() ? [{
                                   ...emptyTradeInDevice(),
+                                  category: sd0?.category || 'iPhone',
                                   model: sale.incoming_name || '',
                                   imei: sale.incoming_imei || '',
                                   capacity: sale.incoming_capacity || '',
@@ -1380,6 +1390,9 @@ export const Vendas: React.FC = () => {
                                   purchase_price: tradeIn > 0 ? String(tradeIn) : '',
                                   serial: sale.incoming_serial || '',
                                   account_email: sale.incoming_email || '',
+                                  sale_price: sd0?.sale_price ? String(sd0.sale_price) : '',
+                                  warranty: sd0?.warranty || 'Sem garantia',
+                                  origin: sd0?.origin || '',
                                 }] : [emptyTradeInDevice()]);
                                 setShowNewCustomer(false);
                                 setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
@@ -3211,54 +3224,111 @@ export const Vendas: React.FC = () => {
               const dcost = costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
 
               if (dtype === 'troca') {
-                const incomingValue = Number(detailSale.incoming_purchase_price || 0);
-                // total_amount inclui o valor do aparelho recebido; caixa real = total_amount - tradeIn
-                const cashOnly = Number(detailSale.total_amount) - incomingValue;
-                const resultado = dcost !== null ? cashOnly - dcost : null;
+                const tradeInValue = Number(detailSale.incoming_purchase_price || 0);
+                const cashOnly = Number(detailSale.total_amount) - tradeInValue;
+                const lucroVenda = dcost !== null ? cashOnly - dcost : null;
+                // Previsão de revenda do aparelho recebido (salva no incoming_devices_json)
+                const storedDevs: any[] = (() => { try { return JSON.parse(detailSale.incoming_devices_json || '[]'); } catch { return []; } })();
+                const resaleEstimate = Number(storedDevs[0]?.sale_price || 0);
+                const lucroTroca = resaleEstimate > 0 ? resaleEstimate - tradeInValue : null;
+                const lucroTotal = lucroVenda !== null ? lucroVenda + (lucroTroca ?? 0) : null;
+
                 return (
-                  <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-                    <div className="bg-neutral-900 text-white px-4 py-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-wider">Resumo da Troca</p>
-                    </div>
-                    <div className="divide-y divide-neutral-100">
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Aparelho que saiu</p>
-                          <p className="text-sm font-semibold text-neutral-900">{detailSale.product_name}</p>
-                        </div>
-                        {dcost !== null && (
-                          <span className="text-sm font-black text-red-600">− {formatCurrency(dcost)}</span>
-                        )}
+                  <div className="space-y-3">
+                    {/* Parte 1: Venda */}
+                    <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+                      <div className="bg-neutral-900 text-white px-4 py-2.5 flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-wider">Parte 1 — Aparelho que saiu</p>
+                        <span className="text-[10px] font-bold text-neutral-400">Realizado</span>
                       </div>
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Caixa recebido</p>
-                          <p className="text-sm font-semibold text-neutral-900">{detailSale.payment_method || 'Dinheiro'}</p>
-                        </div>
-                        <span className="text-sm font-black text-green-600">+ {formatCurrency(cashOnly)}</span>
-                      </div>
-                      {detailSale.incoming_name?.trim() && (
+                      <div className="divide-y divide-neutral-100">
                         <div className="flex items-center justify-between px-4 py-3">
                           <div>
-                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Aparelho recebido → estoque</p>
-                            <p className="text-sm font-semibold text-neutral-900">{detailSale.incoming_name}</p>
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Produto</p>
+                            <p className="text-sm font-semibold text-neutral-900">{detailSale.product_name}</p>
                           </div>
-                          {incomingValue > 0 && (
-                            <span className="text-sm font-medium text-neutral-400">{formatCurrency(incomingValue)}</span>
+                          {dcost !== null && (
+                            <span className="text-sm font-black text-red-500">− {formatCurrency(dcost)}</span>
                           )}
                         </div>
-                      )}
-                      {resultado !== null && (
-                        <div className={cn('flex items-center justify-between px-4 py-3', resultado >= 0 ? 'bg-green-50' : 'bg-red-50')}>
-                          <p className={cn('text-xs font-black uppercase tracking-wide', resultado >= 0 ? 'text-green-700' : 'text-red-700')}>
-                            {resultado >= 0 ? 'Lucro desta venda' : 'Resultado negativo'}
-                          </p>
-                          <span className={cn('text-base font-black', resultado >= 0 ? 'text-green-600' : 'text-red-600')}>
-                            {resultado >= 0 ? '+' : ''}{formatCurrency(resultado)}
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Caixa recebido</p>
+                            <p className="text-xs text-neutral-500">{detailSale.payment_method || 'Dinheiro'}</p>
+                          </div>
+                          <span className="text-sm font-black text-green-600">+ {formatCurrency(cashOnly)}</span>
+                        </div>
+                        {lucroVenda !== null && (
+                          <div className={cn('flex items-center justify-between px-4 py-3', lucroVenda >= 0 ? 'bg-green-50' : 'bg-red-50')}>
+                            <p className={cn('text-xs font-black uppercase tracking-wide', lucroVenda >= 0 ? 'text-green-700' : 'text-red-600')}>
+                              Lucro da venda
+                            </p>
+                            <span className={cn('text-sm font-black', lucroVenda >= 0 ? 'text-green-600' : 'text-red-600')}>
+                              {lucroVenda >= 0 ? '+' : ''}{formatCurrency(lucroVenda)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Parte 2: Troca (aparelho recebido) */}
+                    {detailSale.incoming_name?.trim() && (
+                      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+                        <div className="bg-neutral-700 text-white px-4 py-2.5 flex items-center justify-between">
+                          <p className="text-[10px] font-black uppercase tracking-wider">Parte 2 — Aparelho recebido</p>
+                          <span className="text-[10px] font-bold text-neutral-400">
+                            {resaleEstimate > 0 ? 'Potencial' : 'Em estoque'}
                           </span>
                         </div>
-                      )}
-                    </div>
+                        <div className="divide-y divide-neutral-100">
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div>
+                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Aparelho</p>
+                              <p className="text-sm font-semibold text-neutral-900">{detailSale.incoming_name}</p>
+                            </div>
+                            <span className="text-sm font-black text-red-500">− {formatCurrency(tradeInValue)}</span>
+                          </div>
+                          {resaleEstimate > 0 ? (
+                            <>
+                              <div className="flex items-center justify-between px-4 py-3">
+                                <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Previsão de revenda</p>
+                                <span className="text-sm font-black text-primary">+ {formatCurrency(resaleEstimate)}</span>
+                              </div>
+                              <div className="flex items-center justify-between px-4 py-3 bg-primary/5">
+                                <p className="text-xs font-black text-neutral-700 uppercase tracking-wide">Lucro potencial da troca</p>
+                                <span className={cn('text-sm font-black', lucroTroca! >= 0 ? 'text-neutral-900' : 'text-red-600')}>
+                                  {lucroTroca! >= 0 ? '+' : ''}{formatCurrency(lucroTroca!)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between px-4 py-3">
+                              <p className="text-xs text-neutral-400">Previsão de revenda não definida</p>
+                              <span className="text-xs text-neutral-300">—</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total da operação */}
+                    {lucroTotal !== null && (
+                      <div className={cn('flex items-center justify-between px-4 py-3.5 rounded-2xl border', lucroTotal >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}>
+                        <div>
+                          <p className={cn('text-xs font-black uppercase tracking-wider', lucroTotal >= 0 ? 'text-green-700' : 'text-red-700')}>
+                            {lucroTroca !== null ? 'Lucro total da operação' : 'Lucro da venda'}
+                          </p>
+                          {lucroTroca !== null && (
+                            <p className="text-[10px] text-neutral-400 mt-0.5">
+                              Venda {formatCurrency(lucroVenda!)} + Troca {formatCurrency(lucroTroca)}
+                            </p>
+                          )}
+                        </div>
+                        <span className={cn('text-xl font-black', lucroTotal >= 0 ? 'text-green-600' : 'text-red-600')}>
+                          {lucroTotal >= 0 ? '+' : ''}{formatCurrency(lucroTotal)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               }

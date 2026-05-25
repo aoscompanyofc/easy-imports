@@ -267,7 +267,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, salesCount, netProfit, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, pendingReceivables, futureProfit, salesCount, netProfit, tradeCount, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -277,16 +277,44 @@ export const Dashboard: React.FC = () => {
     const rev = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const count = filtered.length;
 
+    // Caixa = dinheiro efetivamente recebido (trocas descontam o crédito dado; prazo só parcelas pagas)
+    const cashReceived = filtered.reduce((acc, s) => {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t === 'troca') return acc + Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
+      if (t === 'prazo') {
+        const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
+        return acc + insts.filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+      }
+      return acc + Number(s.total_amount || 0);
+    }, 0);
+
+    // Contas a receber = parcelas de prazo ainda não pagas no período
+    const pending = filtered.reduce((acc, s) => {
+      if ((s.sale_type || '') !== 'prazo') return acc;
+      const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
+      return acc + insts.filter((i: any) => !i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+    }, 0);
+
+    // Lucro futuro = previsão de revenda dos aparelhos recebidos em troca
+    const futureP = filtered.reduce((acc, s) => {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t !== 'troca') return acc;
+      const devs: any[] = (() => { try { return JSON.parse(s.incoming_devices_json || '[]'); } catch { return []; } })();
+      const resale = Number(devs[0]?.sale_price || 0);
+      if (resale > 0) return acc + (resale - Number(s.incoming_purchase_price || 0));
+      return acc;
+    }, 0);
+
+    const trades = filtered.filter(s => (s.sale_type || (s.incoming_name?.trim() ? 'troca' : '')) === 'troca').length;
+
     // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
     const costMap: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
         if (t.description?.startsWith('Custo Mercadoria #')) {
-          // Formato antigo: "Custo Mercadoria #a3f8b2c1"
           const prefix = t.description.replace('Custo Mercadoria #', '').trim();
           costMap[`uuid:${prefix}`] = (costMap[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
         } else if (t.description?.startsWith('Custo ')) {
-          // Formato novo: "Custo #V0001 — iPhone 17 Pro Max"
           const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
           if (match) costMap[match[1]] = (costMap[match[1]] || 0) + Number(t.amount || 0);
         }
@@ -296,14 +324,18 @@ export const Dashboard: React.FC = () => {
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
 
     return {
-      filteredSales: filtered,
-      revenue:       rev,
-      salesCount:    count,
-      netProfit:     rev - totalCost,
-      chartData:     buildChartDataForRange(filtered, start, end),
-      channelData:   buildChannelData(filtered),
-      topProducts:   buildTopProducts(filtered),
-      saleTypeData:  buildSaleTypeData(filtered),
+      filteredSales:      filtered,
+      revenue:            rev,
+      cash:               cashReceived,
+      pendingReceivables: pending,
+      futureProfit:       futureP,
+      salesCount:         count,
+      netProfit:          rev - totalCost,
+      tradeCount:         trades,
+      chartData:          buildChartDataForRange(filtered, start, end),
+      channelData:        buildChannelData(filtered),
+      topProducts:        buildTopProducts(filtered),
+      saleTypeData:       buildSaleTypeData(filtered),
     };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
@@ -341,8 +373,8 @@ export const Dashboard: React.FC = () => {
 
   const Skeleton = () => (
     <div className="animate-pulse space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-neutral-100 rounded-2xl" />)}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[1,2,3,4,5,6].map(i => <div key={i} className="h-28 bg-neutral-100 rounded-2xl" />)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 h-72 bg-neutral-100 rounded-2xl" />
@@ -430,22 +462,32 @@ export const Dashboard: React.FC = () => {
       {isLoading ? <Skeleton /> : (
         <>
           {/* ── Metric Cards ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {/* Faturamento */}
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
             </div>
 
-            {/* Vendas */}
+            {/* Caixa */}
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Vendas</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900">{salesCount}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Recebido · {periodLabel}</p>
             </div>
 
-            {/* Lucro Líquido */}
+            {/* Contas a Receber */}
+            <div className={cn(
+              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
+              pendingReceivables > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white border-neutral-200',
+            )}>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">A Receber</p>
+              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(pendingReceivables)}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Parcelas pendentes</p>
+            </div>
+
+            {/* Lucro Imediato */}
             <div className={cn(
               'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
               netProfit >= 0 ? 'bg-white border-neutral-200' : 'bg-red-50 border-red-200',
@@ -454,14 +496,26 @@ export const Dashboard: React.FC = () => {
               <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                 {formatCurrency(netProfit)}
               </p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{periodLabel}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Imediato · {periodLabel}</p>
+            </div>
+
+            {/* Lucro Futuro */}
+            <div className={cn(
+              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
+              futureProfit > 0 ? 'bg-white border-neutral-200' : 'bg-white border-neutral-200',
+            )}>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Futuro</p>
+              <p className={cn('text-base sm:text-2xl font-black truncate', futureProfit > 0 ? 'text-neutral-700' : 'text-neutral-400')}>
+                {futureProfit > 0 ? formatCurrency(futureProfit) : '—'}
+              </p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">{tradeCount > 0 ? `${tradeCount} troca${tradeCount !== 1 ? 's' : ''}` : 'Sem trocas'}</p>
             </div>
 
             {/* Estoque — sempre total */}
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockValue)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400">Total</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400">Valor em estoque</p>
             </div>
           </div>
 

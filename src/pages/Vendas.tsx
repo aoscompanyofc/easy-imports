@@ -497,7 +497,7 @@ export const Vendas: React.FC = () => {
         customerPhone = created.phone || customerPhone;
         setCustomers((prev) => [created, ...prev]);
         if (created.__migration_needed) {
-          toast('Endereço/CPF não foram salvos no perfil do cliente. Execute a migração SQL em Configurações → banco de dados.', { icon: '⚠️', duration: 6000 });
+          localStorage.setItem('needs_customer_migration', '1');
         }
       }
 
@@ -1505,9 +1505,9 @@ export const Vendas: React.FC = () => {
       {/* ─── NOVA OPERAÇÃO MODAL ─── */}
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
         <form
-          onSubmit={handleCreateSale}
+          onSubmit={(e) => e.preventDefault()}
           className="space-y-0"
-          onKeyDown={(e) => { if (e.key === 'Enter' && wizardStep < 3) e.preventDefault(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
         >
 
           {/* ── Wizard: Progress indicator ── */}
@@ -2696,7 +2696,13 @@ export const Vendas: React.FC = () => {
                 Próximo →
               </Button>
             ) : (
-              <Button fullWidth loading={isSaving} type="submit" leftIcon={<CheckCircle2 size={18} />}>
+              <Button
+                fullWidth
+                loading={isSaving}
+                type="button"
+                leftIcon={<CheckCircle2 size={18} />}
+                onClick={() => handleCreateSale({ preventDefault: () => {} } as React.FormEvent)}
+              >
                 {isEditMode ? 'Salvar Alterações' : `Registrar ${TYPE_LABELS[form.sale_type]}`}
               </Button>
             )}

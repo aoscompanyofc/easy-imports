@@ -274,10 +274,9 @@ export const Clientes: React.FC = () => {
         });
       } catch { /* ignore */ }
       if (created.__migration_needed) {
-        toast.success('Cliente salvo! Endereço/CPF não foram incluídos — execute a migração SQL em Configurações.');
-      } else {
-        toast.success('Cliente cadastrado!');
+        localStorage.setItem('needs_customer_migration', '1');
       }
+      toast.success('Cliente cadastrado!');
       setIsAddOpen(false); setFormData(emptyForm()); fetchAll();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -300,10 +299,9 @@ export const Clientes: React.FC = () => {
       setIsEditSaving(true);
       const updated = await dataService.updateCustomer(editingId, editForm);
       if (updated.__migration_needed) {
-        toast.success('Atualizado! Endereço/CPF não foram incluídos — execute a migração SQL.');
-      } else {
-        toast.success('Cliente atualizado!');
+        localStorage.setItem('needs_customer_migration', '1');
       }
+      toast.success('Cliente atualizado!');
       setIsEditOpen(false); setEditingId(null); fetchAll();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings, User, Bell, Shield, Database, Link, Trash2, Save,
   Key, RefreshCw, Camera, Users, Plus, X, Copy, Check, Loader2,
-  Eye, EyeOff, MessageCircle, Shuffle, Calendar, Unlink,
+  Eye, EyeOff, MessageCircle, Shuffle, Calendar, Unlink, AlertTriangle,
 } from 'lucide-react';
 import {
   getClientId, setClientId, isConnected, connect, disconnect,
@@ -152,6 +152,7 @@ export const Configuracoes: React.FC = () => {
   const [isSavingMember, setIsSavingMember] = useState(false);
   const [copiedSQL, setCopiedSQL] = useState(false);
   const [copiedMigSQL, setCopiedMigSQL] = useState(false);
+  const [needsMigration] = useState(() => localStorage.getItem('needs_customer_migration') === '1');
   const [showPassword, setShowPassword] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
 
@@ -524,6 +525,19 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
       case 'database':
         return (
           <div className="space-y-6 animate-in fade-in duration-300">
+
+            {/* ── Banner de migração necessária ── */}
+            {needsMigration && (
+              <div className="flex items-start gap-3 p-4 bg-primary/10 border-2 border-primary/40 rounded-2xl">
+                <AlertTriangle size={20} className="text-neutral-900 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-neutral-900">Ação necessária — CPF e Endereço não estão sendo salvos</p>
+                  <p className="text-xs text-neutral-700 mt-1">
+                    Copie o SQL abaixo, acesse o <strong>Supabase → SQL Editor</strong> e execute. Depois disso, todos os dados dos clientes serão salvos normalmente.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* ── Migração SQL ── */}
             <Card className="border-neutral-200 bg-neutral-50">

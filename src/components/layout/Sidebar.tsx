@@ -95,8 +95,10 @@ export const Sidebar: React.FC = () => {
         className="h-16 flex items-center flex-shrink-0 overflow-hidden px-4"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary font-black text-sm">E</span>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" width={16} height={16}>
+              <path d="M15 4H9L7 11h6l-2 9 8-11h-6l2-5z" fill="#0A0A0A" strokeLinejoin="round" />
+            </svg>
           </div>
           {!isCollapsed && (
             <span className="font-bold text-[17px] tracking-tight whitespace-nowrap text-neutral-900">

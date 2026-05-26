@@ -514,7 +514,7 @@ export const Vendas: React.FC = () => {
           product_name: productName,
           total_amount: totalAmount,
           payment_method: resolvedPaymentMethod,
-          installments: form.split_payment ? 1 : form.installments,
+          installments: isPrazo ? prazoCount : (form.split_payment ? 1 : form.installments),
           status: 'completed',
           created_at: new Date(form.sale_date).toISOString(),
           sale_number: saleNumber,
@@ -679,7 +679,7 @@ export const Vendas: React.FC = () => {
         seller_address: '',
         seller_email: getCompanyInfo().email,
         customer_name: customerName,
-        customer_phone: customerPhone || '',
+        customer_phone: customerPhone || form.whatsapp_number || '',
         customer_cpf: resolvedCpf,
         customer_city: resolvedCity,
         product_name: productName || '',
@@ -2365,8 +2365,11 @@ export const Vendas: React.FC = () => {
               const tradeCredit = incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0);
               const tradeResale = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
               const tradeProfit = tradeResale - tradeCredit;
-              const faturamento = salePrice + (form.sale_type === 'troca' ? tradeCredit : 0);
-              const lucroVenda = hasCost ? salePrice - totalCost - cardFee : null;
+              // For troca: effective revenue = cash received + trade credit (device has value)
+              const isTroca = form.sale_type === 'troca';
+              const faturamento = salePrice + (isTroca ? tradeCredit : 0);
+              const lucroVenda = hasCost ? faturamento - totalCost - cardFee : null;
+              // lucroTotal adds future resale profit if the resale estimate is known
               const lucroTotal = lucroVenda !== null ? lucroVenda + (tradeResale > 0 ? tradeProfit : 0) : null;
               return (
                 <div className="mt-3 border-2 border-neutral-200 rounded-2xl overflow-hidden">
@@ -2379,9 +2382,21 @@ export const Vendas: React.FC = () => {
                     <div className="px-4 py-3 space-y-1.5">
                       <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Seu produto</p>
                       <div className="flex justify-between text-sm">
-                        <span className="text-neutral-600">Preço de venda</span>
+                        <span className="text-neutral-600">{isTroca ? 'Caixa recebido' : 'Preço de venda'}</span>
                         <span className="font-bold text-neutral-900">{formatCurrency(salePrice)}</span>
                       </div>
+                      {isTroca && tradeCredit > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">+ Crédito da troca</span>
+                          <span className="font-bold text-neutral-900">+ {formatCurrency(tradeCredit)}</span>
+                        </div>
+                      )}
+                      {isTroca && tradeCredit > 0 && (
+                        <div className="flex justify-between text-sm border-t border-neutral-100 pt-1">
+                          <span className="font-bold text-neutral-700">= Receita total</span>
+                          <span className="font-bold text-neutral-900">{formatCurrency(faturamento)}</span>
+                        </div>
+                      )}
                       {hasCost ? (
                         <div className="flex justify-between text-sm">
                           <span className="text-neutral-600">Custo do produto</span>
@@ -2401,26 +2416,26 @@ export const Vendas: React.FC = () => {
                       )}
                       <div className="flex justify-between text-sm font-black pt-1 border-t border-neutral-100">
                         <span className={lucroVenda !== null ? (lucroVenda >= 0 ? 'text-green-700' : 'text-red-600') : 'text-neutral-400'}>
-                          Lucro da venda
+                          {isTroca ? 'Lucro desta negociação' : 'Lucro da venda'}
                         </span>
                         <span className={lucroVenda !== null ? (lucroVenda >= 0 ? 'text-green-600' : 'text-red-600') : 'text-neutral-400'}>
                           {lucroVenda !== null ? formatCurrency(lucroVenda) : '—'}
-                          {lucroVenda !== null && salePrice > 0 && (
+                          {lucroVenda !== null && faturamento > 0 && (
                             <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
-                              {Math.round((lucroVenda / salePrice) * 100)}%
+                              {Math.round((lucroVenda / faturamento) * 100)}%
                             </span>
                           )}
                         </span>
                       </div>
                     </div>
 
-                    {/* Troca — aparelho do cliente */}
-                    {form.sale_type === 'troca' && tradeCredit > 0 && (
+                    {/* Troca — aparelho do cliente (futura revenda) */}
+                    {isTroca && tradeCredit > 0 && (
                       <div className="px-4 py-3 space-y-1.5">
-                        <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho da Troca</p>
+                        <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Aparelho Recebido (estoque)</p>
                         <div className="flex justify-between text-sm">
-                          <span className="text-neutral-600">Crédito dado ao cliente</span>
-                          <span className="font-bold text-neutral-900">− {formatCurrency(tradeCredit)}</span>
+                          <span className="text-neutral-600">Entra no estoque por</span>
+                          <span className="font-bold text-neutral-700">{formatCurrency(tradeCredit)}</span>
                         </div>
                         {tradeResale > 0 ? (
                           <>
@@ -2429,7 +2444,7 @@ export const Vendas: React.FC = () => {
                               <span className="font-bold text-neutral-900">+ {formatCurrency(tradeResale)}</span>
                             </div>
                             <div className="flex justify-between text-sm font-black pt-1 border-t border-neutral-100">
-                              <span className={tradeProfit >= 0 ? 'text-green-700' : 'text-red-600'}>Lucro da troca</span>
+                              <span className={tradeProfit >= 0 ? 'text-green-700' : 'text-red-600'}>Lucro potencial de revenda</span>
                               <span className={tradeProfit >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(tradeProfit)}</span>
                             </div>
                           </>
@@ -2444,15 +2459,9 @@ export const Vendas: React.FC = () => {
 
                     {/* Totais */}
                     <div className="px-4 py-3 bg-neutral-50 space-y-1.5">
-                      {form.sale_type === 'troca' && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-neutral-600">Faturamento total</span>
-                          <span className="font-bold text-neutral-900">{formatCurrency(faturamento)}</span>
-                        </div>
-                      )}
                       <div className="flex items-center justify-between">
                         <span className="font-black text-sm text-neutral-800">
-                          {form.sale_type === 'troca' && tradeResale > 0 ? 'Lucro total (venda + troca)' : 'Lucro da operação'}
+                          {isTroca && tradeResale > 0 ? 'Lucro total esperado (negociação + revenda)' : 'Lucro da operação'}
                         </span>
                         <span className={cn(
                           'text-xl font-black',

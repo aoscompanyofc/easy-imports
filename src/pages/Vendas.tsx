@@ -155,6 +155,9 @@ const emptyForm = () => ({
   prazo_count: '12',
   prazo_value: '',
   prazo_first_due: '',
+  prazo_has_entrada: false,
+  prazo_entrada_value: '',
+  prazo_entrada_due: '',
 });
 
 export const Vendas: React.FC = () => {
@@ -352,8 +355,12 @@ export const Vendas: React.FC = () => {
     const prazoTradeInTotal = isPrazo
       ? incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0)
       : 0;
-    // Valor que o cliente ainda paga em parcelas = preço do produto − crédito da troca
-    const prazoFinancing = Math.max(0, prazoProductPrice - prazoTradeInTotal);
+    // Entrada (down payment)
+    const prazoHasEntrada = isPrazo && !!form.prazo_has_entrada;
+    const prazoEntrada = prazoHasEntrada ? Math.max(0, Number(form.prazo_entrada_value) || 0) : 0;
+    const prazoEntradaDue = prazoHasEntrada ? form.prazo_entrada_due : '';
+    // Base para parcelamento = produto − troca − entrada
+    const prazoFinancing = Math.max(0, prazoProductPrice - prazoTradeInTotal - prazoEntrada);
     // Valor por parcela: manual tem prioridade; senão auto-calcula pelo financiamento
     const prazoValue = isPrazo
       ? (Number(form.prazo_value) > 0 ? Number(form.prazo_value) : (prazoCount > 0 ? prazoFinancing / prazoCount : 0))
@@ -366,12 +373,14 @@ export const Vendas: React.FC = () => {
     const tradeInValue = form.sale_type === 'troca'
       ? incomingDevices.reduce((sum, d) => sum + Number(d.purchase_price || 0), 0)
       : 0;
-    // Total: prazo = parcelas + troca (= preço do produto); outros = preço × qtd + troca
+    // Total: prazo = entrada + parcelas + troca; outros = preço × qtd + troca
     const totalAmount = isPrazo
-      ? prazoCount * prazoValue + prazoTradeInTotal
+      ? prazoEntrada + prazoCount * prazoValue + prazoTradeInTotal
       : (unitPrice * form.quantity + tradeInValue);
 
     if (isPrazo) {
+      if (prazoHasEntrada && prazoEntrada <= 0) { toast.error('Informe o valor da entrada.'); return; }
+      if (prazoHasEntrada && !prazoEntradaDue) { toast.error('Informe a data de vencimento da entrada.'); return; }
       if (prazoValue <= 0) { toast.error('Informe o valor da parcela ou o valor do produto.'); return; }
       if (!form.prazo_first_due) { toast.error('Informe a data do 1º vencimento.'); return; }
     } else {
@@ -381,20 +390,28 @@ export const Vendas: React.FC = () => {
     // Build installments JSON for prazo sales
     let installmentsJson: string | null = null;
     if (isPrazo) {
+      const items: any[] = [];
+      if (prazoHasEntrada && prazoEntrada > 0 && prazoEntradaDue) {
+        items.push({ n: 0, due: prazoEntradaDue, amount: prazoEntrada, paid_at: null, is_entrada: true });
+      }
       const [fy, fm, fd] = form.prazo_first_due.split('-').map(Number);
-      const installments = Array.from({ length: prazoCount }, (_, i) => {
+      Array.from({ length: prazoCount }, (_, i) => {
         const d = new Date(fy, fm - 1 + i, fd);
         const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { n: i + 1, due, amount: prazoValue, paid_at: null };
+        items.push({ n: i + 1, due, amount: prazoValue, paid_at: null });
       });
-      installmentsJson = JSON.stringify(installments);
+      installmentsJson = JSON.stringify(items);
     }
 
     // Monta forma de pagamento combinada se split ativo
     let resolvedPaymentMethod = isPrazo
-      ? (prazoTradeInTotal > 0
-        ? `Troca ${formatCurrency(prazoTradeInTotal)} + ${prazoCount}x de ${formatCurrency(prazoValue)} a prazo`
-        : `A Prazo — ${prazoCount}x de ${formatCurrency(prazoValue)}`)
+      ? (() => {
+          const parts: string[] = [];
+          if (prazoTradeInTotal > 0) parts.push(`Troca ${formatCurrency(prazoTradeInTotal)}`);
+          if (prazoHasEntrada && prazoEntrada > 0) parts.push(`Entrada ${formatCurrency(prazoEntrada)}`);
+          parts.push(`${prazoCount}x de ${formatCurrency(prazoValue)} a prazo`);
+          return parts.join(' + ');
+        })()
       : form.payment_method;
     if (!isPrazo && form.split_payment && Number(form.payment2_amount) > 0) {
       const p2 = Number(form.payment2_amount);
@@ -435,9 +452,14 @@ export const Vendas: React.FC = () => {
           const origSale = sales.find((s: any) => s.id === editSaleId);
           const prevInsts: any[] = (() => { try { return JSON.parse(origSale?.installments_json || '[]'); } catch { return []; } })();
           if (prevInsts.length > 0) {
-            editInstJson = JSON.stringify(
-              (JSON.parse(installmentsJson) as any[]).map((inst, i) => ({ ...inst, paid_at: prevInsts[i]?.paid_at || null }))
-            );
+            const newInsts = JSON.parse(installmentsJson) as any[];
+            // Match by is_entrada flag and n value to preserve paid_at correctly
+            editInstJson = JSON.stringify(newInsts.map((inst) => {
+              const prev = inst.is_entrada
+                ? prevInsts.find((p: any) => p.is_entrada)
+                : prevInsts.find((p: any) => !p.is_entrada && p.n === inst.n);
+              return { ...inst, paid_at: prev?.paid_at || null };
+            }));
           }
         }
 
@@ -830,19 +852,30 @@ export const Vendas: React.FC = () => {
         if (editForm.prazo_count && editForm.prazo_value && editForm.prazo_first_due) {
           const count = Math.max(1, Number(editForm.prazo_count) || 1);
           const value = Number(editForm.prazo_value) || 0;
+          const editHasEntrada = !!editForm.prazo_has_entrada;
+          const editEntradaVal = editHasEntrada ? Math.max(0, Number(editForm.prazo_entrada_value) || 0) : 0;
+          const editEntradaDue = editHasEntrada ? editForm.prazo_entrada_due : '';
           const [fy, fm, fd] = editForm.prazo_first_due.split('-').map(Number);
           const existingInsts: any[] = (() => { try { return JSON.parse(editSale.installments_json || '[]'); } catch { return []; } })();
-          const newInsts = Array.from({ length: count }, (_, i) => {
+          const newInsts: any[] = [];
+          if (editHasEntrada && editEntradaVal > 0 && editEntradaDue) {
+            const prevEntrada = existingInsts.find((p: any) => p.is_entrada);
+            newInsts.push({ n: 0, due: editEntradaDue, amount: editEntradaVal, paid_at: prevEntrada?.paid_at || null, is_entrada: true });
+          }
+          Array.from({ length: count }, (_, i) => {
             const d = new Date(fy, fm - 1 + i, fd);
             const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            return { n: i + 1, due, amount: value, paid_at: existingInsts[i]?.paid_at || null };
+            const prevInst = existingInsts.find((p: any) => !p.is_entrada && p.n === i + 1);
+            newInsts.push({ n: i + 1, due, amount: value, paid_at: prevInst?.paid_at || null });
           });
           updates.installments_json = JSON.stringify(newInsts);
           updates.installments = count;
-          const paymentDesc = tradeIn > 0
-            ? `Troca ${formatCurrency(tradeIn)} + ${count}x de ${formatCurrency(value)} a prazo`
-            : `A Prazo — ${count}x de ${formatCurrency(value)}`;
-          updates.payment_method = paymentDesc;
+          const parts: string[] = [];
+          if (tradeIn > 0) parts.push(`Troca ${formatCurrency(tradeIn)}`);
+          if (editHasEntrada && editEntradaVal > 0) parts.push(`Entrada ${formatCurrency(editEntradaVal)}`);
+          parts.push(`${count}x de ${formatCurrency(value)} a prazo`);
+          updates.payment_method = parts.join(' + ');
+          updates.total_amount = editEntradaVal + count * value + tradeIn;
         }
       }
       await dataService.updateSale(editSale.id, updates);
@@ -931,14 +964,18 @@ export const Vendas: React.FC = () => {
       );
       await dataService.updateSale(sale.id, { installments_json: JSON.stringify(updated) });
       const inst = installments[instIndex];
+      const regularInsts = installments.filter((i: any) => !i.is_entrada);
+      const txDesc = inst.is_entrada
+        ? `Receita ${sale.sale_number} — Entrada (${sale.customer_name || ''})`
+        : `Receita ${sale.sale_number} — Parcela ${inst.n}/${regularInsts.length} (${sale.customer_name || ''})`;
       await dataService.addTransaction({
-        description: `Receita ${sale.sale_number} — Parcela ${instIndex + 1}/${installments.length} (${sale.customer_name || ''})`,
+        description: txDesc,
         amount: inst.amount,
         type: 'income',
         category: 'sale',
         date: paid_at,
       });
-      toast.success(`Parcela ${instIndex + 1} marcada como paga!`);
+      toast.success(inst.is_entrada ? 'Entrada marcada como paga!' : `Parcela ${inst.n} marcada como paga!`);
       fetchData();
     } catch (error: any) {
       toast.error('Erro ao marcar parcela: ' + error.message);
@@ -1368,9 +1405,12 @@ export const Vendas: React.FC = () => {
                                     : new Date().toISOString().slice(0, 16),
                                   whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
                                   pdf_type: sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
-                                  prazo_count: String(existingInsts.length || 1),
-                                  prazo_value: existingInsts[0]?.amount ? String(existingInsts[0].amount) : '',
-                                  prazo_first_due: existingInsts[0]?.due || '',
+                                  prazo_count: String(existingInsts.filter((i: any) => !i.is_entrada).length || 1),
+                                  prazo_value: (() => { const fi = existingInsts.find((i: any) => !i.is_entrada); return fi?.amount ? String(fi.amount) : ''; })(),
+                                  prazo_first_due: existingInsts.find((i: any) => !i.is_entrada)?.due || '',
+                                  prazo_has_entrada: existingInsts.some((i: any) => i.is_entrada),
+                                  prazo_entrada_value: (() => { const ei = existingInsts.find((i: any) => i.is_entrada); return ei?.amount ? String(ei.amount) : ''; })(),
+                                  prazo_entrada_due: existingInsts.find((i: any) => i.is_entrada)?.due || '',
                                 });
                                 // Pré-preenche aparelho entrante — restaura todos os campos do json salvo
                                 const storedDevices: any[] = (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })();
@@ -1442,13 +1482,13 @@ export const Vendas: React.FC = () => {
                                   return (
                                     <div key={i} className={cn(
                                       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm',
-                                      isPaid ? 'bg-white border border-neutral-200' : isOverdue ? 'bg-red-50 border border-red-200' : 'bg-white border border-neutral-200'
+                                      isPaid ? 'bg-white border border-neutral-200' : isOverdue ? 'bg-red-50 border border-red-200' : inst.is_entrada ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-neutral-200'
                                     )}>
-                                      <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-neutral-400' : isOverdue ? 'text-red-600' : 'text-neutral-700')}>
-                                        {inst.n}
+                                      <span className={cn('text-xs font-black w-5 flex-shrink-0', isPaid ? 'text-neutral-400' : isOverdue ? 'text-red-600' : inst.is_entrada ? 'text-amber-700' : 'text-neutral-700')}>
+                                        {inst.is_entrada ? '↓' : inst.n}
                                       </span>
-                                      <span className="text-xs text-neutral-500 flex-shrink-0 w-24">
-                                        {inst.due.split('-').reverse().join('/')}
+                                      <span className={cn('text-xs flex-shrink-0', inst.is_entrada ? 'font-black text-amber-700 w-auto pr-1' : 'text-neutral-500 w-24')}>
+                                        {inst.is_entrada ? 'Entrada' : ''}{inst.is_entrada ? ' · ' : ''}{inst.due.split('-').reverse().join('/')}
                                       </span>
                                       <span className="font-bold text-neutral-800 flex-1">
                                         {formatCurrency(inst.amount)}
@@ -1465,6 +1505,8 @@ export const Vendas: React.FC = () => {
                                             'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors',
                                             isOverdue
                                               ? 'bg-red-500 text-white hover:bg-red-600'
+                                              : inst.is_entrada
+                                              ? 'bg-amber-500 text-white hover:bg-amber-600'
                                               : 'bg-neutral-900 text-white hover:bg-neutral-800',
                                             markingPaid === markKey && 'opacity-50 cursor-not-allowed'
                                           )}
@@ -1474,7 +1516,7 @@ export const Vendas: React.FC = () => {
                                           ) : (
                                             <CheckCircle2 size={11} />
                                           )}
-                                          {isOverdue ? 'Atrasada — Receber' : 'Receber'}
+                                          {isOverdue ? 'Atrasada — Receber' : inst.is_entrada ? 'Receber Entrada' : 'Receber'}
                                         </button>
                                       )}
                                     </div>
@@ -2503,11 +2545,12 @@ export const Vendas: React.FC = () => {
                 />
               </div>
 
-              {/* Breakdown: produto − troca = a pagar a prazo */}
+              {/* Breakdown: produto − troca − entrada = base parcelas */}
               {(() => {
                 const prodPrice = Number(form.sale_price_manual) || 0;
                 const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
-                const diff = Math.max(0, prodPrice - tradeIn);
+                const entrada = form.prazo_has_entrada ? Math.max(0, Number(form.prazo_entrada_value) || 0) : 0;
+                const diff = Math.max(0, prodPrice - tradeIn - entrada);
                 const cnt = Math.max(1, Number(form.prazo_count) || 1);
                 const suggested = cnt > 0 ? diff / cnt : 0;
                 if (prodPrice === 0 && tradeIn === 0) return null;
@@ -2524,8 +2567,14 @@ export const Vendas: React.FC = () => {
                         <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                       </div>
                     )}
+                    {entrada > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-amber-700 font-bold">Entrada</span>
+                        <span className="font-bold text-amber-700">− {formatCurrency(entrada)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm font-bold border-t border-neutral-200 pt-2">
-                      <span className="text-neutral-900">A pagar em parcelas</span>
+                      <span className="text-neutral-900">Base para parcelas</span>
                       <span className="text-neutral-900">{formatCurrency(diff)}</span>
                     </div>
                     {suggested > 0 && (
@@ -2584,6 +2633,44 @@ export const Vendas: React.FC = () => {
                 </div>
               </div>
 
+              {/* Entrada (down payment) */}
+              <div className="border border-neutral-200 rounded-xl p-3.5 space-y-3 bg-white">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.prazo_has_entrada}
+                    onChange={(e) => setForm(f => ({ ...f, prazo_has_entrada: e.target.checked, prazo_entrada_value: '', prazo_entrada_due: '' }))}
+                    className="w-4 h-4 accent-amber-500 cursor-pointer"
+                  />
+                  <span className="text-sm font-bold text-neutral-700">Cobrar entrada antes das parcelas</span>
+                </label>
+                {form.prazo_has_entrada && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor da Entrada (R$) *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={form.prazo_entrada_value}
+                        onChange={setF('prazo_entrada_value')}
+                        className="w-full bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-300"
+                        placeholder="Ex: 1000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Vencimento da Entrada *</label>
+                      <input
+                        type="date"
+                        value={form.prazo_entrada_due}
+                        onChange={setF('prazo_entrada_due')}
+                        className="w-full bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Data da venda */}
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
@@ -2618,43 +2705,41 @@ export const Vendas: React.FC = () => {
                     );
                   })()}
 
+                  {form.prazo_has_entrada && Number(form.prazo_entrada_value) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-amber-700 font-bold">Entrada {form.prazo_entrada_due ? `(${form.prazo_entrada_due.split('-').reverse().join('/')})` : ''}</span>
+                      <span className="font-bold text-amber-700">{formatCurrency(Number(form.prazo_entrada_value))}</span>
+                    </div>
+                  )}
+
                   {Number(form.prazo_value) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-neutral-500">Parcelas ({form.prazo_count}x)</span>
+                      <span className="text-neutral-500">Parcelas ({form.prazo_count}x){form.prazo_first_due ? ` · 1º em ${form.prazo_first_due.split('-').reverse().join('/')}` : ''}</span>
                       <span className="font-bold">{form.prazo_count}x de {formatCurrency(Number(form.prazo_value))}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between text-sm border-t border-neutral-100 pt-2">
-                    <span className="font-bold text-neutral-700">
-                      {(() => {
-                        const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
-                        return tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo';
-                      })()}
-                    </span>
+                    <span className="font-bold text-neutral-700">Total da operação</span>
                     <span className="text-xl font-black text-neutral-900">
                       {(() => {
                         const cnt = Math.max(1, Number(form.prazo_count) || 1);
+                        const entrada = form.prazo_has_entrada ? Math.max(0, Number(form.prazo_entrada_value) || 0) : 0;
                         const val = Number(form.prazo_value) > 0
                           ? Number(form.prazo_value)
                           : (() => {
                             const prodP = Number(form.sale_price_manual) || 0;
                             const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
-                            return Math.max(0, prodP - tradeIn) / cnt;
+                            return Math.max(0, prodP - tradeIn - entrada) / cnt;
                           })();
                         const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
-                        return formatCurrency(cnt * val + tradeIn);
+                        return formatCurrency(entrada + cnt * val + tradeIn);
                       })()}
                     </span>
                   </div>
 
-                  {form.prazo_first_due && (
-                    <p className="text-xs text-neutral-600 font-medium">
-                      Primeira parcela em: {form.prazo_first_due.split('-').reverse().join('/')}
-                    </p>
-                  )}
                   <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 font-medium mt-2">
-                    A receita entra no Financeiro conforme cada parcela é marcada como paga.
+                    A receita entra no Financeiro conforme entrada e parcelas são marcadas como pagas.
                   </p>
 
                   {/* Lucro estimado no prazo */}
@@ -3224,7 +3309,8 @@ export const Vendas: React.FC = () => {
             {editForm.sale_type === 'prazo' && (() => {
               const productPrice = Number(editForm.sale_price_manual) || 0;
               const tradeIn = editIncomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
-              const financing = Math.max(0, productPrice - tradeIn);
+              const editEntrada = editForm.prazo_has_entrada ? Math.max(0, Number(editForm.prazo_entrada_value) || 0) : 0;
+              const financing = Math.max(0, productPrice - tradeIn - editEntrada);
               const count = Math.max(1, Number(editForm.prazo_count) || 1);
               const autoValue = count > 0 ? financing / count : 0;
               const instValue = Number(editForm.prazo_value) > 0 ? Number(editForm.prazo_value) : autoValue;
@@ -3260,8 +3346,14 @@ export const Vendas: React.FC = () => {
                           <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                         </div>
                       )}
+                      {editEntrada > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-amber-700 font-bold">Entrada</span>
+                          <span className="font-bold text-amber-700">− {formatCurrency(editEntrada)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-sm font-bold border-t border-neutral-200 pt-2">
-                        <span className="text-neutral-700">A pagar em parcelas</span>
+                        <span className="text-neutral-700">Base para parcelas</span>
                         <span className="text-neutral-700">{formatCurrency(financing)}</span>
                       </div>
                       {autoValue > 0 && (
@@ -3315,6 +3407,40 @@ export const Vendas: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Entrada (down payment) */}
+                  <div className="border border-neutral-200 rounded-xl p-3.5 space-y-3 bg-white">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!editForm.prazo_has_entrada}
+                        onChange={(e) => setEditForm((f: any) => ({ ...f, prazo_has_entrada: e.target.checked, prazo_entrada_value: '', prazo_entrada_due: '' }))}
+                        className="w-4 h-4 accent-amber-500 cursor-pointer"
+                      />
+                      <span className="text-sm font-bold text-neutral-700">Cobrar entrada antes das parcelas</span>
+                    </label>
+                    {editForm.prazo_has_entrada && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor da Entrada (R$) *</label>
+                          <input type="number" step="any" inputMode="decimal"
+                            value={editForm.prazo_entrada_value || ''}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, prazo_entrada_value: e.target.value }))}
+                            className="w-full bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-300"
+                            placeholder="Ex: 1000"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-neutral-700 mb-1.5">Vencimento da Entrada *</label>
+                          <input type="date"
+                            value={editForm.prazo_entrada_due || ''}
+                            onChange={(e) => setEditForm((f: any) => ({ ...f, prazo_entrada_due: e.target.value }))}
+                            className="w-full bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Data da operação */}
                   <div>
                     <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data da Operação</label>
@@ -3340,27 +3466,26 @@ export const Vendas: React.FC = () => {
                           <span className="font-bold text-neutral-700">− {formatCurrency(tradeIn)}</span>
                         </div>
                       )}
+                      {editEntrada > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-amber-700 font-bold">Entrada {editForm.prazo_entrada_due ? `(${editForm.prazo_entrada_due.split('-').reverse().join('/')})` : ''}</span>
+                          <span className="font-bold text-amber-700">{formatCurrency(editEntrada)}</span>
+                        </div>
+                      )}
                       {instValue > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-neutral-500">Parcelas ({editForm.prazo_count}x)</span>
+                          <span className="text-neutral-500">Parcelas ({editForm.prazo_count}x){editForm.prazo_first_due ? ` · 1º em ${editForm.prazo_first_due.split('-').reverse().join('/')}` : ''}</span>
                           <span className="font-bold">{editForm.prazo_count}x de {formatCurrency(instValue)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm border-t border-neutral-100 pt-2">
-                        <span className="font-bold text-neutral-700">
-                          {tradeIn > 0 ? 'Total da operação (parcelas + troca)' : 'Total a pagar a prazo'}
-                        </span>
+                        <span className="font-bold text-neutral-700">Total da operação</span>
                         <span className="text-xl font-black text-neutral-900">
-                          {formatCurrency(count * instValue + tradeIn)}
+                          {formatCurrency(editEntrada + count * instValue + tradeIn)}
                         </span>
                       </div>
-                      {editForm.prazo_first_due && (
-                        <p className="text-xs text-neutral-600 font-medium">
-                          Primeira parcela em: {editForm.prazo_first_due.split('-').reverse().join('/')}
-                        </p>
-                      )}
                       <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 font-medium mt-2">
-                        A receita entra no Financeiro conforme cada parcela é marcada como paga.
+                        A receita entra no Financeiro conforme entrada e parcelas são marcadas como pagas.
                       </p>
                     </div>
                   )}

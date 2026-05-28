@@ -360,8 +360,13 @@ function warrantyBlockNovo() {
     </div>`;
 }
 
+// Pre-opened window set by generatePDF when called from an async context
+// (avoids popup blocker since window must be opened in a synchronous event handler)
+let _preOpenedWin: Window | null | undefined = undefined;
+
 function openAndPrint(html: string, title: string) {
-  const w = window.open('', '_blank', 'width=920,height=1060');
+  const w = _preOpenedWin ?? window.open('', '_blank', 'width=920,height=1060');
+  _preOpenedWin = undefined;
   if (!w) { alert('Permita pop-ups no navegador para gerar o documento.'); return; }
   w.document.write(html);
   w.document.close();
@@ -1025,7 +1030,8 @@ ${tradeInSection}
 }
 
 // ─── dispatcher ───────────────────────────────────────────────────────────────
-export function generatePDF(sale: SalePDFData, company: CompanyInfo) {
+export function generatePDF(sale: SalePDFData, company: CompanyInfo, preWin?: Window | null) {
+  if (preWin !== undefined) _preOpenedWin = preWin;
   if (sale.sale_type === 'compra') return generateCompraPDF(sale, company);
   if (sale.sale_type === 'troca')  return generateTrocaPDF(sale, company);
   if (sale.sale_type === 'prazo')  return generatePrazoPDF(sale, company);

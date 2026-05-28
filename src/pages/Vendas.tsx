@@ -449,6 +449,7 @@ export const Vendas: React.FC = () => {
     const buildOutgoingItemsJson = () => {
       const primaryProd = form.selectedProduct ? products.find((p: any) => p.id === form.selectedProduct) : null;
       const primaryItem = {
+        product_id: form.selectedProduct || '',
         name: primaryProd?.name || form.product_name_manual || '',
         imei: form.product_imei || primaryProd?.imei || '',
         capacity: form.product_capacity || primaryProd?.product_capacity || '',
@@ -459,6 +460,7 @@ export const Vendas: React.FC = () => {
       const additionalMapped = additionalItems.filter(i => i.selectedProduct).map(i => {
         const prod = products.find((p: any) => p.id === i.selectedProduct);
         return {
+          product_id: i.selectedProduct,
           name: i.name_override || prod?.name || '',
           imei: i.imei_override || prod?.imei || '',
           capacity: i.capacity_override || prod?.product_capacity || '',
@@ -490,6 +492,8 @@ export const Vendas: React.FC = () => {
     }
 
     const saleNumber = generateSaleNumber(sales.length, form.sale_type);
+    // Open PDF window synchronously (before any await) to avoid popup blocker
+    const printWin = !isEditMode ? window.open('', '_blank', 'width=920,height=1060') : null;
 
     try {
       setIsSaving(true);
@@ -868,7 +872,7 @@ export const Vendas: React.FC = () => {
           } catch { return undefined; }
         })(),
       };
-      generatePDF(pdfData, getCompanyInfo());
+      generatePDF(pdfData, getCompanyInfo(), printWin);
 
       // Google Calendar event (fire-and-forget — don't block sale flow)
       const signLink = savedSale?.sign_token
@@ -916,6 +920,7 @@ export const Vendas: React.FC = () => {
       setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
       fetchData();
     } catch (error: any) {
+      printWin?.close();
       toast.error('Erro ao salvar: ' + error.message);
     } finally {
       setIsSaving(false);
@@ -1439,8 +1444,13 @@ export const Vendas: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-neutral-900 truncate">{name}</p>
                             <p className="text-xs text-neutral-400 truncate">
-                              {sale.product_name}
-                              {sale.product_imei ? ` · IMEI ${sale.product_imei}` : ''}
+                              {(() => {
+                                try {
+                                  const items = JSON.parse(sale.outgoing_items_json || '[]');
+                                  if (items.length > 1) return items.map((it: any) => it.name).join(' + ');
+                                } catch {}
+                                return sale.product_name + (sale.product_imei ? ` · IMEI ${sale.product_imei}` : '');
+                              })()}
                               {(type === 'troca' || type === 'prazo') && sale.incoming_name?.trim() ? ` ⇄ ${sale.incoming_name}` : ''}
                             </p>
                           </div>
@@ -1546,6 +1556,7 @@ export const Vendas: React.FC = () => {
                                   : String(sale.total_amount || '');
                                 const payMethod = PAYMENT_METHODS.includes(sale.payment_method || '') ? (sale.payment_method || 'PIX') : 'PIX';
 
+                                const primaryProductId = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]')[0]?.product_id || ''; } catch { return ''; } })();
                                 setForm({
                                   ...emptyForm(),
                                   sale_type: sType,
@@ -1553,6 +1564,7 @@ export const Vendas: React.FC = () => {
                                   customer_phone: sale.customer_phone || sale.customers?.phone || '',
                                   customer_cpf: sale.customer_cpf || '',
                                   customer_city: sale.customer_city || sale.customers?.city || '',
+                                  selectedProduct: primaryProductId,
                                   product_name_manual: sale.product_name || '',
                                   product_capacity: sale.product_capacity || '',
                                   product_color: sale.product_color || '',
@@ -1599,6 +1611,7 @@ export const Vendas: React.FC = () => {
                                   setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
                                     ...emptyAdditionalItem(),
                                     id: crypto.randomUUID(),
+                                    selectedProduct: item.product_id || '',
                                     name_override: item.name || '',
                                     imei_override: item.imei || '',
                                     capacity_override: item.capacity || '',

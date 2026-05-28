@@ -8,9 +8,9 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
-  Calendar, TrendingUp, ArrowRight, ChevronDown, ChevronUp,
+  Calendar, TrendingUp, TrendingDown, ArrowRight, ChevronDown, ChevronUp,
   Target, Pencil, Check, RefreshCw, CheckCircle2, XCircle, Trash2,
-  AlertCircle, Clock,
+  AlertCircle, Clock, X,
 } from 'lucide-react';
 
 const META_KEY       = 'easy-imports-meta-mensal';
@@ -199,6 +199,8 @@ export const Dashboard: React.FC = () => {
   });
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState('');
+  // Drill-down modal: null = closed, or one of the card keys
+  const [drillDown, setDrillDown] = useState<'revenue' | 'cash' | 'profit' | 'stock' | null>(null);
 
   const clearMeta = () => {
     setMeta(0);
@@ -267,7 +269,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, costMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -335,6 +337,7 @@ export const Dashboard: React.FC = () => {
       stockAtPeriod:  stockSnapshot,
       prazoCount:     prazoSales.length,
       prazoTotal,
+      costMap,
       chartData:      buildChartDataForRange(filtered, start, end),
       channelData:    buildChannelData(filtered),
       topProducts:    buildTopProducts(filtered),
@@ -343,6 +346,30 @@ export const Dashboard: React.FC = () => {
   }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
+
+  // ─── Tendência: compara período atual com período anterior equivalente ────────
+  const { prevRevenue, prevProfit } = useMemo(() => {
+    if (period === 'custom') return { prevRevenue: null, prevProfit: null };
+    const [curStart, curEnd] = getDateRange(period, customFrom, customTo);
+    const dur = curEnd.getTime() - curStart.getTime();
+    const prevStart = new Date(curStart.getTime() - dur);
+    const prevEnd   = curStart;
+    const prevSales = allSales.filter(s => {
+      if (!s.created_at) return false;
+      const d = new Date(s.created_at);
+      return d >= prevStart && d < prevEnd;
+    });
+    const pRev = prevSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    // Use period income transactions for prev profit too
+    const txDate = (t: any) => {
+      if (t.date) return new Date(String(t.date).slice(0, 10) + 'T12:00:00');
+      if (t.created_at) return new Date(t.created_at);
+      return new Date(0);
+    };
+    const pIncome  = allTransactions.filter(t => t.type === 'income'  && txDate(t) >= prevStart && txDate(t) < prevEnd).reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const pExpense = allTransactions.filter(t => t.type === 'expense' && txDate(t) >= prevStart && txDate(t) < prevEnd).reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    return { prevRevenue: pRev, prevProfit: pIncome - pExpense };
+  }, [allSales, allTransactions, period, customFrom, customTo]);
 
   // A Receber = saldo GLOBAL de todas as parcelas a prazo ainda não pagas (não filtra por período)
   const { pendingReceivables, pendingSalesCount } = useMemo(() => {
@@ -509,20 +536,43 @@ export const Dashboard: React.FC = () => {
       {isLoading ? <Skeleton /> : (
         <>
           {/* ── Metric Cards ── */}
+          {/* Trend helper */}
+          {(() => {
+            const TrendBadge = ({ cur, prev }: { cur: number; prev: number | null }) => {
+              if (prev === null || prev === 0) return null;
+              const pct = ((cur - prev) / Math.abs(prev)) * 100;
+              const up = cur >= prev;
+              return (
+                <div className={cn('flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold', up ? 'text-green-600' : 'text-red-500')}>
+                  {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                  {up ? '+' : ''}{Math.abs(pct).toFixed(0)}%
+                </div>
+              );
+            };
+            return (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {/* Faturamento */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+            {/* Faturamento — clicável */}
+            <button
+              onClick={() => setDrillDown('revenue')}
+              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+            >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
-            </div>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
+                <TrendBadge cur={revenue} prev={prevRevenue} />
+              </div>
+            </button>
 
             {/* Caixa */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+            <button
+              onClick={() => setDrillDown('cash')}
+              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+            >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Recebido · {periodLabel}</p>
-            </div>
+            </button>
 
             {/* Contas a Receber */}
             <div className={cn(
@@ -536,17 +586,23 @@ export const Dashboard: React.FC = () => {
               </p>
             </div>
 
-            {/* Lucro Imediato */}
-            <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
-              netProfit >= 0 ? 'bg-white border-neutral-200' : 'bg-red-50 border-red-200',
-            )}>
+            {/* Lucro Imediato — clicável */}
+            <button
+              onClick={() => setDrillDown('profit')}
+              className={cn(
+                'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:shadow-md transition-all active:scale-[0.98]',
+                netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
+              )}
+            >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro</p>
               <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                 {formatCurrency(netProfit)}
               </p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Imediato · {periodLabel}</p>
-            </div>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Imediato · {periodLabel}</p>
+                <TrendBadge cur={netProfit} prev={prevProfit} />
+              </div>
+            </button>
 
             {/* Lucro Futuro */}
             <div className="rounded-2xl border border-neutral-200 shadow-sm bg-white min-w-0 overflow-hidden">
@@ -588,12 +644,19 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Estoque — valor no período selecionado */}
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
+            <button
+              onClick={() => navigate('/estoque')}
+              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+            >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
-            </div>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
+              </div>
+            </button>
           </div>
+            );
+          })()}
 
           {/* ── Alertas de Parcelas a Prazo ── */}
           {(overdueInstallments.length > 0 || dueSoonInstallments.length > 0) && (
@@ -1023,6 +1086,119 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ── Drill-down Modal ── */}
+      {drillDown && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
+          <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+              <div>
+                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">
+                  {drillDown === 'revenue' && 'Faturamento'}
+                  {drillDown === 'cash'    && 'Caixa Recebido'}
+                  {drillDown === 'profit'  && 'Lucro por Venda'}
+                </p>
+                <p className="text-base font-black text-neutral-900 mt-0.5">
+                  {drillDown === 'revenue' && formatCurrency(revenue)}
+                  {drillDown === 'cash'    && formatCurrency(cash)}
+                  {drillDown === 'profit'  && formatCurrency(netProfit)}
+                </p>
+                <p className="text-xs text-neutral-400">{periodLabel} · {salesCount} venda{salesCount !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setDrillDown(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Column headers */}
+            <div className="grid grid-cols-12 gap-2 px-5 py-2 bg-neutral-50 border-b border-neutral-100 text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+              <span className="col-span-1">#</span>
+              <span className="col-span-3">Cliente</span>
+              <span className="col-span-4">Produto</span>
+              <span className="col-span-2 text-right">
+                {drillDown === 'revenue' ? 'Total' : drillDown === 'cash' ? 'Recebido' : 'Lucro'}
+              </span>
+              <span className="col-span-2 text-right">Data</span>
+            </div>
+
+            {/* Rows */}
+            <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
+              {filteredSales.length === 0 ? (
+                <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
+                  Nenhuma venda neste período.
+                </div>
+              ) : (
+                [...filteredSales]
+                  .sort((a, b) => {
+                    if (drillDown === 'revenue') return Number(b.total_amount || 0) - Number(a.total_amount || 0);
+                    if (drillDown === 'cash') {
+                      const cashFor = (s: any) => {
+                        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+                        if (t === 'troca') return Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
+                        if (t === 'prazo') {
+                          try { return (JSON.parse(s.installments_json || '[]') as any[]).filter(i => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0); } catch { return 0; }
+                        }
+                        return Number(s.total_amount || 0);
+                      };
+                      return cashFor(b) - cashFor(a);
+                    }
+                    const profitFor = (s: any) => {
+                      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+                      return Number(s.total_amount || 0) - cost;
+                    };
+                    return profitFor(b) - profitFor(a);
+                  })
+                  .map((sale) => {
+                    const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
+                    const cost = costMap[sale.sale_number] ?? costMap[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
+                    const displayValue = (() => {
+                      if (drillDown === 'revenue') return Number(sale.total_amount || 0);
+                      if (drillDown === 'cash') {
+                        if (type === 'troca') return Number(sale.total_amount || 0) - Number(sale.incoming_purchase_price || 0);
+                        if (type === 'prazo') {
+                          try { return (JSON.parse(sale.installments_json || '[]') as any[]).filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0); } catch { return 0; }
+                        }
+                        return Number(sale.total_amount || 0);
+                      }
+                      return Number(sale.total_amount || 0) - cost;
+                    })();
+                    const isNeg = drillDown === 'profit' && displayValue < 0;
+                    const isPos = drillDown === 'profit' && displayValue > 0;
+                    const dateStr = sale.created_at
+                      ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                      : '—';
+                    return (
+                      <div key={sale.id} className="grid grid-cols-12 gap-2 px-5 py-3 hover:bg-neutral-50 transition-colors items-center">
+                        <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{sale.sale_number || '—'}</span>
+                        <span className="col-span-3 text-xs font-bold text-neutral-800 truncate">{sale.customer_name || 'Avulso'}</span>
+                        <span className="col-span-4 text-xs text-neutral-500 truncate">{sale.product_name || '—'}</span>
+                        <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : 'text-neutral-900')}>
+                          {isPos ? '+' : ''}{formatCurrency(displayValue)}
+                        </span>
+                        <span className="col-span-2 text-[10px] text-neutral-400 text-right">{dateStr}</span>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 bg-neutral-50">
+              <span className="text-xs font-bold text-neutral-600">
+                {filteredSales.length} venda{filteredSales.length !== 1 ? 's' : ''} no período
+              </span>
+              <button
+                onClick={() => { setDrillDown(null); navigate('/vendas'); }}
+                className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+              >
+                Ver em Vendas <ArrowRight size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

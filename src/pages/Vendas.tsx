@@ -357,6 +357,22 @@ export const Vendas: React.FC = () => {
   const vendaMargin = salePrice > 0 ? Math.round((vendaProfit / salePrice) * 100) : 0;
   const hasCost = unitCost > 0;
 
+  // Totals for additional items (computed reactively for use in UI)
+  const additionalItemsTotal = useMemo(() => {
+    return additionalItems.filter(i => i.selectedProduct).reduce((sum, item) => {
+      const prod = products.find((p: any) => p.id === item.selectedProduct);
+      const price = Number(item.price_override) || (prod?.sale_price ?? 0);
+      return sum + price;
+    }, 0);
+  }, [additionalItems, products]);
+
+  const additionalItemsCost = useMemo(() => {
+    return additionalItems.filter(i => i.selectedProduct).reduce((sum, item) => {
+      const prod = products.find((p: any) => p.id === item.selectedProduct);
+      return sum + (prod?.purchase_price ?? 0);
+    }, 0);
+  }, [additionalItems, products]);
+
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -372,13 +388,6 @@ export const Vendas: React.FC = () => {
     const productName = product?.name || form.product_name_manual;
     const isPrazo = form.sale_type === 'prazo';
     const prazoCount = isPrazo ? Math.max(1, Number(form.prazo_count) || 1) : 0;
-
-    // Sum of additional outgoing items' prices
-    const additionalItemsTotal = additionalItems.reduce((sum, item) => {
-      const prod = products.find((p: any) => p.id === item.selectedProduct);
-      const price = Number(item.price_override) || (prod?.sale_price ?? 0);
-      return sum + price;
-    }, 0);
 
     // Para prazo: preço do produto vem de sale_price_manual (auto-preenchido do estoque ou manual)
     const prazoProductPrice = isPrazo
@@ -2589,6 +2598,86 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
+            {/* Per-product prices (venda/troca) — only visible when there are additional products */}
+            {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+              <div className="mt-2 p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-3">
+                <p className="text-xs font-black text-neutral-500 uppercase tracking-widest">Valor por Produto</p>
+                {/* Primary product */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-neutral-700 truncate">
+                      Produto 1: {selectedProductData?.name || form.product_name_manual || '—'}
+                    </p>
+                    {selectedProductData?.purchase_price > 0 && (
+                      <p className="text-[10px] text-neutral-400">Custo: {formatCurrency(selectedProductData.purchase_price)}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <input
+                      type="number" step="any" inputMode="decimal"
+                      className="w-28 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 text-right"
+                      value={form.sale_price_manual}
+                      onChange={setF('sale_price_manual')}
+                      placeholder="0,00"
+                    />
+                    {Number(form.sale_price_manual) > 0 && selectedProductData?.purchase_price > 0 && (
+                      <span className={cn('text-xs font-black w-20 text-right', (Number(form.sale_price_manual) - selectedProductData.purchase_price) >= 0 ? 'text-green-600' : 'text-red-500')}>
+                        {formatCurrency(Number(form.sale_price_manual) - selectedProductData.purchase_price)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Additional products */}
+                {additionalItems.filter(i => i.selectedProduct).map((item, idx) => {
+                  const addProd = products.find((p: any) => p.id === item.selectedProduct);
+                  const itemPrice = Number(item.price_override) || 0;
+                  const itemCost = addProd?.purchase_price || 0;
+                  const itemProfit = itemPrice > 0 && itemCost > 0 ? itemPrice - itemCost : null;
+                  return (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-neutral-700 truncate">
+                          Produto {idx + 2}: {addProd?.name || 'Produto'}
+                        </p>
+                        {itemCost > 0 && (
+                          <p className="text-[10px] text-neutral-400">Custo: {formatCurrency(itemCost)}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <input
+                          type="number" step="any" inputMode="decimal"
+                          className="w-28 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 text-right"
+                          value={item.price_override}
+                          onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, price_override: e.target.value } : i))}
+                          placeholder={addProd?.sale_price ? String(addProd.sale_price) : '0,00'}
+                        />
+                        {itemProfit !== null && (
+                          <span className={cn('text-xs font-black w-20 text-right', itemProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                            {formatCurrency(itemProfit)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Totals row */}
+                <div className="flex justify-between items-center border-t border-neutral-200 pt-2">
+                  <span className="text-sm font-bold text-neutral-700">Total dos produtos</span>
+                  <div className="flex items-center gap-4">
+                    {(totalCost + additionalItemsCost) > 0 && (
+                      <span className="text-xs text-neutral-400">
+                        Custo: {formatCurrency(totalCost + additionalItemsCost)} ·
+                        Lucro: {formatCurrency((Number(form.sale_price_manual) || 0) + additionalItemsTotal - totalCost - additionalItemsCost)}
+                      </span>
+                    )}
+                    <span className="text-sm font-black text-neutral-900">
+                      {formatCurrency((Number(form.sale_price_manual) || 0) + additionalItemsTotal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Valor recebido da maquininha — aparece quando Cartão de Crédito é selecionado */}
             {(form.payment_method === 'Cartão de Crédito' || (form.split_payment && form.payment2_method === 'Cartão de Crédito')) && (() => {
               const cardBase = form.split_payment
@@ -2649,11 +2738,13 @@ export const Vendas: React.FC = () => {
               const tradeCredit = incomingDevices.reduce((s, d) => s + Number(d.purchase_price || 0), 0);
               const tradeResale = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
               const tradeProfit = tradeResale - tradeCredit;
-              // For troca: effective revenue = cash received + trade credit (device has value)
               const isTroca = form.sale_type === 'troca';
-              const faturamento = salePrice + (isTroca ? tradeCredit : 0);
-              const lucroVenda = hasCost ? faturamento - totalCost - cardFee : null;
-              // lucroTotal adds future resale profit if the resale estimate is known
+              const addlFiltered = additionalItems.filter(i => i.selectedProduct);
+              const totalSaleAllProds = salePrice + additionalItemsTotal;
+              const totalCostAllProds = totalCost + additionalItemsCost;
+              const hasCostAll = totalCostAllProds > 0;
+              const faturamento = totalSaleAllProds + (isTroca ? tradeCredit : 0);
+              const lucroVenda = hasCostAll ? faturamento - totalCostAllProds - cardFee : null;
               const lucroTotal = lucroVenda !== null ? lucroVenda + (tradeResale > 0 ? tradeProfit : 0) : null;
               return (
                 <div className="mt-3 border-2 border-neutral-200 rounded-2xl overflow-hidden">
@@ -2664,11 +2755,52 @@ export const Vendas: React.FC = () => {
 
                     {/* Seu produto — o que você está vendendo */}
                     <div className="px-4 py-3 space-y-1.5">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Seu produto</p>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-600">{isTroca ? 'Caixa recebido' : 'Preço de venda'}</span>
-                        <span className="font-bold text-neutral-900">{formatCurrency(salePrice)}</span>
-                      </div>
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                        {addlFiltered.length > 0 ? 'Seus produtos' : 'Seu produto'}
+                      </p>
+                      {/* Per-product breakdown when multiple */}
+                      {addlFiltered.length > 0 ? (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-neutral-600">Produto 1: {selectedProductData?.name || form.product_name_manual || '—'}</span>
+                            <div className="text-right">
+                              <span className="font-bold text-neutral-900">{formatCurrency(salePrice)}</span>
+                              {selectedProductData?.purchase_price > 0 && (
+                                <span className={cn('block text-[10px] font-bold', (salePrice - selectedProductData.purchase_price) >= 0 ? 'text-green-600' : 'text-red-500')}>
+                                  Lucro: {formatCurrency(salePrice - selectedProductData.purchase_price)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {addlFiltered.map((item, idx) => {
+                            const addProd = products.find((p: any) => p.id === item.selectedProduct);
+                            const itemPrice = Number(item.price_override) || addProd?.sale_price || 0;
+                            const itemCost = addProd?.purchase_price || 0;
+                            return (
+                              <div key={item.id} className="flex justify-between text-sm">
+                                <span className="text-neutral-600">Produto {idx + 2}: {addProd?.name || 'Produto'}</span>
+                                <div className="text-right">
+                                  <span className="font-bold text-neutral-900">{formatCurrency(itemPrice)}</span>
+                                  {itemCost > 0 && itemPrice > 0 && (
+                                    <span className={cn('block text-[10px] font-bold', (itemPrice - itemCost) >= 0 ? 'text-green-600' : 'text-red-500')}>
+                                      Lucro: {formatCurrency(itemPrice - itemCost)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="flex justify-between text-sm font-bold border-t border-neutral-100 pt-1">
+                            <span className="text-neutral-700">= Total dos produtos</span>
+                            <span className="text-neutral-900">{formatCurrency(totalSaleAllProds)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-600">{isTroca ? 'Caixa recebido' : 'Preço de venda'}</span>
+                          <span className="font-bold text-neutral-900">{formatCurrency(salePrice)}</span>
+                        </div>
+                      )}
                       {isTroca && tradeCredit > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-neutral-600">+ Crédito da troca</span>
@@ -2681,10 +2813,10 @@ export const Vendas: React.FC = () => {
                           <span className="font-bold text-neutral-900">{formatCurrency(faturamento)}</span>
                         </div>
                       )}
-                      {hasCost ? (
+                      {hasCostAll ? (
                         <div className="flex justify-between text-sm">
-                          <span className="text-neutral-600">Custo do produto</span>
-                          <span className="font-bold text-red-500">− {formatCurrency(totalCost)}</span>
+                          <span className="text-neutral-600">{additionalItemsCost > 0 ? 'Custo total dos produtos' : 'Custo do produto'}</span>
+                          <span className="font-bold text-red-500">− {formatCurrency(totalCostAllProds)}</span>
                         </div>
                       ) : (
                         <div className="flex justify-between text-sm">
@@ -2769,30 +2901,90 @@ export const Vendas: React.FC = () => {
                 <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Condições a Prazo</p>
               </div>
 
-              {/* Valor do produto — sempre visível para prazo */}
-              <div>
-                <label className="block text-sm font-bold text-neutral-700 mb-1.5">
-                  Valor do Produto (R$) *
-                  {selectedProductData && selectedProductData.sale_price > 0 && (
-                    <span className="ml-2 text-[10px] font-normal text-neutral-500">
-                      auto-preenchido do estoque
-                    </span>
+              {/* Valor dos produtos — per-product pricing */}
+              <div className="space-y-2">
+                <p className="text-sm font-bold text-neutral-700">
+                  {additionalItems.filter(i => i.selectedProduct).length > 0 ? 'Valor dos Produtos (R$) *' : 'Valor do Produto (R$) *'}
+                </p>
+                {/* Primary product */}
+                <div className="bg-white border-2 border-primary/40 rounded-xl p-3 space-y-2">
+                  {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-neutral-600 truncate">
+                        Produto 1: {selectedProductData?.name || form.product_name_manual || '—'}
+                      </p>
+                      {selectedProductData?.purchase_price > 0 && (
+                        <span className="text-[10px] text-neutral-400 flex-shrink-0 ml-2">
+                          Custo: {formatCurrency(selectedProductData.purchase_price)}
+                        </span>
+                      )}
+                    </div>
                   )}
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  value={form.sale_price_manual}
-                  onChange={setF('sale_price_manual')}
-                  className="w-full bg-white border-2 border-primary/40 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                  placeholder="Ex: 5000"
-                />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      value={form.sale_price_manual}
+                      onChange={setF('sale_price_manual')}
+                      className="flex-1 bg-transparent text-sm font-bold outline-none focus:ring-0"
+                      placeholder="Ex: 5000"
+                    />
+                    {Number(form.sale_price_manual) > 0 && selectedProductData?.purchase_price > 0 && additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                      <span className={cn('text-xs font-black flex-shrink-0', (Number(form.sale_price_manual) - selectedProductData.purchase_price) >= 0 ? 'text-green-600' : 'text-red-500')}>
+                        Lucro: {formatCurrency(Number(form.sale_price_manual) - selectedProductData.purchase_price)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Additional products */}
+                {additionalItems.filter(i => i.selectedProduct).map((item, idx) => {
+                  const addProd = products.find((p: any) => p.id === item.selectedProduct);
+                  const itemPrice = Number(item.price_override) || addProd?.sale_price || 0;
+                  const itemCost = addProd?.purchase_price || 0;
+                  const itemProfit = itemPrice > 0 && itemCost > 0 ? itemPrice - itemCost : null;
+                  return (
+                    <div key={item.id} className="bg-white border-2 border-primary/40 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-neutral-600 truncate">
+                          Produto {idx + 2}: {addProd?.name || 'Produto'}
+                        </p>
+                        {itemCost > 0 && (
+                          <span className="text-[10px] text-neutral-400 flex-shrink-0 ml-2">
+                            Custo: {formatCurrency(itemCost)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" step="any" inputMode="decimal"
+                          value={item.price_override}
+                          onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, price_override: e.target.value } : i))}
+                          className="flex-1 bg-transparent text-sm font-bold outline-none focus:ring-0"
+                          placeholder={addProd?.sale_price ? String(addProd.sale_price) : 'Valor de venda'}
+                        />
+                        {itemProfit !== null && (
+                          <span className={cn('text-xs font-black flex-shrink-0', itemProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                            Lucro: {formatCurrency(itemProfit)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                  <div className="flex justify-between text-sm font-bold px-1 pt-1">
+                    <span className="text-neutral-700">Total dos produtos</span>
+                    <span className="text-neutral-900">
+                      {formatCurrency((Number(form.sale_price_manual) || 0) + additionalItemsTotal)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Breakdown: produto − troca − entrada = base parcelas */}
               {(() => {
-                const prodPrice = Number(form.sale_price_manual) || 0;
+                const prodPrice = (Number(form.sale_price_manual) || 0) + additionalItemsTotal;
                 const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
                 const entrada = form.prazo_has_entrada ? Math.max(0, Number(form.prazo_entrada_value) || 0) : 0;
                 const diff = Math.max(0, prodPrice - tradeIn - entrada);
@@ -2932,12 +3124,41 @@ export const Vendas: React.FC = () => {
                 <div className="bg-white border border-neutral-200 rounded-xl p-4 space-y-2">
                   <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Resumo do Contrato</p>
 
-                  {Number(form.sale_price_manual) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-neutral-500">Valor do produto</span>
-                      <span className="font-bold">{formatCurrency(Number(form.sale_price_manual))}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const primaryPrice = Number(form.sale_price_manual) || 0;
+                    const addlFiltered = additionalItems.filter(i => i.selectedProduct);
+                    if (primaryPrice <= 0 && additionalItemsTotal <= 0) return null;
+                    if (addlFiltered.length === 0) {
+                      return primaryPrice > 0 ? (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Valor do produto</span>
+                          <span className="font-bold">{formatCurrency(primaryPrice)}</span>
+                        </div>
+                      ) : null;
+                    }
+                    return (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Produto 1: {selectedProductData?.name || form.product_name_manual || '—'}</span>
+                          <span className="font-bold">{formatCurrency(primaryPrice)}</span>
+                        </div>
+                        {addlFiltered.map((item, idx) => {
+                          const p = products.find((pr: any) => pr.id === item.selectedProduct);
+                          const price = Number(item.price_override) || p?.sale_price || 0;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span className="text-neutral-500">Produto {idx + 2}: {p?.name || 'Produto'}</span>
+                              <span className="font-bold">{formatCurrency(price)}</span>
+                            </div>
+                          );
+                        })}
+                        <div className="flex justify-between text-sm font-bold border-t border-neutral-100 pt-1">
+                          <span className="text-neutral-700">Total dos produtos</span>
+                          <span>{formatCurrency(primaryPrice + additionalItemsTotal)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {(() => {
                     const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
@@ -2973,7 +3194,7 @@ export const Vendas: React.FC = () => {
                         const val = Number(form.prazo_value) > 0
                           ? Number(form.prazo_value)
                           : (() => {
-                            const prodP = Number(form.sale_price_manual) || 0;
+                            const prodP = (Number(form.sale_price_manual) || 0) + additionalItemsTotal;
                             const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
                             return Math.max(0, prodP - tradeIn - entrada) / cnt;
                           })();
@@ -2989,13 +3210,15 @@ export const Vendas: React.FC = () => {
 
                   {/* Lucro estimado no prazo */}
                   {(() => {
-                    const prodPrice = Number(form.sale_price_manual) || (selectedProductData?.sale_price || 0);
+                    const prodPrice = (Number(form.sale_price_manual) || (selectedProductData?.sale_price || 0)) + additionalItemsTotal;
+                    const totalCostAll = totalCost + additionalItemsCost;
+                    const hasCostAll = totalCostAll > 0;
                     const tradeCredit = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
                     const tradeResale = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.sale_price || 0), 0);
                     const tradeProfit = tradeResale - tradeCredit;
-                    const lucroVenda = hasCost ? prodPrice - totalCost : null;
+                    const lucroVenda = hasCostAll ? prodPrice - totalCostAll : null;
                     const lucroTotal = lucroVenda !== null ? lucroVenda + (tradeResale > 0 ? tradeProfit : 0) : null;
-                    if (prodPrice === 0 && !hasCost) return null;
+                    if (prodPrice === 0 && !hasCostAll) return null;
                     return (
                       <div className="mt-3 border border-neutral-200 rounded-xl overflow-hidden">
                         <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100">
@@ -3004,14 +3227,14 @@ export const Vendas: React.FC = () => {
                         <div className="px-3 py-2.5 space-y-1.5">
                           {prodPrice > 0 && (
                             <div className="flex justify-between text-sm">
-                              <span className="text-neutral-500">Preço do produto</span>
+                              <span className="text-neutral-500">{additionalItemsTotal > 0 ? 'Preço total dos produtos' : 'Preço do produto'}</span>
                               <span className="font-bold text-neutral-900">{formatCurrency(prodPrice)}</span>
                             </div>
                           )}
-                          {hasCost && (
+                          {hasCostAll && (
                             <div className="flex justify-between text-sm">
-                              <span className="text-neutral-500">Custo do produto</span>
-                              <span className="font-bold text-red-500">− {formatCurrency(totalCost)}</span>
+                              <span className="text-neutral-500">{additionalItemsCost > 0 ? 'Custo total dos produtos' : 'Custo do produto'}</span>
+                              <span className="font-bold text-red-500">− {formatCurrency(totalCostAll)}</span>
                             </div>
                           )}
                           {tradeCredit > 0 && (

@@ -301,8 +301,15 @@ export const Dashboard: React.FC = () => {
         }
       }
     }
-    const totalCost = filtered.reduce((acc, s) =>
-      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+
+    // Lucro: receita líquida (transações de entrada já descontam taxa de cartão) - custo
+    const txDate = (t: any) => t.date ? new Date(t.date + 'T12:00:00') : new Date(t.created_at);
+    const periodIncome  = allTransactions
+      .filter(t => t.type === 'income'  && txDate(t) >= start && txDate(t) < end)
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const periodExpense = allTransactions
+      .filter(t => t.type === 'expense' && txDate(t) >= start && txDate(t) < end)
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
     // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
     // (esses itens ainda estavam no estoque durante o período consultado)
@@ -319,7 +326,7 @@ export const Dashboard: React.FC = () => {
       revenue:        rev,
       cash:           cashReceived,
       salesCount:     count,
-      netProfit:      rev - totalCost,
+      netProfit:      periodIncome - periodExpense,
       stockAtPeriod:  stockSnapshot,
       prazoCount:     prazoSales.length,
       prazoTotal,

@@ -153,6 +153,9 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'MacBook Pro 13" (Intel 2018)', capacities: ['256GB', '512GB'],               colors: ['Cinza Espacial', 'Prata'] },
       { name: 'MacBook Pro 13" (Intel 2017)', capacities: ['128GB', '256GB', '512GB'],      colors: ['Cinza Espacial', 'Prata'] },
       { name: 'MacBook Pro 13" (Intel 2016)', capacities: ['256GB', '512GB'],               colors: ['Cinza Espacial', 'Prata'] },
+      // ── MacBook Air M5 (2026) ────────────────────────────────────────────────
+      { name: 'MacBook Air 15" M5', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },
+      { name: 'MacBook Air 13" M5', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },
       // ── MacBook Air M4 (2025) ────────────────────────────────────────────────
       { name: 'MacBook Air 15" M4', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },
       { name: 'MacBook Air 13" M4', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },

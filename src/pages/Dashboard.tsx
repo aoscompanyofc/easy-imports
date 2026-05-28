@@ -303,7 +303,12 @@ export const Dashboard: React.FC = () => {
     }
 
     // Lucro: receita líquida (transações de entrada já descontam taxa de cartão) - custo
-    const txDate = (t: any) => t.date ? new Date(t.date + 'T12:00:00') : new Date(t.created_at);
+    // Slice(0,10) garante YYYY-MM-DD mesmo se Supabase retornar timestamp completo
+    const txDate = (t: any) => {
+      if (t.date) return new Date(String(t.date).slice(0, 10) + 'T12:00:00');
+      if (t.created_at) return new Date(t.created_at);
+      return new Date(0);
+    };
     const periodIncome  = allTransactions
       .filter(t => t.type === 'income'  && txDate(t) >= start && txDate(t) < end)
       .reduce((acc, t) => acc + Number(t.amount || 0), 0);

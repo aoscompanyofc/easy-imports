@@ -377,7 +377,7 @@ export const Vendas: React.FC = () => {
     e.preventDefault();
 
     // Nunca processar se não estiver no passo final do wizard
-    if (wizardStep < 3) return;
+    if (wizardStep < 4) return;
 
     if (!form.selectedCustomer && !form.product_name_manual && !form.selectedProduct) {
       toast.error('Selecione um cliente e um produto.');
@@ -463,7 +463,7 @@ export const Vendas: React.FC = () => {
           imei: i.imei_override || prod?.imei || '',
           capacity: i.capacity_override || prod?.product_capacity || '',
           color: i.color_override || prod?.product_color || '',
-          condition: i.condition_override || prod?.product_condition || 'Seminovo',
+          condition: (prod?.product_condition || i.condition_override || 'Seminovo').replace(/ · Bateria:.*/, ''),
           price: Number(i.price_override) || prod?.sale_price || 0,
         };
       });
@@ -1040,24 +1040,39 @@ export const Vendas: React.FC = () => {
       const allProds = await dataService.getProducts();
 
       if (choice === 'restore') {
-        // Restaura o aparelho que SAIU do estoque (o que a Easy Imports vendeu)
-        const found = allProds.find((p: any) => {
-          if (deleteSale.product_imei && p.imei) return p.imei === deleteSale.product_imei;
-          return p.name === deleteSale.product_name && p.stock_quantity <= 0;
-        });
-        if (found) {
-          await dataService.updateProduct(found.id, {
-            name: found.name,
-            category: found.category,
-            imei: found.imei,
-            purchase_price: found.purchase_price,
-            sale_price: found.sale_price,
-            stock_quantity: 1,
-            status: 'available',
+        // Restaura TODOS os aparelhos que saíram do estoque — lê outgoing_items_json se disponível
+        const outgoingItems: Array<{name: string; imei?: string}> = (() => {
+          try {
+            const parsed = JSON.parse(deleteSale.outgoing_items_json || '[]');
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          } catch {}
+          // Fallback: só produto principal
+          return [{ name: deleteSale.product_name, imei: deleteSale.product_imei }];
+        })();
+
+        let restoredCount = 0;
+        for (const outItem of outgoingItems) {
+          const found = allProds.find((p: any) => {
+            if (outItem.imei && p.imei) return p.imei === outItem.imei;
+            return p.name === outItem.name && p.stock_quantity <= 0;
           });
-          toast.success('Produto devolvido ao estoque!');
+          if (found) {
+            await dataService.updateProduct(found.id, {
+              name: found.name,
+              category: found.category,
+              imei: found.imei,
+              purchase_price: found.purchase_price,
+              sale_price: found.sale_price,
+              stock_quantity: 1,
+              status: 'available',
+            });
+            restoredCount++;
+          }
+        }
+        if (restoredCount > 0) {
+          toast.success(`${restoredCount} produto${restoredCount > 1 ? 's devolvidos' : ' devolvido'} ao estoque!`);
         } else {
-          toast('Produto não localizado automaticamente — ajuste o estoque manualmente se necessário.', { icon: '⚠️', duration: 5000 });
+          toast('Produtos não localizados automaticamente — ajuste o estoque manualmente se necessário.', { icon: '⚠️', duration: 5000 });
         }
       }
 
@@ -1722,6 +1737,7 @@ export const Vendas: React.FC = () => {
               { n: 1, label: 'Operação & Cliente' },
               { n: 2, label: form.sale_type === 'troca' ? 'Produtos & Troca' : form.sale_type === 'prazo' ? 'Produto & Parcelas' : 'Produto' },
               { n: 3, label: 'Negociação' },
+              { n: 4, label: 'Revisão' },
             ];
             return (
               <div className="mb-6">
@@ -2188,11 +2204,11 @@ export const Vendas: React.FC = () => {
                                 setAdditionalItems(prev => prev.map(i => i.id === item.id ? {
                                   ...i,
                                   selectedProduct: pid,
-                                  name_override: i.name_override || p?.name || '',
-                                  imei_override: i.imei_override || p?.imei || '',
-                                  capacity_override: i.capacity_override || p?.product_capacity || '',
-                                  color_override: i.color_override || p?.product_color || '',
-                                  condition_override: i.condition_override || (p?.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
+                                  name_override: p?.name || i.name_override || '',
+                                  imei_override: p?.imei || i.imei_override || '',
+                                  capacity_override: p?.product_capacity || i.capacity_override || '',
+                                  color_override: p?.product_color || i.color_override || '',
+                                  condition_override: (p?.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
                                   price_override: i.price_override || (p?.sale_price > 0 ? String(p.sale_price) : ''),
                                 } : i));
                               }}
@@ -3318,6 +3334,194 @@ export const Vendas: React.FC = () => {
 
           </div>} {/* ── fim etapa 3 ── */}
 
+          {/* ══════════════════════════════════════════
+              ETAPA 4 — Revisão Final
+          ══════════════════════════════════════════ */}
+          {wizardStep === 4 && (() => {
+            const isPrazo = form.sale_type === 'prazo';
+            const customerName = showNewCustomer ? newCustomer.name : (selectedCustomerData?.name || form.seller_name || '—');
+            const customerPhone = showNewCustomer ? newCustomer.phone : (form.whatsapp_number || selectedCustomerData?.phone || '—');
+            const customerCpf = showNewCustomer ? newCustomer.cpf : (form.customer_cpf || selectedCustomerData?.cpf || '—');
+            const customerAddr = showNewCustomer ? newCustomer.address : (form.customer_city || selectedCustomerData?.city || '—');
+
+            // Build all outgoing products list for review
+            const allOutgoing = (() => {
+              const primary = {
+                name: selectedProductData?.name || form.product_name_manual || '—',
+                imei: form.product_imei || selectedProductData?.imei || '—',
+                capacity: form.product_capacity || selectedProductData?.product_capacity || '—',
+                color: form.product_color || selectedProductData?.product_color || '—',
+                condition: form.product_condition || 'Seminovo',
+                price: isPrazo
+                  ? (Number(form.sale_price_manual) || selectedProductData?.sale_price || 0)
+                  : (Number(form.sale_price_manual) || selectedProductData?.sale_price || 0),
+                cost: selectedProductData?.purchase_price || Number(form.product_cost_manual) || 0,
+                pdf_type: form.pdf_type,
+              };
+              const addl = additionalItems.filter(i => i.selectedProduct).map(i => {
+                const p = products.find((pr: any) => pr.id === i.selectedProduct);
+                return {
+                  name: p?.name || '—',
+                  imei: i.imei_override || p?.imei || '—',
+                  capacity: i.capacity_override || p?.product_capacity || '—',
+                  color: i.color_override || p?.product_color || '—',
+                  condition: (p?.product_condition || i.condition_override || 'Seminovo').replace(/ · Bateria:.*/, ''),
+                  price: Number(i.price_override) || p?.sale_price || 0,
+                  cost: p?.purchase_price || 0,
+                  pdf_type: (() => {
+                    const cond = (p?.product_condition || '').toLowerCase();
+                    return (cond === 'novo' || cond.startsWith('novo ') || cond.startsWith('novo(')) ? 'novo' : 'seminovo';
+                  })(),
+                };
+              });
+              return [primary, ...addl];
+            })();
+
+            const totalPrice = allOutgoing.reduce((s, p) => s + p.price, 0);
+            const totalCostR = allOutgoing.reduce((s, p) => s + p.cost, 0);
+            const totalProfit = totalCostR > 0 ? totalPrice - totalCostR : null;
+
+            const conditionLabel = (c: string) => {
+              const lower = c.toLowerCase();
+              if (lower === 'novo' || lower.startsWith('novo ') || lower.startsWith('novo(')) return 'Novo (lacrado)';
+              return c;
+            };
+
+            return (
+              <div className="space-y-5">
+                {/* Warning banner */}
+                <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl px-4 py-3 flex items-start gap-3">
+                  <AlertCircle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-black text-amber-800">Confira tudo antes de confirmar</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Verifique estado, IMEI, condição e valores de cada produto. O PDF será gerado após confirmação.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cliente */}
+                <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="bg-neutral-900 px-4 py-2">
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Dados do Cliente</p>
+                  </div>
+                  <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <div><span className="text-neutral-400 text-xs">Nome</span><p className="font-bold text-neutral-900">{customerName}</p></div>
+                    <div><span className="text-neutral-400 text-xs">Telefone</span><p className="font-bold text-neutral-900">{customerPhone}</p></div>
+                    <div><span className="text-neutral-400 text-xs">CPF/CNPJ</span><p className="font-bold text-neutral-900">{customerCpf}</p></div>
+                    <div><span className="text-neutral-400 text-xs">Endereço</span><p className="font-bold text-neutral-900">{customerAddr}</p></div>
+                  </div>
+                </div>
+
+                {/* Produtos */}
+                <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="bg-neutral-900 px-4 py-2 flex items-center justify-between">
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">
+                      Produto{allOutgoing.length > 1 ? `s (${allOutgoing.length})` : ''}
+                    </p>
+                    <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Garantia: {form.pdf_type === 'novo' ? 'Fabricante (12m)' : 'Easy Imports (90d)'}</p>
+                  </div>
+                  <div className="divide-y divide-neutral-100">
+                    {allOutgoing.map((p, i) => {
+                      const isNovo = p.condition.toLowerCase() === 'novo' || p.condition.toLowerCase().startsWith('novo');
+                      const condMismatch = (isNovo && form.pdf_type !== 'novo') || (!isNovo && form.pdf_type === 'novo' && allOutgoing.length === 1);
+                      return (
+                        <div key={i} className={cn('px-4 py-3 space-y-1.5', condMismatch ? 'bg-red-50' : '')}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-black text-sm text-neutral-900">{p.name}</p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                                {p.imei && p.imei !== '—' && (
+                                  <span className="text-xs text-neutral-500">IMEI: <span className="font-mono font-bold">{p.imei}</span></span>
+                                )}
+                                {p.capacity && p.capacity !== '—' && (
+                                  <span className="text-xs text-neutral-500">Capacidade: <span className="font-bold">{p.capacity}</span></span>
+                                )}
+                                {p.color && p.color !== '—' && (
+                                  <span className="text-xs text-neutral-500">Cor: <span className="font-bold">{p.color}</span></span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-black text-neutral-900">{formatCurrency(p.price)}</p>
+                              {p.cost > 0 && (
+                                <p className={cn('text-xs font-bold', (p.price - p.cost) >= 0 ? 'text-green-600' : 'text-red-500')}>
+                                  Lucro: {formatCurrency(p.price - p.cost)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              'inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full',
+                              isNovo ? 'bg-green-100 text-green-800' : 'bg-neutral-200 text-neutral-700'
+                            )}>
+                              {conditionLabel(p.condition)}
+                            </span>
+                            {condMismatch && (
+                              <span className="text-xs font-bold text-red-600 flex items-center gap-1">
+                                <AlertCircle size={12} />
+                                Estado e tipo de garantia incompatíveis! Volte e corrija.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {allOutgoing.length > 1 && (
+                    <div className="px-4 py-2.5 bg-neutral-50 border-t border-neutral-200 flex justify-between text-sm font-bold">
+                      <span className="text-neutral-700">Total dos produtos</span>
+                      <div className="text-right">
+                        <span className="text-neutral-900">{formatCurrency(totalPrice)}</span>
+                        {totalProfit !== null && (
+                          <span className={cn('block text-xs font-bold', totalProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                            Lucro total: {formatCurrency(totalProfit)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pagamento */}
+                <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="bg-neutral-900 px-4 py-2">
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Pagamento</p>
+                  </div>
+                  <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    {!isPrazo && (
+                      <>
+                        <div><span className="text-neutral-400 text-xs">Valor total</span><p className="font-black text-lg text-neutral-900">{formatCurrency((Number(form.sale_price_manual) || 0) + additionalItemsTotal)}</p></div>
+                        <div><span className="text-neutral-400 text-xs">Forma</span><p className="font-bold text-neutral-900">{form.payment_method}</p></div>
+                        <div><span className="text-neutral-400 text-xs">Data</span><p className="font-bold text-neutral-900">{new Date(form.sale_date).toLocaleDateString('pt-BR')}</p></div>
+                        {form.payment_method === 'Cartão de Crédito' && form.installments > 1 && (
+                          <div><span className="text-neutral-400 text-xs">Parcelamento</span><p className="font-bold text-neutral-900">{form.installments}x</p></div>
+                        )}
+                      </>
+                    )}
+                    {isPrazo && (() => {
+                      const cnt = Math.max(1, Number(form.prazo_count) || 1);
+                      const entrada = form.prazo_has_entrada ? Number(form.prazo_entrada_value) || 0 : 0;
+                      const val = Number(form.prazo_value) || 0;
+                      const tradeIn = incomingDevices.filter(d => d.model.trim()).reduce((s, d) => s + Number(d.purchase_price || 0), 0);
+                      return (
+                        <>
+                          <div><span className="text-neutral-400 text-xs">Total da operação</span><p className="font-black text-lg text-neutral-900">{formatCurrency(entrada + cnt * val + tradeIn)}</p></div>
+                          <div><span className="text-neutral-400 text-xs">Parcelas</span><p className="font-bold text-neutral-900">{cnt}x de {formatCurrency(val)}</p></div>
+                          <div><span className="text-neutral-400 text-xs">1º vencimento</span><p className="font-bold text-neutral-900">{form.prazo_first_due ? form.prazo_first_due.split('-').reverse().join('/') : '—'}</p></div>
+                          {entrada > 0 && <div><span className="text-neutral-400 text-xs">Entrada</span><p className="font-bold text-amber-700">{formatCurrency(entrada)} em {form.prazo_entrada_due ? form.prazo_entrada_due.split('-').reverse().join('/') : '—'}</p></div>}
+                          {tradeIn > 0 && <div><span className="text-neutral-400 text-xs">Crédito de troca</span><p className="font-bold text-neutral-900">{formatCurrency(tradeIn)}</p></div>}
+                          <div><span className="text-neutral-400 text-xs">Data</span><p className="font-bold text-neutral-900">{new Date(form.sale_date).toLocaleDateString('pt-BR')}</p></div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Wizard navigation buttons ── */}
           <div className="flex gap-3 pt-4 border-t border-neutral-100 mt-4">
             {wizardStep === 1 ? (
@@ -3330,7 +3534,7 @@ export const Vendas: React.FC = () => {
               </Button>
             )}
 
-            {wizardStep < 3 ? (
+            {wizardStep < 4 ? (
               <Button
                 fullWidth
                 type="button"
@@ -3346,7 +3550,7 @@ export const Vendas: React.FC = () => {
                   setWizardStep(w => w + 1);
                 }}
               >
-                Próximo →
+                {wizardStep === 3 ? '✓ Revisar' : 'Próximo →'}
               </Button>
             ) : (
               <Button
@@ -3356,7 +3560,7 @@ export const Vendas: React.FC = () => {
                 leftIcon={<CheckCircle2 size={18} />}
                 onClick={() => handleCreateSale({ preventDefault: () => {} } as React.FormEvent)}
               >
-                {isEditMode ? 'Salvar Alterações' : `Registrar ${TYPE_LABELS[form.sale_type]}`}
+                {isEditMode ? 'Salvar Alterações' : `Confirmar e Gerar PDF`}
               </Button>
             )}
           </div>

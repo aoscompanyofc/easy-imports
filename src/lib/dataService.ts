@@ -181,10 +181,10 @@ export const dataService = {
     for (const item of items) {
       await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
 
-      // Receita criada primeiro — garante que sempre vai pro Financeiro
+      // Receita criada primeiro — usa valor líquido quando há taxa descartada da maquininha
       await this.addTransaction({
         description: `Receita ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,
-        amount: item.unit_price * item.quantity,
+        amount: Math.max(0, item.unit_price * item.quantity - (item.fee_deduction || 0)),
         type: 'income', category: 'sale',
         date: txDate,
       });

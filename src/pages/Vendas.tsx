@@ -148,6 +148,7 @@ const emptyForm = () => ({
   payment2_amount: '',
   card_fee_amount: '',
   card_fee_pct: '',
+  card_received_amount: '',
   // Vendedor responsável pela venda
   rep_id: '',
   // Venda a Prazo
@@ -552,7 +553,7 @@ export const Vendas: React.FC = () => {
         },
         // Prazo: itens passados como [] — estoque/custo tratados manualmente abaixo
         isPrazo ? [] : (product
-          ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice }]
+          ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice, fee_deduction: cardFee }]
           : [])
       );
 
@@ -633,7 +634,7 @@ export const Vendas: React.FC = () => {
       if (!product && !isPrazo) {
         await dataService.addTransaction({
           description: `Receita ${saleNumber} — ${productName || 'Produto'}`,
-          amount: unitPrice * form.quantity,
+          amount: Math.max(0, unitPrice * form.quantity - cardFee),
           type: 'income',
           category: 'sale',
           date: new Date(form.sale_date).toISOString().slice(0, 10),
@@ -2301,58 +2302,54 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
-            {/* Taxa de cartão — aparece quando Cartão de Crédito é selecionado */}
+            {/* Valor recebido da maquininha — aparece quando Cartão de Crédito é selecionado */}
             {(form.payment_method === 'Cartão de Crédito' || (form.split_payment && form.payment2_method === 'Cartão de Crédito')) && (() => {
               const cardBase = form.split_payment
                 ? (form.payment2_method === 'Cartão de Crédito' ? Number(form.payment2_amount) || 0 : Math.max(0, salePrice - (Number(form.payment2_amount) || 0)))
                 : salePrice;
-              const feePct = Number(form.card_fee_pct) || 0;
-              const feeAmt = feePct > 0 ? cardBase * feePct / 100 : Number(form.card_fee_amount) || 0;
-              const netAfterFee = cardBase - feeAmt;
+              const received = Number(form.card_received_amount) > 0 ? Number(form.card_received_amount) : cardBase;
+              const discarded = Math.max(0, cardBase - received);
               return (
-                <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
-                  <div className="flex items-center gap-3">
+                <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <label className="block text-xs font-black text-neutral-700 uppercase tracking-widest mb-0.5">
-                        Taxa do banco (%)
+                        Valor recebido da maquininha (R$)
                       </label>
                       <p className="text-[10px] text-neutral-500">
-                        Ex: 3.5 — calculado sobre o valor no cartão
+                        Digite o líquido creditado na sua conta — o restante é ignorado
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <input
-                        type="number"
-                        step="0.01"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        value={form.card_fee_pct}
-                        onChange={(e) => {
-                          const pct = e.target.value;
-                          const base = form.split_payment
-                            ? (form.payment2_method === 'Cartão de Crédito' ? Number(form.payment2_amount) || 0 : Math.max(0, salePrice - (Number(form.payment2_amount) || 0)))
-                            : salePrice;
-                          const calculated = Number(pct) > 0 && base > 0 ? String((base * Number(pct) / 100).toFixed(2)) : '';
-                          setForm((f: any) => ({ ...f, card_fee_pct: pct, card_fee_amount: calculated }));
-                        }}
-                        className="w-20 bg-white border border-neutral-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 text-right"
-                      />
-                      <span className="text-sm font-bold text-neutral-500">%</span>
-                    </div>
+                    <input
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      placeholder={cardBase > 0 ? String(cardBase) : '0'}
+                      value={form.card_received_amount}
+                      onChange={(e) => {
+                        const rec = e.target.value;
+                        const base = form.split_payment
+                          ? (form.payment2_method === 'Cartão de Crédito' ? Number(form.payment2_amount) || 0 : Math.max(0, salePrice - (Number(form.payment2_amount) || 0)))
+                          : salePrice;
+                        const fee = Number(rec) > 0 && base > 0 ? String(Math.max(0, base - Number(rec)).toFixed(2)) : '';
+                        setForm((f: any) => ({ ...f, card_received_amount: rec, card_fee_amount: fee, card_fee_pct: '' }));
+                      }}
+                      className="w-32 flex-shrink-0 bg-white border border-neutral-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25 text-right"
+                    />
                   </div>
-                  {feeAmt > 0 && cardBase > 0 && (
-                    <div className="mt-2 grid grid-cols-3 gap-2 pt-2 border-t border-neutral-200 text-xs text-center">
+                  {discarded > 0 && cardBase > 0 && (
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-200 text-xs text-center">
                       <div>
-                        <p className="text-neutral-400 font-bold">Valor no cartão</p>
+                        <p className="text-neutral-400 font-bold">Cobrado no cartão</p>
                         <p className="font-black text-neutral-900">{formatCurrency(cardBase)}</p>
                       </div>
                       <div>
-                        <p className="text-neutral-400 font-bold">Taxa banco</p>
-                        <p className="font-black text-red-500">− {formatCurrency(feeAmt)}</p>
+                        <p className="text-neutral-400 font-bold">Descartado (banco)</p>
+                        <p className="font-black text-red-500">− {formatCurrency(discarded)}</p>
                       </div>
                       <div>
                         <p className="text-neutral-400 font-bold">Você recebe</p>
-                        <p className="font-black text-neutral-900">{formatCurrency(netAfterFee)}</p>
+                        <p className="font-black text-green-600">{formatCurrency(received)}</p>
                       </div>
                     </div>
                   )}

@@ -129,6 +129,7 @@ export const dataService = {
       incoming_capacity, incoming_color, incoming_condition,
       incoming_battery_health, incoming_purchase_price,
       rep_seller_id, rep_seller_name, incoming_devices_json, installments_json,
+      outgoing_items_json,
     } = sale;
     const sign_token = crypto.randomUUID();
     const inst = installments || 1;
@@ -141,7 +142,7 @@ export const dataService = {
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
       incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price,
-      seller_id: rep_seller_id, seller_display_name: rep_seller_name, incoming_devices_json, installments_json };
+      seller_id: rep_seller_id, seller_display_name: rep_seller_name, incoming_devices_json, installments_json, outgoing_items_json };
 
     // Nível 2: sem multi-device json e seller — mantém incoming_*, sale_type, pdf_type, customer_city
     const p2 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
@@ -150,21 +151,21 @@ export const dataService = {
       product_capacity, product_color, product_condition, product_imei, product_accessories,
       incoming_name, incoming_imei, incoming_serial, incoming_email,
       incoming_capacity, incoming_color, incoming_condition, incoming_battery_health, incoming_purchase_price,
-      installments_json };
+      installments_json, outgoing_items_json };
 
     // Nível 3: sem incoming_* e seller — mantém customer_city/cpf, sale_type e pdf_type
     const p3 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
-      installments_json };
+      installments_json, outgoing_items_json };
 
     // Nível 4: sem incoming_*, sem customer_city/cpf — mantém sale_type e pdf_type
     const p4 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
       customer_phone, product_capacity, product_color, product_condition, product_imei, product_accessories,
-      installments_json };
+      installments_json, outgoing_items_json };
 
     // Nível 5: sem colunas de produto extras — garante sale_type e sale_number
-    const p5 = { ...base, sale_number, sale_type, installments: inst, sign_token, installments_json };
+    const p5 = { ...base, sale_number, sale_type, installments: inst, sign_token, installments_json, outgoing_items_json };
 
     // Nível 5b: sem sign_token (pode não existir em schemas antigos) — preserva installments_json
     const p5b = { ...base, sale_number, sale_type, installments: inst, installments_json };

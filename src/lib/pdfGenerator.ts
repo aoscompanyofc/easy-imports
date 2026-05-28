@@ -46,6 +46,15 @@ export interface SalePDFData {
   pdf_type?: string;
   // JSON array de parcelas para venda a prazo
   installments_json?: string;
+  // Array of outgoing products for multi-product sales
+  outgoing_items?: Array<{
+    name: string;
+    imei?: string;
+    capacity?: string;
+    color?: string;
+    condition?: string;
+    price: number;
+  }>;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -407,6 +416,41 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>
 
+${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
+<div class="sec">
+  <div class="sec-t">Aparelhos / Produtos</div>
+  <div class="sec-b">
+    <table style="width:100%;border-collapse:collapse;font-size:8.5pt;">
+      <thead>
+        <tr style="background:#f5f5f5;border-bottom:1.5px solid #222;">
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Modelo</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">IMEI/Serial</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Capacidade</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Cor</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Estado</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:700;">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sale.outgoing_items!.map((item, i) => `
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:4px 6px;">${item.name || '—'}</td>
+            <td style="padding:4px 6px;font-family:monospace;font-size:7.5pt;">${item.imei || '—'}</td>
+            <td style="padding:4px 6px;">${item.capacity || '—'}</td>
+            <td style="padding:4px 6px;">${item.color || '—'}</td>
+            <td style="padding:4px 6px;">${item.condition || '—'}</td>
+            <td style="padding:4px 6px;text-align:right;font-weight:700;">${fmtMoney(item.price)}</td>
+          </tr>
+        `).join('')}
+        <tr style="border-top:2px solid #111;background:#f9f9f9;">
+          <td colspan="5" style="padding:5px 6px;font-weight:700;text-align:right;">Total</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:900;">${fmtMoney(sale.total_amount)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+` : `
 <div class="sec">
   <div class="sec-t">Dados do Aparelho</div>
   <div class="sec-b">
@@ -433,6 +477,7 @@ export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
   </div>
 </div>
+`}
 
 <div class="sec">
   <div class="sec-t">Dados da Venda</div>
@@ -543,8 +588,35 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const useNewWarranty = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
   const outWarrantyLabel = useNewWarranty ? 'Garantia do Fabricante (1 ano)' : '90 dias por lei — CDC';
 
-  // Aparelho entregue pela Easy Imports ao cliente
-  const outgoingBlock = `
+  // Aparelho(s) entregue(s) pela Easy Imports ao cliente
+  const outgoingBlock = sale.outgoing_items && sale.outgoing_items.length > 1 ? `
+    <div class="split-box">
+      <div class="split-t">Aparelhos Entregues pela Easy Imports</div>
+      <div class="split-b">
+        <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+          <thead>
+            <tr style="background:#f5f5f5;border-bottom:1px solid #222;">
+              <th style="text-align:left;padding:3px 5px;font-weight:700;">Modelo</th>
+              <th style="text-align:left;padding:3px 5px;font-weight:700;">IMEI</th>
+              <th style="text-align:right;padding:3px 5px;font-weight:700;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sale.outgoing_items!.map(item => `
+              <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:3px 5px;">${item.name || '—'}</td>
+                <td style="padding:3px 5px;font-family:monospace;font-size:7pt;">${item.imei || '—'}</td>
+                <td style="padding:3px 5px;text-align:right;font-weight:700;">${fmtMoney(item.price)}</td>
+              </tr>
+            `).join('')}
+            <tr style="border-top:2px solid #111;background:#f9f9f9;">
+              <td colspan="2" style="padding:4px 5px;font-weight:700;text-align:right;">Total</td>
+              <td style="padding:4px 5px;text-align:right;font-weight:900;">${fmtMoney(sale.total_amount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>` : `
     <div class="split-box">
       <div class="split-t">Aparelho Entregue pela Easy Imports</div>
       <div class="split-b">
@@ -854,6 +926,41 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>
 
+${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
+<div class="sec">
+  <div class="sec-t">Aparelhos / Produtos</div>
+  <div class="sec-b">
+    <table style="width:100%;border-collapse:collapse;font-size:8.5pt;">
+      <thead>
+        <tr style="background:#f5f5f5;border-bottom:1.5px solid #222;">
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Modelo</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">IMEI/Serial</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Capacidade</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Cor</th>
+          <th style="text-align:left;padding:4px 6px;font-weight:700;">Estado</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:700;">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sale.outgoing_items!.map((item, i) => `
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:4px 6px;">${item.name || '—'}</td>
+            <td style="padding:4px 6px;font-family:monospace;font-size:7.5pt;">${item.imei || '—'}</td>
+            <td style="padding:4px 6px;">${item.capacity || '—'}</td>
+            <td style="padding:4px 6px;">${item.color || '—'}</td>
+            <td style="padding:4px 6px;">${item.condition || '—'}</td>
+            <td style="padding:4px 6px;text-align:right;font-weight:700;">${fmtMoney(item.price)}</td>
+          </tr>
+        `).join('')}
+        <tr style="border-top:2px solid #111;background:#f9f9f9;">
+          <td colspan="5" style="padding:5px 6px;font-weight:700;text-align:right;">Total</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:900;">${fmtMoney(sale.total_amount)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+` : `
 <div class="sec">
   <div class="sec-t">Objeto do Contrato</div>
   <div class="sec-b">
@@ -875,6 +982,7 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
     </div>
   </div>
 </div>
+`}
 
 ${tradeInSection}
 

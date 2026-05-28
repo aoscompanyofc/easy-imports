@@ -47,6 +47,30 @@ const emptyTradeInDevice = (): TradeInDevice => ({
   account_email: '',
 });
 
+interface AdditionalOutgoingItem {
+  id: string;
+  selectedProduct: string;
+  name_override: string;
+  imei_override: string;
+  capacity_override: string;
+  color_override: string;
+  condition_override: string;
+  price_override: string;
+  cost_override: string;
+}
+
+const emptyAdditionalItem = (): AdditionalOutgoingItem => ({
+  id: crypto.randomUUID(),
+  selectedProduct: '',
+  name_override: '',
+  imei_override: '',
+  capacity_override: '',
+  color_override: '',
+  condition_override: 'Seminovo',
+  price_override: '',
+  cost_override: '',
+});
+
 const TYPE_COLORS: Record<string, string> = {
   compra: 'bg-neutral-100 text-neutral-600',
   venda: 'bg-neutral-900 text-white',
@@ -168,6 +192,8 @@ export const Vendas: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [sellers, setSellers] = useState<any[]>([]);
   const [incomingDevices, setIncomingDevices] = useState<TradeInDevice[]>([emptyTradeInDevice()]);
+  const [additionalItems, setAdditionalItems] = useState<AdditionalOutgoingItem[]>([]);
+  const [editAdditionalItems, setEditAdditionalItems] = useState<AdditionalOutgoingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -347,9 +373,16 @@ export const Vendas: React.FC = () => {
     const isPrazo = form.sale_type === 'prazo';
     const prazoCount = isPrazo ? Math.max(1, Number(form.prazo_count) || 1) : 0;
 
+    // Sum of additional outgoing items' prices
+    const additionalItemsTotal = additionalItems.reduce((sum, item) => {
+      const prod = products.find((p: any) => p.id === item.selectedProduct);
+      const price = Number(item.price_override) || (prod?.sale_price ?? 0);
+      return sum + price;
+    }, 0);
+
     // Para prazo: preço do produto vem de sale_price_manual (auto-preenchido do estoque ou manual)
     const prazoProductPrice = isPrazo
-      ? (Number(form.sale_price_manual) || (product?.sale_price > 0 ? product.sale_price : 0))
+      ? (Number(form.sale_price_manual) || (product?.sale_price > 0 ? product.sale_price : 0)) + additionalItemsTotal
       : 0;
     // Aparelhos dados pelo cliente na troca (crédito abatido do prazo)
     const prazoTradeInTotal = isPrazo
@@ -373,10 +406,10 @@ export const Vendas: React.FC = () => {
     const tradeInValue = form.sale_type === 'troca'
       ? incomingDevices.reduce((sum, d) => sum + Number(d.purchase_price || 0), 0)
       : 0;
-    // Total: prazo = entrada + parcelas + troca; outros = preço × qtd + troca
+    // Total: prazo = entrada + parcelas + troca; outros = preço × qtd + troca + itens adicionais
     const totalAmount = isPrazo
       ? prazoEntrada + prazoCount * prazoValue + prazoTradeInTotal
-      : (unitPrice * form.quantity + tradeInValue);
+      : (unitPrice * form.quantity + tradeInValue + additionalItemsTotal);
 
     if (isPrazo) {
       if (prazoHasEntrada && prazoEntrada <= 0) { toast.error('Informe o valor da entrada.'); return; }
@@ -402,6 +435,32 @@ export const Vendas: React.FC = () => {
       });
       installmentsJson = JSON.stringify(items);
     }
+
+    // Build outgoing items JSON (primary + additional) for PDF and edit restoration
+    const buildOutgoingItemsJson = () => {
+      const primaryProd = form.selectedProduct ? products.find((p: any) => p.id === form.selectedProduct) : null;
+      const primaryItem = {
+        name: primaryProd?.name || form.product_name_manual || '',
+        imei: form.product_imei || primaryProd?.imei || '',
+        capacity: form.product_capacity || primaryProd?.product_capacity || '',
+        color: form.product_color || primaryProd?.product_color || '',
+        condition: form.product_condition || '',
+        price: isPrazo ? prazoProductPrice : unitPrice,
+      };
+      const additionalMapped = additionalItems.filter(i => i.selectedProduct).map(i => {
+        const prod = products.find((p: any) => p.id === i.selectedProduct);
+        return {
+          name: i.name_override || prod?.name || '',
+          imei: i.imei_override || prod?.imei || '',
+          capacity: i.capacity_override || prod?.product_capacity || '',
+          color: i.color_override || prod?.product_color || '',
+          condition: i.condition_override || prod?.product_condition || 'Seminovo',
+          price: Number(i.price_override) || prod?.sale_price || 0,
+        };
+      });
+      return JSON.stringify([primaryItem, ...additionalMapped]);
+    };
+    const outgoingItemsJson = buildOutgoingItemsJson();
 
     // Monta forma de pagamento combinada se split ativo
     let resolvedPaymentMethod = isPrazo
@@ -491,10 +550,12 @@ export const Vendas: React.FC = () => {
           incoming_battery_health: primaryDevice.battery_health || '',
           incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
           installments_json: editInstJson,
+          outgoing_items_json: outgoingItemsJson,
         });
         await dataService.tryUpdateSaleRevision(editSaleId, editSaleRevision + 1);
         toast.success(`Venda atualizada! PDF versão ${editSaleNumber}.${editSaleRevision + 1}`);
         setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null);
+        setAdditionalItems([]);
         setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]);
         setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
         fetchData();
@@ -572,10 +633,22 @@ export const Vendas: React.FC = () => {
             ? JSON.stringify(incomingDevices.filter((d) => d.model.trim()))
             : null,
           installments_json: installmentsJson,
+          outgoing_items_json: outgoingItemsJson,
         },
         // Prazo: itens passados como [] — estoque/custo tratados manualmente abaixo
         isPrazo ? [] : (product
-          ? [{ product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice, fee_deduction: cardFee }]
+          ? [
+              { product_id: form.selectedProduct, quantity: form.quantity, unit_price: unitPrice, fee_deduction: cardFee },
+              ...additionalItems.filter(i => i.selectedProduct).map(i => {
+                const prod = products.find((p: any) => p.id === i.selectedProduct);
+                return {
+                  product_id: i.selectedProduct,
+                  quantity: 1,
+                  unit_price: Number(i.price_override) || (prod?.sale_price ?? 0),
+                  fee_deduction: 0,
+                };
+              }),
+            ]
           : [])
       );
 
@@ -650,6 +723,27 @@ export const Vendas: React.FC = () => {
             });
           }
         }
+        // Handle additional items for prazo (decrement stock + cost transactions)
+        for (const addItem of additionalItems.filter(i => i.selectedProduct)) {
+          const addProd = products.find((p: any) => p.id === addItem.selectedProduct);
+          if (addProd) {
+            const addQty = 1;
+            const newQty = Math.max(0, addProd.stock_quantity - addQty);
+            await dataService.updateProduct(addProd.id, {
+              name: addProd.name, category: addProd.category,
+              purchase_price: addProd.purchase_price, sale_price: addProd.sale_price,
+              stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
+              imei: addProd.imei || '',
+            });
+            if (addProd.purchase_price > 0) {
+              await dataService.addTransaction({
+                description: `Custo ${saleNumber} — ${addProd.name}`,
+                amount: addProd.purchase_price,
+                type: 'expense', category: 'stock', date: saleDate,
+              });
+            }
+          }
+        }
       }
 
       // Para produtos sem estoque (não-prazo): cria transações financeiras manualmente
@@ -687,6 +781,37 @@ export const Vendas: React.FC = () => {
             product_condition: form.product_condition || 'Seminovo',
             entry_date: new Date(form.sale_date).toISOString().split('T')[0],
           });
+        }
+
+        // Additional stock items for manual (non-stock) primary sales
+        for (const addItem of additionalItems.filter(i => i.selectedProduct)) {
+          const addProd = products.find((p: any) => p.id === addItem.selectedProduct);
+          if (addProd) {
+            const addPrice = Number(addItem.price_override) || addProd.sale_price || 0;
+            const newQty = Math.max(0, addProd.stock_quantity - 1);
+            await dataService.updateProduct(addProd.id, {
+              name: addProd.name, category: addProd.category,
+              purchase_price: addProd.purchase_price, sale_price: addProd.sale_price,
+              stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
+              imei: addProd.imei || '',
+            });
+            if (addPrice > 0) {
+              await dataService.addTransaction({
+                description: `Receita ${saleNumber} — ${addProd.name}`,
+                amount: addPrice,
+                type: 'income', category: 'sale',
+                date: new Date(form.sale_date).toISOString().slice(0, 10),
+              });
+            }
+            if (addProd.purchase_price > 0) {
+              await dataService.addTransaction({
+                description: `Custo ${saleNumber} — ${addProd.name}`,
+                amount: addProd.purchase_price,
+                type: 'expense', category: 'stock',
+                date: new Date(form.sale_date).toISOString().slice(0, 10),
+              });
+            }
+          }
         }
       }
 
@@ -727,6 +852,12 @@ export const Vendas: React.FC = () => {
         signature_admin: adminSignature || undefined,
         pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
         installments_json: installmentsJson || undefined,
+        outgoing_items: (() => {
+          try {
+            const items = JSON.parse(outgoingItemsJson || '[]');
+            return items.length > 1 ? items : undefined;
+          } catch { return undefined; }
+        })(),
       };
       generatePDF(pdfData, getCompanyInfo());
 
@@ -769,6 +900,7 @@ export const Vendas: React.FC = () => {
 
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
       setIsModalOpen(false);
+      setAdditionalItems([]);
       setForm(emptyForm());
       setIncomingDevices([emptyTradeInDevice()]);
       setShowNewCustomer(false);
@@ -1023,6 +1155,12 @@ export const Vendas: React.FC = () => {
       signature_client: sale.signature_client || undefined,
       pdf_type: sale.pdf_type || undefined,
       installments_json: sale.installments_json || undefined,
+      outgoing_items: (() => {
+        try {
+          const items = JSON.parse(sale.outgoing_items_json || '[]');
+          return items.length > 1 ? items : undefined;
+        } catch { return undefined; }
+      })(),
     };
     generatePDF(pdfData, getCompanyInfo());
   };
@@ -1431,6 +1569,22 @@ export const Vendas: React.FC = () => {
                                   warranty: sd0?.warranty || 'Sem garantia',
                                   origin: sd0?.origin || '',
                                 }] : [emptyTradeInDevice()]);
+                                // Restore additional items from outgoing_items_json
+                                const storedOutgoing = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
+                                if (storedOutgoing.length > 1) {
+                                  setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
+                                    ...emptyAdditionalItem(),
+                                    id: crypto.randomUUID(),
+                                    name_override: item.name || '',
+                                    imei_override: item.imei || '',
+                                    capacity_override: item.capacity || '',
+                                    color_override: item.color || '',
+                                    condition_override: item.condition || 'Seminovo',
+                                    price_override: String(item.price || ''),
+                                  })));
+                                } else {
+                                  setAdditionalItems([]);
+                                }
                                 setShowNewCustomer(false);
                                 setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
                                 setIsEditMode(true);
@@ -1546,7 +1700,7 @@ export const Vendas: React.FC = () => {
       )}
 
       {/* ─── NOVA OPERAÇÃO MODAL ─── */}
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null); setAdditionalItems([]); }} title={isEditMode ? `Editar — ${editSaleNumber}` : 'Nova Operação'} maxWidth="2xl">
         <form
           onSubmit={(e) => e.preventDefault()}
           className="space-y-0"
@@ -1992,6 +2146,97 @@ export const Vendas: React.FC = () => {
               );
             })()}
           </div>
+
+          {/* ─── Produtos Adicionais (multi-produto) ─── */}
+          {(form.selectedProduct || form.product_name_manual) && (
+            <div className="space-y-3">
+              {additionalItems.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Produtos Adicionais</p>
+                  {additionalItems.map((item, idx) => {
+                    const prod = products.find((p: any) => p.id === item.selectedProduct);
+                    return (
+                      <div key={item.id} className="border border-neutral-200 rounded-xl p-4 space-y-3 bg-white">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-neutral-600 uppercase tracking-widest">Produto {idx + 2}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalItems(prev => prev.filter(i => i.id !== item.id))}
+                            className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Produto do Estoque</label>
+                            <select
+                              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                              value={item.selectedProduct}
+                              onChange={(e) => {
+                                const pid = e.target.value;
+                                const p = products.find((pr: any) => pr.id === pid);
+                                setAdditionalItems(prev => prev.map(i => i.id === item.id ? {
+                                  ...i,
+                                  selectedProduct: pid,
+                                  name_override: i.name_override || p?.name || '',
+                                  imei_override: i.imei_override || p?.imei || '',
+                                  capacity_override: i.capacity_override || p?.product_capacity || '',
+                                  color_override: i.color_override || p?.product_color || '',
+                                  condition_override: i.condition_override || (p?.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
+                                  price_override: i.price_override || (p?.sale_price > 0 ? String(p.sale_price) : ''),
+                                } : i));
+                              }}
+                            >
+                              <option value="">Selecionar do estoque...</option>
+                              {products.map((p: any) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor de Venda (R$)</label>
+                            <input
+                              type="number" step="any" inputMode="decimal"
+                              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
+                              value={item.price_override}
+                              placeholder={prod?.sale_price ? String(prod.sale_price) : '0,00'}
+                              onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, price_override: e.target.value } : i))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-1.5">IMEI / Nº de Série</label>
+                            <input
+                              type="text" inputMode="text"
+                              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                              value={item.imei_override}
+                              placeholder={prod?.imei || 'IMEI ou Nº de Série'}
+                              onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
+                            />
+                          </div>
+                          {prod && (
+                            <div className="sm:col-span-2 bg-neutral-50 rounded-lg px-3 py-2 text-xs text-neutral-600 font-medium">
+                              {prod.name}{prod.product_capacity ? ` · ${prod.product_capacity}` : ''}{prod.product_color ? ` · ${prod.product_color}` : ''}{prod.imei ? ` · IMEI: ${prod.imei}` : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setAdditionalItems(prev => [...prev, emptyAdditionalItem()])}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border-2 border-dashed border-neutral-300 rounded-xl text-sm font-bold text-neutral-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
+              >
+                <Plus size={15} />
+                Adicionar outro produto à venda
+              </button>
+            </div>
+          )}
 
           {/* ─── Aparelhos Entrando (troca) — multi-device ─── */}
           {(form.sale_type === 'troca' || form.sale_type === 'prazo') && (

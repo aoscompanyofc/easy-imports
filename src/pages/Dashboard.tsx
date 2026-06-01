@@ -269,7 +269,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -381,6 +381,7 @@ export const Dashboard: React.FC = () => {
       prazoTotal,
       prazoReceived,
       costMap,
+      instCostMap,
       chartData:      buildChartDataForRange(filtered, start, end),
       channelData:    buildChannelData(filtered),
       topProducts:    buildTopProducts(filtered),
@@ -566,9 +567,18 @@ export const Dashboard: React.FC = () => {
               Exibindo dados de: <strong className="text-neutral-800">{periodLabel}</strong>
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <Calendar size={14} />
-            <span>Hoje, {new Date().toLocaleDateString('pt-BR')}</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <Calendar size={14} />
+              <span>Hoje, {new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+            <button
+              onClick={fetchDashboardData}
+              title="Atualizar dados"
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
         </div>
 
@@ -1312,69 +1322,90 @@ export const Dashboard: React.FC = () => {
 
             {/* Rows */}
             <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
-              {filteredSales.length === 0 ? (
-                <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
-                  Nenhuma venda neste período.
-                </div>
-              ) : (
-                [...filteredSales]
-                  .sort((a, b) => {
-                    if (drillDown === 'revenue') return Number(b.total_amount || 0) - Number(a.total_amount || 0);
-                    if (drillDown === 'cash') {
-                      const cashFor = (s: any) => {
-                        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-                        if (t === 'troca') return Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
-                        if (t === 'prazo') {
-                          try { return (JSON.parse(s.installments_json || '[]') as any[]).filter(i => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0); } catch { return 0; }
-                        }
-                        return Number(s.total_amount || 0);
-                      };
-                      return cashFor(b) - cashFor(a);
-                    }
-                    const profitFor = (s: any) => {
-                      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-                      if (t === 'prazo') return -Infinity;
-                      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-                      const inc = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-                      return Number(s.total_amount || 0) - inc - cost;
-                    };
-                    return profitFor(b) - profitFor(a);
-                  })
-                  .map((sale) => {
-                    const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
-                    const cost = costMap[sale.sale_number] ?? costMap[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
-                    const displayValue = (() => {
-                      if (drillDown === 'revenue') return Number(sale.total_amount || 0);
-                      if (drillDown === 'cash') {
-                        if (type === 'troca') return Number(sale.total_amount || 0) - Number(sale.incoming_purchase_price || 0);
-                        if (type === 'prazo') {
-                          try { return (JSON.parse(sale.installments_json || '[]') as any[]).filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0); } catch { return 0; }
-                        }
-                        return Number(sale.total_amount || 0);
+              {(() => {
+                const [start, end] = getDateRange(period, customFrom, customTo);
+
+                // Build combined list: non-prazo sales in period + prazo installments paid in period
+                type DrillRow = { key: string; saleNum: string; customer: string; product: string; displayValue: number; dateStr: string; subLabel?: string };
+                const rows: DrillRow[] = [];
+
+                for (const sale of filteredSales) {
+                  const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
+                  const cost = costMap[sale.sale_number] ?? costMap[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
+                  const dateStr = sale.created_at ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
+                  let val = 0;
+                  if (drillDown === 'revenue') val = Number(sale.total_amount || 0);
+                  else if (drillDown === 'cash') {
+                    if (type === 'troca') val = Number(sale.total_amount || 0) - Number(sale.incoming_purchase_price || 0);
+                    else if (type === 'prazo') { try { val = (JSON.parse(sale.installments_json || '[]') as any[]).filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0); } catch { val = 0; } }
+                    else val = Number(sale.total_amount || 0);
+                  } else {
+                    if (type === 'prazo' || type === 'compra') continue; // prazo added separately below
+                    const incoming = type === 'troca' ? Number(sale.incoming_purchase_price || 0) : 0;
+                    val = Number(sale.total_amount || 0) - incoming - cost;
+                  }
+                  rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr });
+                }
+
+                // For profit drill-down: add prazo installments paid in period from ALL sales
+                if (drillDown === 'profit') {
+                  for (const s of allSales) {
+                    if ((s.sale_type || '') !== 'prazo') continue;
+                    let insts: any[] = [];
+                    try { insts = JSON.parse(s.installments_json || '[]'); } catch { continue; }
+                    const saleNum = s.sale_number || '';
+                    const totalAmt = Number(s.total_amount || 0);
+                    const totalCost = costMap[saleNum] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+                    const hasNewStyle = instCostMap[saleNum] !== undefined;
+                    for (let i = 0; i < insts.length; i++) {
+                      const inst = insts[i];
+                      if (!inst.paid_at) continue;
+                      const pd = new Date(inst.paid_at + 'T12:00:00');
+                      if (pd < start || pd >= end) continue;
+                      const paid = Number(inst.amount || 0);
+                      let instProfit: number;
+                      if (hasNewStyle) {
+                        // New style: approximate with proportional since per-installment costs match by description date
+                        const outItems: any[] = (() => { try { return JSON.parse(s.outgoing_items_json || '[]'); } catch { return []; } })();
+                        const totalItemCost = outItems.reduce((s2: number, it: any) => s2 + Number(it.cost || 0), 0);
+                        instProfit = paid - (totalAmt > 0 && totalItemCost > 0 ? totalItemCost * (paid / totalAmt) : 0);
+                      } else {
+                        instProfit = paid - (totalAmt > 0 ? totalCost * (paid / totalAmt) : 0);
                       }
-                      // Lucro Realizado: prazo não entra; troca desconta crédito dado
-                      if (type === 'prazo') return null as any;
-                      const incoming = type === 'troca' ? Number(sale.incoming_purchase_price || 0) : 0;
-                      return Number(sale.total_amount || 0) - incoming - cost;
-                    })();
-                    const isNeg = drillDown === 'profit' && displayValue !== null && displayValue < 0;
-                    const isPos = drillDown === 'profit' && displayValue !== null && displayValue > 0;
-                    const dateStr = sale.created_at
-                      ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                      : '—';
-                    return (
-                      <div key={sale.id} className="grid grid-cols-12 gap-2 px-5 py-3 hover:bg-neutral-50 transition-colors items-center">
-                        <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{sale.sale_number || '—'}</span>
-                        <span className="col-span-3 text-xs font-bold text-neutral-800 truncate">{sale.customer_name || 'Avulso'}</span>
-                        <span className="col-span-4 text-xs text-neutral-500 truncate">{sale.product_name || '—'}</span>
-                        <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : displayValue === null ? 'text-blue-400 italic' : 'text-neutral-900')}>
-                          {displayValue === null ? 'A prazo' : (isPos ? '+' : '') + formatCurrency(displayValue)}
-                        </span>
-                        <span className="col-span-2 text-[10px] text-neutral-400 text-right">{dateStr}</span>
-                      </div>
-                    );
-                  })
-              )}
+                      const regularInsts = insts.filter((x: any) => !x.is_entrada);
+                      const label = inst.is_entrada ? 'Entrada' : `Parcela ${inst.n ?? (i + 1)}/${regularInsts.length}`;
+                      const dateStr = new Date(inst.paid_at + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                      rows.push({ key: `${s.id}-${i}`, saleNum, customer: s.customer_name || 'Avulso', product: s.product_name || '—', displayValue: instProfit, dateStr, subLabel: label });
+                    }
+                  }
+                }
+
+                rows.sort((a, b) => b.displayValue - a.displayValue);
+
+                if (rows.length === 0) return (
+                  <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
+                    Nenhuma venda neste período.
+                  </div>
+                );
+                return rows.map((row) => {
+                  const isNeg = drillDown === 'profit' && row.displayValue < 0;
+                  const isPos = drillDown === 'profit' && row.displayValue > 0;
+                  return (
+                    <div key={row.key} className="grid grid-cols-12 gap-2 px-5 py-3 hover:bg-neutral-50 transition-colors items-center">
+                      <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{row.saleNum}</span>
+                      <span className="col-span-3 text-xs font-bold text-neutral-800 truncate">{row.customer}</span>
+                      <span className="col-span-4 text-xs text-neutral-500 truncate">
+                        {row.product}
+                        {row.subLabel && <span className="ml-1 text-[10px] font-bold text-blue-400">{row.subLabel}</span>}
+                      </span>
+                      <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : 'text-neutral-900')}>
+                        {(isPos ? '+' : '') + formatCurrency(row.displayValue)}
+                      </span>
+                      <span className="col-span-2 text-[10px] text-neutral-400 text-right">{row.dateStr}</span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             {/* Footer */}

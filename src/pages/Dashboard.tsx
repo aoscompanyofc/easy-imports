@@ -307,7 +307,7 @@ export const Dashboard: React.FC = () => {
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       for (const inst of insts) {
         if (!inst.paid_at) continue;
-        const pd = new Date(inst.paid_at);
+        const pd = new Date(inst.paid_at + 'T12:00:00');
         if (pd >= start && pd < end) cashReceived += Number(inst.amount || 0);
       }
     }
@@ -326,7 +326,7 @@ export const Dashboard: React.FC = () => {
       let insts: any[] = [];
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       const paidInPeriod = insts
-        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at); return pd >= start && pd < end; })
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= start && pd < end; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPeriod <= 0) continue;
       const totalAmt = Number(s.total_amount || 0);
@@ -405,7 +405,7 @@ export const Dashboard: React.FC = () => {
       let insts: any[] = [];
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       const paidInPrev = insts
-        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at); return pd >= prevStart && pd < prevEnd; })
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= prevStart && pd < prevEnd; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPrev <= 0) continue;
       const totalAmt = Number(s.total_amount || 0);

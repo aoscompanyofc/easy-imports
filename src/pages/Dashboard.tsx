@@ -269,7 +269,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, costMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -304,22 +304,20 @@ export const Dashboard: React.FC = () => {
       }
     }
 
-    // Lucro: receita líquida (transações de entrada já descontam taxa de cartão) - custo
-    // Slice(0,10) garante YYYY-MM-DD mesmo se Supabase retornar timestamp completo
-    const txDate = (t: any) => {
-      if (t.date) return new Date(String(t.date).slice(0, 10) + 'T12:00:00');
-      if (t.created_at) return new Date(t.created_at);
-      return new Date(0);
-    };
-    const periodIncome  = allTransactions
-      .filter(t => t.type === 'income'  && txDate(t) >= start && txDate(t) < end)
-      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
-    const periodExpense = allTransactions
-      .filter(t => t.type === 'expense' && txDate(t) >= start && txDate(t) < end)
-      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    // Lucro direto: total_amount - crédito_troca - custo_produto (apenas vendas/trocas imediatas)
+    const netProfit = filtered
+      .filter(s => {
+        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+        return t !== 'prazo' && t !== 'compra';
+      })
+      .reduce((acc, s) => {
+        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+        const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+        return acc + Number(s.total_amount || 0) - incoming - cost;
+      }, 0);
 
     // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
-    // (esses itens ainda estavam no estoque durante o período consultado)
     const salesAfterPeriod = allSales.filter(s => s.created_at && new Date(s.created_at) >= end);
     const costSoldAfterPeriod = salesAfterPeriod.reduce((acc, s) =>
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
@@ -327,16 +325,21 @@ export const Dashboard: React.FC = () => {
 
     const prazoSales = filtered.filter(s => (s.sale_type || '') === 'prazo');
     const prazoTotal = prazoSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const prazoReceived = prazoSales.reduce((acc, s) => {
+      const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
+      return acc + insts.filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+    }, 0);
 
     return {
       filteredSales:  filtered,
       revenue:        rev,
       cash:           cashReceived,
       salesCount:     count,
-      netProfit:      periodIncome - periodExpense,
+      netProfit,
       stockAtPeriod:  stockSnapshot,
       prazoCount:     prazoSales.length,
       prazoTotal,
+      prazoReceived,
       costMap,
       chartData:      buildChartDataForRange(filtered, start, end),
       channelData:    buildChannelData(filtered),
@@ -360,15 +363,30 @@ export const Dashboard: React.FC = () => {
       return d >= prevStart && d < prevEnd;
     });
     const pRev = prevSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
-    // Use period income transactions for prev profit too
-    const txDate = (t: any) => {
-      if (t.date) return new Date(String(t.date).slice(0, 10) + 'T12:00:00');
-      if (t.created_at) return new Date(t.created_at);
-      return new Date(0);
-    };
-    const pIncome  = allTransactions.filter(t => t.type === 'income'  && txDate(t) >= prevStart && txDate(t) < prevEnd).reduce((acc, t) => acc + Number(t.amount || 0), 0);
-    const pExpense = allTransactions.filter(t => t.type === 'expense' && txDate(t) >= prevStart && txDate(t) < prevEnd).reduce((acc, t) => acc + Number(t.amount || 0), 0);
-    return { prevRevenue: pRev, prevProfit: pIncome - pExpense };
+    const prevCostMap: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.type === 'expense' && t.category === 'stock') {
+        if (t.description?.startsWith('Custo Mercadoria #')) {
+          const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+          prevCostMap[`uuid:${prefix}`] = (prevCostMap[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+        } else if (t.description?.startsWith('Custo ')) {
+          const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
+          if (match) prevCostMap[match[1]] = (prevCostMap[match[1]] || 0) + Number(t.amount || 0);
+        }
+      }
+    }
+    const pProfit = prevSales
+      .filter(s => {
+        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+        return t !== 'prazo' && t !== 'compra';
+      })
+      .reduce((acc, s) => {
+        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+        const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+        return acc + Number(s.total_amount || 0) - incoming - cost;
+      }, 0);
+    return { prevRevenue: pRev, prevProfit: pProfit };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
   // A Receber = saldo GLOBAL de todas as parcelas a prazo ainda não pagas (não filtra por período)
@@ -564,14 +582,14 @@ export const Dashboard: React.FC = () => {
               </div>
             </button>
 
-            {/* Caixa */}
+            {/* Caixa Real */}
             <button
               onClick={() => setDrillDown('cash')}
               className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
             >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa</p>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Recebido · {periodLabel}</p>
+              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido · {periodLabel}</p>
             </button>
 
             {/* Contas a Receber */}
@@ -579,14 +597,14 @@ export const Dashboard: React.FC = () => {
               'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
               pendingReceivables > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white border-neutral-200',
             )}>
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">A Receber</p>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Contas a Receber</p>
               <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}</p>
               <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
                 {pendingSalesCount > 0 ? `${pendingSalesCount} venda${pendingSalesCount !== 1 ? 's' : ''} em aberto` : 'Sem pendências'}
               </p>
             </div>
 
-            {/* Lucro Imediato — clicável */}
+            {/* Lucro Realizado — clicável */}
             <button
               onClick={() => setDrillDown('profit')}
               className={cn(
@@ -594,52 +612,38 @@ export const Dashboard: React.FC = () => {
                 netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
               )}
             >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro</p>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Realizado</p>
               <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
                 {formatCurrency(netProfit)}
               </p>
               <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Imediato · {periodLabel}</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Vendas pagas · {periodLabel}</p>
                 <TrendBadge cur={netProfit} prev={prevProfit} />
               </div>
             </button>
 
-            {/* Lucro Futuro */}
-            <div className="rounded-2xl border border-neutral-200 shadow-sm bg-white min-w-0 overflow-hidden">
-              <button
-                onClick={() => futureProfitItems.length > 0 && setShowFutureDetail(v => !v)}
-                className={cn('w-full p-3 sm:p-5 flex flex-col gap-1 text-left', futureProfitItems.length > 0 && 'hover:bg-neutral-50 transition-colors')}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Futuro</p>
-                  {futureProfitItems.length > 0 && (
-                    showFutureDetail ? <ChevronUp size={13} className="text-neutral-400 flex-shrink-0" /> : <ChevronDown size={13} className="text-neutral-400 flex-shrink-0" />
-                  )}
+            {/* Receita Prevista — Vendas a Prazo */}
+            <div className={cn(
+              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden',
+              prazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60' : 'bg-white border-neutral-200',
+            )}>
+              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
+              <p className={cn('text-base sm:text-2xl font-black truncate', prazoTotal > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                {prazoTotal > 0 ? formatCurrency(prazoTotal) : '—'}
+              </p>
+              {prazoTotal > 0 ? (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
+                    Recebido: {formatCurrency(prazoReceived)}
+                  </p>
+                  <p className="text-[10px] sm:text-xs font-bold text-orange-500 truncate">
+                    A receber: {formatCurrency(prazoTotal - prazoReceived)}
+                  </p>
                 </div>
-                <p className={cn('text-base sm:text-2xl font-black truncate', futureProfit > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
-                  {futureProfit > 0 ? formatCurrency(futureProfit) : '—'}
-                </p>
+              ) : (
                 <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                  {futureProfitItems.length > 0
-                    ? `${futureProfitItems.length} aparelho${futureProfitItems.length !== 1 ? 's' : ''} em troca`
-                    : 'Sem previsão cadastrada'}
+                  {prazoCount > 0 ? `${prazoCount} venda${prazoCount !== 1 ? 's' : ''} a prazo` : 'Nenhuma no período'}
                 </p>
-              </button>
-              {showFutureDetail && futureProfitItems.length > 0 && (
-                <div className="border-t border-neutral-100 divide-y divide-neutral-100 max-h-64 overflow-y-auto">
-                  {futureProfitItems.map((item, i) => (
-                    <div key={i} className="px-4 py-2.5 flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-neutral-900 truncate">{item.name}</p>
-                        <p className="text-[10px] text-neutral-400 truncate">{item.customer} · {item.date}</p>
-                        <p className="text-[10px] text-neutral-500">Entrou {formatCurrency(item.tradeIn)} → revenda {formatCurrency(item.resale)}</p>
-                      </div>
-                      <span className={cn('text-xs font-black flex-shrink-0 mt-0.5', item.profit >= 0 ? 'text-green-600' : 'text-red-500')}>
-                        {item.profit >= 0 ? '+' : ''}{formatCurrency(item.profit)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
 
@@ -1031,10 +1035,10 @@ export const Dashboard: React.FC = () => {
           {/* ── Summary strip ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { label: 'Faturamento',   value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
-              { label: 'Vendas',        value: `${salesCount}`,            icon: ShoppingCart, color: 'text-neutral-700'  },
-              { label: 'Lucro',         value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
-              { label: 'Estoque',       value: formatCurrency(stockValue),icon: Package,     color: 'text-neutral-700'   },
+              { label: 'Faturamento',      value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
+              { label: 'Vendas',           value: `${salesCount}`,            icon: ShoppingCart, color: 'text-neutral-700'  },
+              { label: 'Lucro Realizado',  value: formatCurrency(netProfit), icon: DollarSign,  color: netProfit >= 0 ? 'text-emerald-600' : 'text-red-500' },
+              { label: 'Estoque',          value: formatCurrency(stockValue),icon: Package,     color: 'text-neutral-700'   },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-neutral-100 shadow-sm min-w-0 overflow-hidden">
                 <div className={cn('p-1.5 sm:p-2 bg-neutral-50 rounded-lg flex-shrink-0', item.color)}>
@@ -1096,9 +1100,9 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <div>
                 <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">
-                  {drillDown === 'revenue' && 'Faturamento'}
-                  {drillDown === 'cash'    && 'Caixa Recebido'}
-                  {drillDown === 'profit'  && 'Lucro por Venda'}
+                  {drillDown === 'revenue' && 'Faturamento Total'}
+                  {drillDown === 'cash'    && 'Caixa Real'}
+                  {drillDown === 'profit'  && 'Lucro Realizado por Venda'}
                 </p>
                 <p className="text-base font-black text-neutral-900 mt-0.5">
                   {drillDown === 'revenue' && formatCurrency(revenue)}
@@ -1145,8 +1149,11 @@ export const Dashboard: React.FC = () => {
                       return cashFor(b) - cashFor(a);
                     }
                     const profitFor = (s: any) => {
+                      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+                      if (t === 'prazo') return -Infinity;
                       const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-                      return Number(s.total_amount || 0) - cost;
+                      const inc = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+                      return Number(s.total_amount || 0) - inc - cost;
                     };
                     return profitFor(b) - profitFor(a);
                   })
@@ -1162,10 +1169,13 @@ export const Dashboard: React.FC = () => {
                         }
                         return Number(sale.total_amount || 0);
                       }
-                      return Number(sale.total_amount || 0) - cost;
+                      // Lucro Realizado: prazo não entra; troca desconta crédito dado
+                      if (type === 'prazo') return null as any;
+                      const incoming = type === 'troca' ? Number(sale.incoming_purchase_price || 0) : 0;
+                      return Number(sale.total_amount || 0) - incoming - cost;
                     })();
-                    const isNeg = drillDown === 'profit' && displayValue < 0;
-                    const isPos = drillDown === 'profit' && displayValue > 0;
+                    const isNeg = drillDown === 'profit' && displayValue !== null && displayValue < 0;
+                    const isPos = drillDown === 'profit' && displayValue !== null && displayValue > 0;
                     const dateStr = sale.created_at
                       ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
                       : '—';
@@ -1174,8 +1184,8 @@ export const Dashboard: React.FC = () => {
                         <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{sale.sale_number || '—'}</span>
                         <span className="col-span-3 text-xs font-bold text-neutral-800 truncate">{sale.customer_name || 'Avulso'}</span>
                         <span className="col-span-4 text-xs text-neutral-500 truncate">{sale.product_name || '—'}</span>
-                        <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : 'text-neutral-900')}>
-                          {isPos ? '+' : ''}{formatCurrency(displayValue)}
+                        <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : displayValue === null ? 'text-blue-400 italic' : 'text-neutral-900')}>
+                          {displayValue === null ? 'A prazo' : (isPos ? '+' : '') + formatCurrency(displayValue)}
                         </span>
                         <span className="col-span-2 text-[10px] text-neutral-400 text-right">{dateStr}</span>
                       </div>

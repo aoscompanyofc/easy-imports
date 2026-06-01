@@ -456,6 +456,7 @@ export const Vendas: React.FC = () => {
         color: form.product_color || primaryProd?.product_color || '',
         condition: form.product_condition || '',
         price: isPrazo ? prazoProductPrice : unitPrice,
+        cost: primaryProd?.purchase_price || Number(form.product_cost_manual) || 0,
       };
       const additionalMapped = additionalItems.filter(i => i.selectedProduct).map(i => {
         const prod = products.find((p: any) => p.id === i.selectedProduct);
@@ -467,6 +468,7 @@ export const Vendas: React.FC = () => {
           color: i.color_override || prod?.product_color || '',
           condition: (prod?.product_condition || i.condition_override || 'Seminovo').replace(/ · Bateria:.*/, ''),
           price: Number(i.price_override) || prod?.sale_price || 0,
+          cost: prod?.purchase_price || 0,
         };
       });
       return JSON.stringify([primaryItem, ...additionalMapped]);
@@ -698,9 +700,8 @@ export const Vendas: React.FC = () => {
         }
       }
 
-      // Venda a Prazo: decrementa estoque + cria custo (SEM receita — entra ao pagar parcela)
+      // Venda a Prazo: decrementa estoque (custo é registrado proporcionalmente ao pagar cada parcela)
       if (isPrazo) {
-        const saleDate = new Date(form.sale_date).toISOString().slice(0, 10);
         if (product) {
           const newQty = Math.max(0, product.stock_quantity - form.quantity);
           await dataService.updateProduct(product.id, {
@@ -709,22 +710,8 @@ export const Vendas: React.FC = () => {
             stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
             imei: product.imei || '',
           });
-          if (product.purchase_price > 0) {
-            await dataService.addTransaction({
-              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
-              amount: product.purchase_price * form.quantity,
-              type: 'expense', category: 'stock', date: saleDate,
-            });
-          }
         } else {
           const manualCost = Number(form.product_cost_manual);
-          if (manualCost > 0) {
-            await dataService.addTransaction({
-              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
-              amount: manualCost * form.quantity,
-              type: 'expense', category: 'stock', date: saleDate,
-            });
-          }
           if (form.save_to_stock && productName) {
             await dataService.addProduct({
               name: productName, category: 'Smartphones',
@@ -736,25 +723,17 @@ export const Vendas: React.FC = () => {
             });
           }
         }
-        // Handle additional items for prazo (decrement stock + cost transactions)
+        // Handle additional items for prazo: only decrement stock (no cost transaction yet)
         for (const addItem of additionalItems.filter(i => i.selectedProduct)) {
           const addProd = products.find((p: any) => p.id === addItem.selectedProduct);
           if (addProd) {
-            const addQty = 1;
-            const newQty = Math.max(0, addProd.stock_quantity - addQty);
+            const newQty = Math.max(0, addProd.stock_quantity - 1);
             await dataService.updateProduct(addProd.id, {
               name: addProd.name, category: addProd.category,
               purchase_price: addProd.purchase_price, sale_price: addProd.sale_price,
               stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
               imei: addProd.imei || '',
             });
-            if (addProd.purchase_price > 0) {
-              await dataService.addTransaction({
-                description: `Custo ${saleNumber} — ${addProd.name}`,
-                amount: addProd.purchase_price,
-                type: 'expense', category: 'stock', date: saleDate,
-              });
-            }
           }
         }
       }
@@ -1126,9 +1105,8 @@ export const Vendas: React.FC = () => {
       await dataService.updateSale(sale.id, { installments_json: JSON.stringify(updated) });
       const inst = installments[instIndex];
       const regularInsts = installments.filter((i: any) => !i.is_entrada);
-      const txDesc = inst.is_entrada
-        ? `Receita ${sale.sale_number} — Entrada (${sale.customer_name || ''})`
-        : `Receita ${sale.sale_number} — Parcela ${inst.n}/${regularInsts.length} (${sale.customer_name || ''})`;
+      const instLabel = inst.is_entrada ? 'Entrada' : `Parcela ${inst.n}/${regularInsts.length}`;
+      const txDesc = `Receita ${sale.sale_number} — ${instLabel} (${sale.customer_name || ''})`;
       await dataService.addTransaction({
         description: txDesc,
         amount: inst.amount,
@@ -1136,6 +1114,28 @@ export const Vendas: React.FC = () => {
         category: 'sale',
         date: paid_at,
       });
+
+      // Custo proporcional: só para vendas SEM custo já registrado em lump-sum (novas vendas)
+      const existingLumpSumCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
+      if (existingLumpSumCost === 0) {
+        // Novo estilo: calcula custo a partir de outgoing_items_json
+        const outItems: any[] = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
+        const totalItemCost = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+        const totalAmt = Number(sale.total_amount || 0);
+        if (totalItemCost > 0 && totalAmt > 0) {
+          const proportionalCost = Math.round(totalItemCost * (inst.amount / totalAmt) * 100) / 100;
+          if (proportionalCost > 0) {
+            await dataService.addTransaction({
+              description: `Custo Parcela ${sale.sale_number} — ${instLabel} (${sale.customer_name || ''})`,
+              amount: proportionalCost,
+              type: 'expense',
+              category: 'stock',
+              date: paid_at,
+            });
+          }
+        }
+      }
+
       toast.success(inst.is_entrada ? 'Entrada marcada como paga!' : `Parcela ${inst.n} marcada como paga!`);
       fetchData();
     } catch (error: any) {

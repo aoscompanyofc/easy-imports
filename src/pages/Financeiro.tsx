@@ -94,6 +94,22 @@ export const Financeiro: React.FC = () => {
     return map;
   }, [sales]);
 
+  // Mapa custo por venda (lump-sum registrado na criação da venda — estilo antigo)
+  const costBySale = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const t of transactions) {
+      if (t.type !== 'expense' || t.category !== 'stock') continue;
+      if (t.description?.startsWith('Custo Mercadoria #')) {
+        const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+        map[`uuid:${prefix}`] = (map[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+      } else if (!t.description?.startsWith('Custo Parcela ') && t.description?.startsWith('Custo ')) {
+        const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
+        if (match) map[match[1]] = (map[match[1]] || 0) + Number(t.amount || 0);
+      }
+    }
+    return map;
+  }, [transactions]);
+
   // Resumo global das vendas a prazo
   const { prazoTotal, prazoReceived, praxoPending, prazoSalesCount } = useMemo(() => {
     let total = 0, received = 0, pending = 0, count = 0;
@@ -148,14 +164,37 @@ export const Financeiro: React.FC = () => {
       );
       await dataService.updateSale(sale.id, { installments_json: JSON.stringify(updated) });
       const inst = insts[instIndex];
+      const regularInsts = insts.filter((i: any) => !i.is_entrada);
+      const instLabel = inst.is_entrada ? 'Entrada' : `Parcela ${inst.n ?? (instIndex + 1)}/${regularInsts.length}`;
       await dataService.addTransaction({
-        description: `Receita ${sale.sale_number} — Parcela ${instIndex + 1}/${insts.length} (${sale.customer_name || ''})`,
+        description: `Receita ${sale.sale_number} — ${instLabel} (${sale.customer_name || ''})`,
         amount: inst.amount,
         type: 'income',
         category: 'sale',
         date: paid_at,
       });
-      toast.success(`Parcela ${instIndex + 1} efetivada!`);
+
+      // Custo proporcional: só para vendas SEM custo lump-sum já registrado (novas vendas)
+      const existingLumpSumCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
+      if (existingLumpSumCost === 0) {
+        const outItems: any[] = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
+        const totalItemCost = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+        const totalAmt = Number(sale.total_amount || 0);
+        if (totalItemCost > 0 && totalAmt > 0) {
+          const proportionalCost = Math.round(totalItemCost * (inst.amount / totalAmt) * 100) / 100;
+          if (proportionalCost > 0) {
+            await dataService.addTransaction({
+              description: `Custo Parcela ${sale.sale_number} — ${instLabel} (${sale.customer_name || ''})`,
+              amount: proportionalCost,
+              type: 'expense',
+              category: 'stock',
+              date: paid_at,
+            });
+          }
+        }
+      }
+
+      toast.success(`Parcela ${instLabel} efetivada!`);
       fetchData();
     } catch (error: any) {
       toast.error('Erro: ' + error.message);
@@ -304,7 +343,8 @@ export const Financeiro: React.FC = () => {
 
   const isAutoTx = (t: any) =>
     /^(Receita|Custo|Venda) #/.test(t.description || '') ||
-    t.description?.startsWith('Custo Mercadoria #');
+    t.description?.startsWith('Custo Mercadoria #') ||
+    t.description?.startsWith('Custo Parcela #');
 
   const columns = [
     { header: 'Descrição', accessor: (t: any) => (

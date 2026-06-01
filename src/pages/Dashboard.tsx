@@ -279,17 +279,26 @@ export const Dashboard: React.FC = () => {
     const rev = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const count = filtered.length;
 
-    // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
+    // Cost map: sale_number / id-prefix → custo lump-sum (criado na venda — estilo antigo)
+    // NÃO inclui "Custo Parcela" (estilo novo — esses são somados diretamente ao calcular Lucro)
     const costMap: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
         if (t.description?.startsWith('Custo Mercadoria #')) {
           const prefix = t.description.replace('Custo Mercadoria #', '').trim();
           costMap[`uuid:${prefix}`] = (costMap[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
-        } else if (t.description?.startsWith('Custo ')) {
+        } else if (t.description?.startsWith('Custo ') && !t.description?.startsWith('Custo Parcela ')) {
           const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
           if (match) costMap[match[1]] = (costMap[match[1]] || 0) + Number(t.amount || 0);
         }
+      }
+    }
+    // Per-installment cost map: sale_number → total cost paid in transactions (estilo novo)
+    const instCostMap: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Parcela ')) {
+        const match = t.description.match(/^Custo Parcela (#[A-Z0-9]+)/);
+        if (match) instCostMap[match[1]] = (instCostMap[match[1]] || 0) + Number(t.amount || 0);
       }
     }
 
@@ -312,7 +321,7 @@ export const Dashboard: React.FC = () => {
       }
     }
 
-    // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período (proporcional ao custo)
+    // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período
     let netProfit = 0;
     for (const s of filtered) {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
@@ -329,9 +338,23 @@ export const Dashboard: React.FC = () => {
         .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= start && pd < end; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPeriod <= 0) continue;
-      const totalAmt = Number(s.total_amount || 0);
-      const totalCost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      netProfit += paidInPeriod - (totalAmt > 0 ? totalCost * (paidInPeriod / totalAmt) : 0);
+      const saleNum = s.sale_number || '';
+      const hasNewStyleCosts = instCostMap[saleNum] !== undefined;
+      if (hasNewStyleCosts) {
+        // Novo estilo: custo proporcional já registrado como transação ao marcar pago
+        // Suma os custos de parcela deste período especificamente
+        const instCostInPeriod = allTransactions
+          .filter(t => t.type === 'expense' && t.category === 'stock'
+            && t.description?.startsWith(`Custo Parcela ${saleNum}`)
+            && (() => { const pd = new Date((t.date || '') + 'T12:00:00'); return pd >= start && pd < end; })())
+          .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+        netProfit += paidInPeriod - instCostInPeriod;
+      } else {
+        // Estilo antigo: custo lump-sum registrado na criação — usa fórmula proporcional
+        const totalAmt = Number(s.total_amount || 0);
+        const totalCost = costMap[saleNum] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        netProfit += paidInPeriod - (totalAmt > 0 ? totalCost * (paidInPeriod / totalAmt) : 0);
+      }
     }
 
     // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
@@ -381,11 +404,15 @@ export const Dashboard: React.FC = () => {
     });
     const pRev = prevSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const prevCostMap: Record<string, number> = {};
+    const prevInstCostMap: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
         if (t.description?.startsWith('Custo Mercadoria #')) {
           const prefix = t.description.replace('Custo Mercadoria #', '').trim();
           prevCostMap[`uuid:${prefix}`] = (prevCostMap[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+        } else if (t.description?.startsWith('Custo Parcela ')) {
+          const match = t.description.match(/^Custo Parcela (#[A-Z0-9]+)/);
+          if (match) prevInstCostMap[match[1]] = (prevInstCostMap[match[1]] || 0) + Number(t.amount || 0);
         } else if (t.description?.startsWith('Custo ')) {
           const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
           if (match) prevCostMap[match[1]] = (prevCostMap[match[1]] || 0) + Number(t.amount || 0);
@@ -408,9 +435,19 @@ export const Dashboard: React.FC = () => {
         .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= prevStart && pd < prevEnd; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPrev <= 0) continue;
-      const totalAmt = Number(s.total_amount || 0);
-      const totalCost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      pProfit += paidInPrev - (totalAmt > 0 ? totalCost * (paidInPrev / totalAmt) : 0);
+      const saleNum = s.sale_number || '';
+      if (prevInstCostMap[saleNum] !== undefined) {
+        const instCostInPrev = allTransactions
+          .filter(t => t.type === 'expense' && t.category === 'stock'
+            && t.description?.startsWith(`Custo Parcela ${saleNum}`)
+            && (() => { const pd = new Date((t.date || '') + 'T12:00:00'); return pd >= prevStart && pd < prevEnd; })())
+          .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+        pProfit += paidInPrev - instCostInPrev;
+      } else {
+        const totalAmt = Number(s.total_amount || 0);
+        const totalCost = prevCostMap[saleNum] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        pProfit += paidInPrev - (totalAmt > 0 ? totalCost * (paidInPrev / totalAmt) : 0);
+      }
     }
     return { prevRevenue: pRev, prevProfit: pProfit };
   }, [allSales, allTransactions, period, customFrom, customTo]);

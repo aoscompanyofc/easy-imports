@@ -279,17 +279,6 @@ export const Dashboard: React.FC = () => {
     const rev = filtered.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const count = filtered.length;
 
-    // Caixa = dinheiro efetivamente recebido (trocas descontam o crédito dado; prazo só parcelas pagas)
-    const cashReceived = filtered.reduce((acc, s) => {
-      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-      if (t === 'troca') return acc + Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
-      if (t === 'prazo') {
-        const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
-        return acc + insts.filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
-      }
-      return acc + Number(s.total_amount || 0);
-    }, 0);
-
     // Cost map: sale_number / id-prefix → custo (suporta formato antigo e novo)
     const costMap: Record<string, number> = {};
     for (const t of allTransactions) {
@@ -304,18 +293,46 @@ export const Dashboard: React.FC = () => {
       }
     }
 
-    // Lucro direto: total_amount - crédito_troca - custo_produto (apenas vendas/trocas imediatas)
-    const netProfit = filtered
-      .filter(s => {
-        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-        return t !== 'prazo' && t !== 'compra';
-      })
-      .reduce((acc, s) => {
-        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-        const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-        const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-        return acc + Number(s.total_amount || 0) - incoming - cost;
-      }, 0);
+    // Caixa Real: vendas imediatas do período + parcelas de prazo pagas no período (por paid_at)
+    let cashReceived = 0;
+    for (const s of filtered) {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t === 'prazo') continue;
+      if (t === 'troca') cashReceived += Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
+      else cashReceived += Number(s.total_amount || 0);
+    }
+    for (const s of allSales) {
+      if ((s.sale_type || '') !== 'prazo') continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
+      for (const inst of insts) {
+        if (!inst.paid_at) continue;
+        const pd = new Date(inst.paid_at);
+        if (pd >= start && pd < end) cashReceived += Number(inst.amount || 0);
+      }
+    }
+
+    // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período (proporcional ao custo)
+    let netProfit = 0;
+    for (const s of filtered) {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t === 'prazo' || t === 'compra') continue;
+      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+      netProfit += Number(s.total_amount || 0) - incoming - cost;
+    }
+    for (const s of allSales) {
+      if ((s.sale_type || '') !== 'prazo') continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
+      const paidInPeriod = insts
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at); return pd >= start && pd < end; })
+        .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+      if (paidInPeriod <= 0) continue;
+      const totalAmt = Number(s.total_amount || 0);
+      const totalCost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      netProfit += paidInPeriod - (totalAmt > 0 ? totalCost * (paidInPeriod / totalAmt) : 0);
+    }
 
     // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
     const salesAfterPeriod = allSales.filter(s => s.created_at && new Date(s.created_at) >= end);
@@ -375,17 +392,26 @@ export const Dashboard: React.FC = () => {
         }
       }
     }
-    const pProfit = prevSales
-      .filter(s => {
-        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-        return t !== 'prazo' && t !== 'compra';
-      })
-      .reduce((acc, s) => {
-        const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
-        const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-        const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-        return acc + Number(s.total_amount || 0) - incoming - cost;
-      }, 0);
+    let pProfit = 0;
+    for (const s of prevSales) {
+      const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
+      if (t === 'prazo' || t === 'compra') continue;
+      const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+      pProfit += Number(s.total_amount || 0) - incoming - cost;
+    }
+    for (const s of allSales) {
+      if ((s.sale_type || '') !== 'prazo') continue;
+      let insts: any[] = [];
+      try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
+      const paidInPrev = insts
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at); return pd >= prevStart && pd < prevEnd; })
+        .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+      if (paidInPrev <= 0) continue;
+      const totalAmt = Number(s.total_amount || 0);
+      const totalCost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      pProfit += paidInPrev - (totalAmt > 0 ? totalCost * (paidInPrev / totalAmt) : 0);
+    }
     return { prevRevenue: pRev, prevProfit: pProfit };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
@@ -646,16 +672,16 @@ export const Dashboard: React.FC = () => {
               )}
             >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
-              <p className={cn('text-base sm:text-2xl font-black truncate', globalPrazoTotal > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
-                {globalPrazoTotal > 0 ? formatCurrency(globalPrazoTotal) : '—'}
+              <p className={cn('text-base sm:text-2xl font-black truncate', pendingReceivables > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                {pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}
               </p>
               {globalPrazoTotal > 0 ? (
                 <div className="space-y-0.5">
                   <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
                     Recebido: {formatCurrency(globalPrazoReceived)}
                   </p>
-                  <p className="text-[10px] sm:text-xs font-bold text-orange-500 truncate">
-                    A receber: {formatCurrency(globalPrazoTotal - globalPrazoReceived)}
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
+                    {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} ativa{globalPrazoSales.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               ) : (
@@ -1117,10 +1143,10 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
                 <div>
                   <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Receita Prevista — Vendas a Prazo Ativas</p>
-                  <p className="text-base font-black text-neutral-900 mt-0.5">{formatCurrency(globalPrazoTotal)}</p>
+                  <p className="text-base font-black text-neutral-900 mt-0.5">{formatCurrency(pendingReceivables)}</p>
                   <div className="flex gap-3 mt-0.5">
                     <span className="text-xs text-green-600 font-bold">Recebido: {formatCurrency(globalPrazoReceived)}</span>
-                    <span className="text-xs text-orange-500 font-bold">A receber: {formatCurrency(globalPrazoTotal - globalPrazoReceived)}</span>
+                    <span className="text-xs text-neutral-400">Total: {formatCurrency(globalPrazoTotal)}</span>
                   </div>
                 </div>
                 <button onClick={() => setDrillDown(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-colors">

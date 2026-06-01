@@ -389,20 +389,35 @@ export const Dashboard: React.FC = () => {
     return { prevRevenue: pRev, prevProfit: pProfit };
   }, [allSales, allTransactions, period, customFrom, customTo]);
 
-  // A Receber = saldo GLOBAL de todas as parcelas a prazo ainda não pagas (não filtra por período)
-  const { pendingReceivables, pendingSalesCount } = useMemo(() => {
-    let total = 0;
+  // Receita Prevista GLOBAL — todas as vendas a prazo com parcelas ainda em aberto
+  // Independe do período selecionado: uma venda de maio aparece em junho enquanto houver parcelas pendentes
+  const { pendingReceivables, pendingSalesCount, globalPrazoSales, globalPrazoTotal, globalPrazoReceived } = useMemo(() => {
+    let pendingTotal = 0;
     let salesWithPending = 0;
+    const activeSales: any[] = [];
     for (const s of allSales) {
-      if ((s.sale_type || '') !== 'prazo' || !s.installments_json) continue;
+      if ((s.sale_type || '') !== 'prazo') continue;
       let insts: any[] = [];
-      try { insts = JSON.parse(s.installments_json); } catch { continue; }
-      const pendingAmt = insts
-        .filter((i: any) => !i.paid_at)
-        .reduce((acc: number, i: any) => acc + Number(i.amount || 0), 0);
-      if (pendingAmt > 0) { total += pendingAmt; salesWithPending++; }
+      try { insts = JSON.parse(s.installments_json || '[]'); } catch { /* skip */ }
+      const pendingAmt = insts.filter((i: any) => !i.paid_at).reduce((acc: number, i: any) => acc + Number(i.amount || 0), 0);
+      if (pendingAmt > 0 || !s.installments_json) {
+        pendingTotal += pendingAmt;
+        salesWithPending++;
+        activeSales.push(s);
+      }
     }
-    return { pendingReceivables: total, pendingSalesCount: salesWithPending };
+    const gTotal    = activeSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const gReceived = activeSales.reduce((acc, s) => {
+      const insts: any[] = (() => { try { return JSON.parse(s.installments_json || '[]'); } catch { return []; } })();
+      return acc + insts.filter((i: any) => i.paid_at).reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
+    }, 0);
+    return {
+      pendingReceivables: pendingTotal,
+      pendingSalesCount:  salesWithPending,
+      globalPrazoSales:   activeSales,
+      globalPrazoTotal:   gTotal,
+      globalPrazoReceived: gReceived,
+    };
   }, [allSales]);
 
   // Lucro Futuro = GLOBAL — todos os aparelhos recebidos em troca com previsão de revenda
@@ -622,31 +637,29 @@ export const Dashboard: React.FC = () => {
               </div>
             </button>
 
-            {/* Receita Prevista — Vendas a Prazo */}
+            {/* Receita Prevista — Vendas a Prazo (GLOBAL — independe do período) */}
             <button
-              onClick={() => prazoCount > 0 && setDrillDown('prazo')}
+              onClick={() => globalPrazoSales.length > 0 && setDrillDown('prazo')}
               className={cn(
                 'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
-                prazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
+                globalPrazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
               )}
             >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
-              <p className={cn('text-base sm:text-2xl font-black truncate', prazoTotal > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
-                {prazoTotal > 0 ? formatCurrency(prazoTotal) : '—'}
+              <p className={cn('text-base sm:text-2xl font-black truncate', globalPrazoTotal > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                {globalPrazoTotal > 0 ? formatCurrency(globalPrazoTotal) : '—'}
               </p>
-              {prazoTotal > 0 ? (
+              {globalPrazoTotal > 0 ? (
                 <div className="space-y-0.5">
                   <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
-                    Recebido: {formatCurrency(prazoReceived)}
+                    Recebido: {formatCurrency(globalPrazoReceived)}
                   </p>
                   <p className="text-[10px] sm:text-xs font-bold text-orange-500 truncate">
-                    A receber: {formatCurrency(prazoTotal - prazoReceived)}
+                    A receber: {formatCurrency(globalPrazoTotal - globalPrazoReceived)}
                   </p>
                 </div>
               ) : (
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                  {prazoCount > 0 ? `${prazoCount} venda${prazoCount !== 1 ? 's' : ''} a prazo` : 'Nenhuma no período'}
-                </p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Sem vendas a prazo ativas</p>
               )}
             </button>
 
@@ -1096,7 +1109,6 @@ export const Dashboard: React.FC = () => {
 
       {/* ── Drill-down Modal: Receita Prevista (Prazo) ── */}
       {drillDown === 'prazo' && (() => {
-        const prazoSalesFiltered = filteredSales.filter(s => (s.sale_type || '') === 'prazo');
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
@@ -1104,11 +1116,11 @@ export const Dashboard: React.FC = () => {
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
                 <div>
-                  <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Receita Prevista — Vendas a Prazo</p>
-                  <p className="text-base font-black text-neutral-900 mt-0.5">{formatCurrency(prazoTotal)}</p>
+                  <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Receita Prevista — Vendas a Prazo Ativas</p>
+                  <p className="text-base font-black text-neutral-900 mt-0.5">{formatCurrency(globalPrazoTotal)}</p>
                   <div className="flex gap-3 mt-0.5">
-                    <span className="text-xs text-green-600 font-bold">Recebido: {formatCurrency(prazoReceived)}</span>
-                    <span className="text-xs text-orange-500 font-bold">A receber: {formatCurrency(prazoTotal - prazoReceived)}</span>
+                    <span className="text-xs text-green-600 font-bold">Recebido: {formatCurrency(globalPrazoReceived)}</span>
+                    <span className="text-xs text-orange-500 font-bold">A receber: {formatCurrency(globalPrazoTotal - globalPrazoReceived)}</span>
                   </div>
                 </div>
                 <button onClick={() => setDrillDown(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-colors">
@@ -1128,12 +1140,12 @@ export const Dashboard: React.FC = () => {
 
               {/* Rows */}
               <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
-                {prazoSalesFiltered.length === 0 ? (
+                {globalPrazoSales.length === 0 ? (
                   <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
-                    Nenhuma venda a prazo neste período.
+                    Nenhuma venda a prazo ativa.
                   </div>
                 ) : (
-                  prazoSalesFiltered
+                  globalPrazoSales
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((sale) => {
                       const insts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
@@ -1185,7 +1197,7 @@ export const Dashboard: React.FC = () => {
               {/* Footer */}
               <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 bg-neutral-50">
                 <span className="text-xs font-bold text-neutral-600">
-                  {prazoSalesFiltered.length} venda{prazoSalesFiltered.length !== 1 ? 's' : ''} a prazo
+                  {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} a prazo ativa{globalPrazoSales.length !== 1 ? 's' : ''}
                 </span>
                 <button
                   onClick={() => { setDrillDown(null); navigate('/vendas'); }}

@@ -327,8 +327,7 @@ export const Dashboard: React.FC = () => {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-      netProfit += Number(s.total_amount || 0) - incoming - cost;
+      netProfit += Number(s.total_amount || 0) - cost;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -425,8 +424,7 @@ export const Dashboard: React.FC = () => {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
-      pProfit += Number(s.total_amount || 0) - incoming - cost;
+      pProfit += Number(s.total_amount || 0) - cost;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -1341,8 +1339,7 @@ export const Dashboard: React.FC = () => {
                     else val = Number(sale.total_amount || 0);
                   } else {
                     if (type === 'prazo' || type === 'compra') continue; // prazo added separately below
-                    const incoming = type === 'troca' ? Number(sale.incoming_purchase_price || 0) : 0;
-                    val = Number(sale.total_amount || 0) - incoming - cost;
+                    val = Number(sale.total_amount || 0) - cost;
                   }
                   rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr });
                 }

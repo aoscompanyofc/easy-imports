@@ -200,7 +200,7 @@ export const Dashboard: React.FC = () => {
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState('');
   // Drill-down modal: null = closed, or one of the card keys
-  const [drillDown, setDrillDown] = useState<'revenue' | 'cash' | 'profit' | 'stock' | null>(null);
+  const [drillDown, setDrillDown] = useState<'revenue' | 'cash' | 'profit' | 'stock' | 'prazo' | null>(null);
 
   const clearMeta = () => {
     setMeta(0);
@@ -623,10 +623,13 @@ export const Dashboard: React.FC = () => {
             </button>
 
             {/* Receita Prevista — Vendas a Prazo */}
-            <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden',
-              prazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60' : 'bg-white border-neutral-200',
-            )}>
+            <button
+              onClick={() => prazoCount > 0 && setDrillDown('prazo')}
+              className={cn(
+                'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
+                prazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
+              )}
+            >
               <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
               <p className={cn('text-base sm:text-2xl font-black truncate', prazoTotal > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
                 {prazoTotal > 0 ? formatCurrency(prazoTotal) : '—'}
@@ -645,7 +648,7 @@ export const Dashboard: React.FC = () => {
                   {prazoCount > 0 ? `${prazoCount} venda${prazoCount !== 1 ? 's' : ''} a prazo` : 'Nenhuma no período'}
                 </p>
               )}
-            </div>
+            </button>
 
             {/* Estoque — valor no período selecionado */}
             <button
@@ -1091,8 +1094,113 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Drill-down Modal: Receita Prevista (Prazo) ── */}
+      {drillDown === 'prazo' && (() => {
+        const prazoSalesFiltered = filteredSales.filter(s => (s.sale_type || '') === 'prazo');
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
+            <div className="relative w-full max-w-2xl max-h-[88vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+                <div>
+                  <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Receita Prevista — Vendas a Prazo</p>
+                  <p className="text-base font-black text-neutral-900 mt-0.5">{formatCurrency(prazoTotal)}</p>
+                  <div className="flex gap-3 mt-0.5">
+                    <span className="text-xs text-green-600 font-bold">Recebido: {formatCurrency(prazoReceived)}</span>
+                    <span className="text-xs text-orange-500 font-bold">A receber: {formatCurrency(prazoTotal - prazoReceived)}</span>
+                  </div>
+                </div>
+                <button onClick={() => setDrillDown(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Column headers */}
+              <div className="grid grid-cols-12 gap-2 px-5 py-2 bg-neutral-50 border-b border-neutral-100 text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                <span className="col-span-1">#</span>
+                <span className="col-span-3">Cliente</span>
+                <span className="col-span-3">Produto</span>
+                <span className="col-span-2 text-right">Total</span>
+                <span className="col-span-2 text-right">Recebido</span>
+                <span className="col-span-1 text-right">Status</span>
+              </div>
+
+              {/* Rows */}
+              <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
+                {prazoSalesFiltered.length === 0 ? (
+                  <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
+                    Nenhuma venda a prazo neste período.
+                  </div>
+                ) : (
+                  prazoSalesFiltered
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((sale) => {
+                      const insts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
+                      const received = insts.filter((i: any) => i.paid_at).reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+                      const total = Number(sale.total_amount || 0);
+                      const pending = insts.filter((i: any) => !i.paid_at).reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+                      const paidCount = insts.filter((i: any) => i.paid_at).length;
+                      const totalInsts = insts.filter((i: any) => !i.is_entrada).length;
+                      const isFullyPaid = pending === 0 && received > 0;
+                      const isPartial = received > 0 && pending > 0;
+                      const dateStr = sale.created_at
+                        ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        : '—';
+                      return (
+                        <div key={sale.id} className="px-5 py-3 hover:bg-neutral-50 transition-colors">
+                          <div className="grid grid-cols-12 gap-2 items-center">
+                            <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{sale.sale_number || '—'}</span>
+                            <div className="col-span-3 min-w-0">
+                              <p className="text-xs font-bold text-neutral-800 truncate">{sale.customer_name || 'Avulso'}</p>
+                              <p className="text-[10px] text-neutral-400">{dateStr}</p>
+                            </div>
+                            <span className="col-span-3 text-xs text-neutral-500 truncate">{sale.product_name || '—'}</span>
+                            <span className="col-span-2 text-xs font-black text-right text-neutral-900">{formatCurrency(total)}</span>
+                            <span className="col-span-2 text-xs font-black text-right text-green-600">{formatCurrency(received)}</span>
+                            <div className="col-span-1 flex justify-end">
+                              {isFullyPaid ? (
+                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Pago</span>
+                              ) : isPartial ? (
+                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">{paidCount}/{totalInsts}</span>
+                              ) : (
+                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500">Aberto</span>
+                              )}
+                            </div>
+                          </div>
+                          {/* Mini installment progress bar */}
+                          {totalInsts > 0 && (
+                            <div className="mt-1.5 ml-1">
+                              <div className="w-full h-1 bg-neutral-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-400 rounded-full transition-all" style={{ width: `${Math.round((paidCount / totalInsts) * 100)}%` }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 bg-neutral-50">
+                <span className="text-xs font-bold text-neutral-600">
+                  {prazoSalesFiltered.length} venda{prazoSalesFiltered.length !== 1 ? 's' : ''} a prazo
+                </span>
+                <button
+                  onClick={() => { setDrillDown(null); navigate('/vendas'); }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                >
+                  Ver em Vendas <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Drill-down Modal ── */}
-      {drillDown && (
+      {drillDown && drillDown !== 'prazo' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
           <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">

@@ -732,97 +732,91 @@ export const Dashboard: React.FC = () => {
               );
             };
             return (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {/* Faturamento — clicável */}
-            <button
-              onClick={() => setDrillDown('revenue')}
-              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-            >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
-                <TrendBadge cur={revenue} prev={prevRevenue} />
-              </div>
-            </button>
+          <div className="space-y-3 sm:space-y-4">
+            {/* Linha 1: Faturamento + Caixa Real — mais largos (2 colunas) */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {/* Faturamento */}
+              <button
+                onClick={() => setDrillDown('revenue')}
+                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
+                <p className="text-lg sm:text-3xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
+                  <TrendBadge cur={revenue} prev={prevRevenue} />
+                </div>
+              </button>
 
-            {/* Caixa Real */}
-            <button
-              onClick={() => setDrillDown('cash')}
-              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-            >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido · {periodLabel}</p>
-            </button>
-
-            {/* Contas a Receber */}
-            <div className={cn(
-              'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden',
-              pendingReceivables > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white border-neutral-200',
-            )}>
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Contas a Receber</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}</p>
-              <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                {pendingSalesCount > 0 ? `${pendingSalesCount} venda${pendingSalesCount !== 1 ? 's' : ''} em aberto` : 'Sem pendências'}
-              </p>
+              {/* Caixa Real */}
+              <button
+                onClick={() => setDrillDown('cash')}
+                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
+                <p className="text-lg sm:text-3xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido · {periodLabel}</p>
+              </button>
             </div>
 
-            {/* Lucro Realizado — clicável */}
-            <button
-              onClick={() => setDrillDown('profit')}
-              className={cn(
-                'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:shadow-md transition-all active:scale-[0.98]',
-                netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
-              )}
-            >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Realizado</p>
-              <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
-                {formatCurrency(netProfit)}
-              </p>
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Vendas pagas · {periodLabel}</p>
-                <TrendBadge cur={netProfit} prev={prevProfit} />
-              </div>
-            </button>
-
-            {/* Receita Prevista — Vendas a Prazo (GLOBAL — independe do período) */}
-            <button
-              onClick={() => globalPrazoSales.length > 0 && setDrillDown('prazo')}
-              className={cn(
-                'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
-                globalPrazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
-              )}
-            >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
-              <p className={cn('text-base sm:text-2xl font-black truncate', pendingReceivables > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
-                {pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}
-              </p>
-              {globalPrazoTotal > 0 ? (
-                <div className="space-y-0.5">
-                  <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
-                    Recebido: {formatCurrency(globalPrazoReceived)}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                    {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} ativa{globalPrazoSales.length !== 1 ? 's' : ''}
-                  </p>
+            {/* Linha 2: Lucro + Receita Prevista + Estoque */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {/* Lucro Realizado */}
+              <button
+                onClick={() => setDrillDown('profit')}
+                className={cn(
+                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:shadow-md transition-all active:scale-[0.98]',
+                  netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
+                )}
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Realizado</p>
+                <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                  {formatCurrency(netProfit)}
+                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Vendas pagas · {periodLabel}</p>
+                  <TrendBadge cur={netProfit} prev={prevProfit} />
                 </div>
-              ) : (
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Sem vendas a prazo ativas</p>
-              )}
-            </button>
+              </button>
 
-            {/* Estoque — valor no período selecionado */}
-            <button
-              onClick={() => navigate('/estoque')}
-              className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-            >
-              <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
-              <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
-              </div>
-            </button>
+              {/* Receita Prevista */}
+              <button
+                onClick={() => globalPrazoSales.length > 0 && setDrillDown('prazo')}
+                className={cn(
+                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
+                  globalPrazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
+                )}
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
+                <p className={cn('text-base sm:text-2xl font-black truncate', pendingReceivables > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                  {pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}
+                </p>
+                {globalPrazoTotal > 0 ? (
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
+                      Recebido: {formatCurrency(globalPrazoReceived)}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
+                      {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} ativa{globalPrazoSales.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Sem vendas a prazo ativas</p>
+                )}
+              </button>
+
+              {/* Estoque */}
+              <button
+                onClick={() => navigate('/estoque')}
+                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
+                <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
+                </div>
+              </button>
+            </div>
           </div>
             );
           })()}

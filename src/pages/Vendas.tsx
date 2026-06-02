@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
 import { isConnected as gcIsConnected, createCalendarEvent } from '../lib/googleCalendar';
+import { sendWppNotification, buildSaleNotificationText } from '../lib/whatsappNotify';
 import { useProfileStore } from '../stores/profileStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -885,6 +886,17 @@ export const Vendas: React.FC = () => {
           }
         });
       }
+
+      // WhatsApp notification (fire-and-forget)
+      sendWppNotification(buildSaleNotificationText({
+        saleType:        form.sale_type,
+        saleNumber,
+        customerName,
+        productName:     productName || '—',
+        productCondition: form.product_condition || '',
+        totalAmount,
+        paymentMethod:   resolvedPaymentMethod || form.payment_method || '—',
+      }));
 
       // Build WhatsApp post-sale data
       const whatsappPhone = form.whatsapp_number || customerPhone || '';

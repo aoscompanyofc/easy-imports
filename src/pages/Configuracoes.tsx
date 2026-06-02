@@ -17,6 +17,7 @@ import { useProfileStore } from '../stores/profileStore';
 import { SignaturePad } from '../components/ui/SignaturePad';
 import { usePermissionsStore, ALL_PAGES, DEFAULT_VENDEDOR_PAGES, PageKey } from '../stores/permissionsStore';
 import { dataService } from '../lib/dataService';
+import * as wppNotify from '../lib/whatsappNotify';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
@@ -111,6 +112,7 @@ export const Configuracoes: React.FC = () => {
     { id: 'security', icon: Shield, label: 'Segurança' },
     { id: 'database', icon: Database, label: 'Dados & Backup' },
     { id: 'integrations', icon: Link, label: 'Integrações' },
+    { id: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
     ...(isAdmin ? [{ id: 'equipe', icon: Users, label: 'Equipe' }] : []),
   ];
 
@@ -140,6 +142,11 @@ export const Configuracoes: React.FC = () => {
   const [gcClientId, setGcClientId] = useState(getClientId());
   const [gcConnected, setGcConnected] = useState(isConnected());
   const [isConnectingGC, setIsConnectingGC] = useState(false);
+
+  // ─── WhatsApp Notify state ────────────────────────────────────────────
+  const [wppPhone, setWppPhone] = useState(wppNotify.getWppNotifyPhone());
+  const [wppApiKey, setWppApiKey] = useState(wppNotify.getWppNotifyApiKey());
+  const [wppTestSending, setWppTestSending] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -787,6 +794,95 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                     <li>A cada venda ou troca registrada, um evento é criado automaticamente no seu Google Calendar.</li>
                     <li>O evento contém: cliente, produto, IMEI, valor, forma de pagamento e link de assinatura.</li>
                     <li>O token expira em 1h — reconecte quando necessário (ou mantenha a aba aberta).</li>
+                  </ol>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+
+      case 'whatsapp':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 text-2xl">
+                  💬
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-neutral-900">Notificações WhatsApp</h3>
+                  <p className="text-sm text-neutral-500">Receba uma mensagem automática a cada operação finalizada.</p>
+                </div>
+                <span className={[
+                  'px-3 py-1 rounded-full text-xs font-bold flex-shrink-0',
+                  wppPhone && wppApiKey ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500',
+                ].join(' ')}>
+                  {wppPhone && wppApiKey ? '● Ativo' : '○ Inativo'}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Número para receber notificações</label>
+                  <input
+                    type="text"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    placeholder="5531994002349 (somente números, com DDI)"
+                    value={wppPhone}
+                    onChange={(e) => setWppPhone(e.target.value)}
+                  />
+                  <p className="text-xs text-neutral-400 mt-1">Ex: 5531994002349 para +55 31 99400-2349</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">API Key do CallMeBot</label>
+                  <input
+                    type="text"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    placeholder="123456"
+                    value={wppApiKey}
+                    onChange={(e) => setWppApiKey(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      wppNotify.setWppNotifyPhone(wppPhone.replace(/\D/g, ''));
+                      wppNotify.setWppNotifyApiKey(wppApiKey.trim());
+                      toast.success('Configurações de WhatsApp salvas!');
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    loading={wppTestSending}
+                    disabled={!wppPhone || !wppApiKey}
+                    onClick={async () => {
+                      wppNotify.setWppNotifyPhone(wppPhone.replace(/\D/g, ''));
+                      wppNotify.setWppNotifyApiKey(wppApiKey.trim());
+                      setWppTestSending(true);
+                      wppNotify.sendWppNotification(
+                        '✅ Teste — Easy Imports\nNotificações WhatsApp ativas!\nVendas serão reportadas aqui automaticamente.'
+                      );
+                      await new Promise(r => setTimeout(r, 2000));
+                      setWppTestSending(false);
+                      toast.success('Mensagem de teste enviada!');
+                    }}
+                  >
+                    Testar
+                  </Button>
+                </div>
+
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 space-y-2 text-sm text-neutral-700">
+                  <p className="font-bold text-neutral-900">Como ativar — passo a passo</p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-neutral-600">
+                    <li>No WhatsApp do número que vai <strong>receber</strong> as notificações, adicione o contato <strong>+34 644 76 73 74</strong> (CallMeBot).</li>
+                    <li>Envie a mensagem exata: <code className="bg-white border border-neutral-200 px-1.5 py-0.5 rounded font-mono text-xs">I allow callmebot to send me messages</code></li>
+                    <li>O bot responderá com a sua <strong>API Key</strong> — copie e cole no campo acima.</li>
+                    <li>Informe o número no campo acima e clique em <strong>Salvar</strong>.</li>
+                    <li>Clique em <strong>Testar</strong> para confirmar que está funcionando.</li>
                   </ol>
                 </div>
               </div>

@@ -539,7 +539,7 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
 export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const date        = fmtDate(sale.created_at);
   const clientName  = sale.customer_name  || sale.seller_name  || '';
-  const clientCpf   = sale.customer_cpf   || sale.seller_cpf   || '';
+  const clientCpf   = sale.customer_cpf   || '';
   const clientPhone = sale.customer_phone || sale.seller_phone || '';
   const clientCity  = sale.customer_city  || '';
 

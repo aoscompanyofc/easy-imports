@@ -220,14 +220,14 @@ export const dataService = {
     if (!e1) return true;
     if (!isColErr(e1)) throw e1;
 
-    // Se installments_json está na atualização e falhou por coluna ausente, lança erro específico
-    if ('installments_json' in updates && isColErr(e1)) {
+    // Só lança erro de coluna ausente quando installments_json tem valor real (venda a prazo)
+    if (updates.installments_json != null && isColErr(e1)) {
       throw new Error('Coluna installments_json não existe no banco. Execute a migração SQL em Configurações → Banco de Dados para habilitar vendas a prazo.');
     }
 
-    // Nível 2: sem incoming_* e pdf_type
+    // Nível 2: sem incoming_*, pdf_type e outgoing_items_json (colunas opcionais/novas)
     const lvl2 = Object.fromEntries(
-      Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type')
+      Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type' && k !== 'outgoing_items_json')
     );
     const { error: e2 } = await supabase.from('sales').update(lvl2).eq('id', id).eq('user_id', uid);
     if (!e2) return true;

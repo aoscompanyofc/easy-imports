@@ -269,7 +269,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -301,14 +301,35 @@ export const Dashboard: React.FC = () => {
         if (match) instCostMap[match[1]] = (instCostMap[match[1]] || 0) + Number(t.amount || 0);
       }
     }
+    // Revenue map: sale_number → valor líquido recebido (já desconta taxa de cartão)
+    // Para troca: contém só a parte em dinheiro (sem o aparelho entrante)
+    const revenueMap: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.type === 'income' && t.category === 'sale' && t.description?.startsWith('Receita ')) {
+        const match = t.description.match(/^Receita (#[A-Z0-9]+)/);
+        if (match) {
+          revenueMap[match[1]] = (revenueMap[match[1]] || 0) + Number(t.amount || 0);
+        } else {
+          const uuidMatch = t.description.match(/^Receita ([a-f0-9]{8})/);
+          if (uuidMatch) revenueMap[`uuid:${uuidMatch[1]}`] = (revenueMap[`uuid:${uuidMatch[1]}`] || 0) + Number(t.amount || 0);
+        }
+      }
+    }
 
     // Caixa Real: vendas imediatas do período + parcelas de prazo pagas no período (por paid_at)
     let cashReceived = 0;
     for (const s of filtered) {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo') continue;
-      if (t === 'troca') cashReceived += Number(s.total_amount || 0) - Number(s.incoming_purchase_price || 0);
-      else cashReceived += Number(s.total_amount || 0);
+      const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
+      if (revenueMap[revKey] !== undefined) {
+        // Usa valor líquido da transação (já desconta taxa de cartão)
+        // Para troca: revenueMap tem só a parte em dinheiro (sem aparelho entrante) — correto para Caixa Real
+        cashReceived += revenueMap[revKey];
+      } else {
+        const incoming = t === 'troca' ? Number(s.incoming_purchase_price || 0) : 0;
+        cashReceived += Number(s.total_amount || 0) - incoming;
+      }
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -327,7 +348,14 @@ export const Dashboard: React.FC = () => {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      netProfit += Number(s.total_amount || 0) - cost;
+      const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
+      const incoming = Number(s.incoming_purchase_price || 0);
+      // Para troca: revenueMap tem só a parte em dinheiro; soma o aparelho entrante para obter a receita total
+      // Para venda: revenueMap já tem o valor líquido (descontada taxa de cartão)
+      const netRevenue = revenueMap[revKey] !== undefined
+        ? revenueMap[revKey] + incoming
+        : Number(s.total_amount || 0);
+      netProfit += netRevenue - cost;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -381,6 +409,7 @@ export const Dashboard: React.FC = () => {
       prazoReceived,
       costMap,
       instCostMap,
+      revenueMap,
       chartData:      buildChartDataForRange(filtered, start, end),
       channelData:    buildChannelData(filtered),
       topProducts:    buildTopProducts(filtered),
@@ -405,6 +434,7 @@ export const Dashboard: React.FC = () => {
     const pRev = prevSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const prevCostMap: Record<string, number> = {};
     const prevInstCostMap: Record<string, number> = {};
+    const prevRevenueMap: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
         if (t.description?.startsWith('Custo Mercadoria #')) {
@@ -417,6 +447,14 @@ export const Dashboard: React.FC = () => {
           const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
           if (match) prevCostMap[match[1]] = (prevCostMap[match[1]] || 0) + Number(t.amount || 0);
         }
+      } else if (t.type === 'income' && t.category === 'sale' && t.description?.startsWith('Receita ')) {
+        const match = t.description.match(/^Receita (#[A-Z0-9]+)/);
+        if (match) {
+          prevRevenueMap[match[1]] = (prevRevenueMap[match[1]] || 0) + Number(t.amount || 0);
+        } else {
+          const uuidMatch = t.description.match(/^Receita ([a-f0-9]{8})/);
+          if (uuidMatch) prevRevenueMap[`uuid:${uuidMatch[1]}`] = (prevRevenueMap[`uuid:${uuidMatch[1]}`] || 0) + Number(t.amount || 0);
+        }
       }
     }
     let pProfit = 0;
@@ -424,7 +462,12 @@ export const Dashboard: React.FC = () => {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      pProfit += Number(s.total_amount || 0) - cost;
+      const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
+      const incoming = Number(s.incoming_purchase_price || 0);
+      const netRevenue = prevRevenueMap[revKey] !== undefined
+        ? prevRevenueMap[revKey] + incoming
+        : Number(s.total_amount || 0);
+      pProfit += netRevenue - cost;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -1339,7 +1382,12 @@ export const Dashboard: React.FC = () => {
                     else val = Number(sale.total_amount || 0);
                   } else {
                     if (type === 'prazo' || type === 'compra') continue; // prazo added separately below
-                    val = Number(sale.total_amount || 0) - cost;
+                    const revKey = sale.sale_number || `uuid:${sale.id?.slice(0, 8)}`;
+                    const incoming = Number(sale.incoming_purchase_price || 0);
+                    const netRev = revenueMap[revKey] !== undefined
+                      ? revenueMap[revKey] + incoming
+                      : Number(sale.total_amount || 0);
+                    val = netRev - cost;
                   }
                   rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr });
                 }

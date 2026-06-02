@@ -201,10 +201,32 @@ export const Dashboard: React.FC = () => {
   const [metaInput, setMetaInput] = useState('');
   // Drill-down modal: null = closed, or one of the card keys
   const [drillDown, setDrillDown] = useState<'revenue' | 'cash' | 'profit' | 'stock' | 'prazo' | null>(null);
+  // Edição inline de lucro: saleId → input value
+  const [editingProfitId, setEditingProfitId] = useState<string | null>(null);
+  const [editingProfitVal, setEditingProfitVal] = useState('');
 
   const clearMeta = () => {
     setMeta(0);
     localStorage.removeItem(META_KEY);
+  };
+
+  const handleSaveProfitEdit = async (sale: any, currentProfit: number) => {
+    const desiredProfit = Number(String(editingProfitVal).replace(',', '.'));
+    if (isNaN(desiredProfit)) { setEditingProfitId(null); return; }
+    const diff = currentProfit - desiredProfit; // positivo = reduz lucro (aumenta custo), negativo = aumenta lucro
+    if (Math.abs(diff) < 0.01) { setEditingProfitId(null); return; }
+    const saleNum = sale.sale_number || '';
+    const txDate = sale.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+    // Cria transação de ajuste com category='adjustment' para não interferir nos outros cálculos
+    await dataService.addTransaction({
+      description: `Ajuste Lucro ${saleNum} — ${sale.customer_name || sale.product_name || ''}`,
+      amount: Math.abs(diff),
+      type: diff > 0 ? 'expense' : 'income',
+      category: 'adjustment',
+      date: txDate,
+    });
+    setEditingProfitId(null);
+    fetchDashboardData();
   };
 
   const isLastDayOfMonth = (() => {
@@ -269,7 +291,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -299,6 +321,17 @@ export const Dashboard: React.FC = () => {
       if (t.type === 'expense' && t.category === 'stock' && t.description?.startsWith('Custo Parcela ')) {
         const match = t.description.match(/^Custo Parcela (#[A-Z0-9]+)/);
         if (match) instCostMap[match[1]] = (instCostMap[match[1]] || 0) + Number(t.amount || 0);
+      }
+    }
+    // Profit adjustment map: ajustes manuais de lucro por venda
+    const profitAdjMap: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.category === 'adjustment' && t.description?.startsWith('Ajuste Lucro ')) {
+        const match = t.description.match(/^Ajuste Lucro (#[A-Z0-9]+)/);
+        if (match) {
+          const adj = t.type === 'expense' ? Number(t.amount || 0) : -Number(t.amount || 0);
+          profitAdjMap[match[1]] = (profitAdjMap[match[1]] || 0) + adj;
+        }
       }
     }
     // Revenue map: sale_number → valor líquido recebido (já desconta taxa de cartão)
@@ -355,7 +388,8 @@ export const Dashboard: React.FC = () => {
       const netRevenue = revenueMap[revKey] !== undefined
         ? revenueMap[revKey] + incoming
         : Number(s.total_amount || 0);
-      netProfit += netRevenue - cost;
+      const adj = s.sale_number ? (profitAdjMap[s.sale_number] || 0) : 0;
+      netProfit += netRevenue - cost - adj;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -410,6 +444,7 @@ export const Dashboard: React.FC = () => {
       costMap,
       instCostMap,
       revenueMap,
+      profitAdjMap,
       chartData:      buildChartDataForRange(filtered, start, end),
       channelData:    buildChannelData(filtered),
       topProducts:    buildTopProducts(filtered),
@@ -1367,7 +1402,7 @@ export const Dashboard: React.FC = () => {
                 const [start, end] = getDateRange(period, customFrom, customTo);
 
                 // Build combined list: non-prazo sales in period + prazo installments paid in period
-                type DrillRow = { key: string; saleNum: string; customer: string; product: string; displayValue: number; dateStr: string; subLabel?: string };
+                type DrillRow = { key: string; saleNum: string; customer: string; product: string; displayValue: number; dateStr: string; subLabel?: string; saleObj?: any };
                 const rows: DrillRow[] = [];
 
                 for (const sale of filteredSales) {
@@ -1387,9 +1422,10 @@ export const Dashboard: React.FC = () => {
                     const netRev = revenueMap[revKey] !== undefined
                       ? revenueMap[revKey] + incoming
                       : Number(sale.total_amount || 0);
-                    val = netRev - cost;
+                    const adj = sale.sale_number ? (profitAdjMap[sale.sale_number] || 0) : 0;
+                    val = netRev - cost - adj;
                   }
-                  rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr });
+                  rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr, saleObj: drillDown === 'profit' ? sale : null });
                 }
 
                 // For profit drill-down: add prazo installments paid in period from ALL sales
@@ -1435,6 +1471,7 @@ export const Dashboard: React.FC = () => {
                 return rows.map((row) => {
                   const isNeg = drillDown === 'profit' && row.displayValue < 0;
                   const isPos = drillDown === 'profit' && row.displayValue > 0;
+                  const isEditingThis = editingProfitId === row.key;
                   return (
                     <div key={row.key} className="grid grid-cols-12 gap-2 px-5 py-3 hover:bg-neutral-50 transition-colors items-center">
                       <span className="col-span-1 text-[10px] font-mono font-bold text-neutral-400 truncate">{row.saleNum}</span>
@@ -1443,10 +1480,39 @@ export const Dashboard: React.FC = () => {
                         {row.product}
                         {row.subLabel && <span className="ml-1 text-[10px] font-bold text-blue-400">{row.subLabel}</span>}
                       </span>
-                      <span className={cn('col-span-2 text-xs font-black text-right', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : 'text-neutral-900')}>
-                        {(isPos ? '+' : '') + formatCurrency(row.displayValue)}
+                      <span className="col-span-3 flex items-center justify-end gap-1">
+                        {isEditingThis ? (
+                          <>
+                            <input
+                              autoFocus
+                              className="w-24 text-xs font-black text-right border border-primary rounded px-1 py-0.5 outline-none"
+                              value={editingProfitVal}
+                              onChange={e => setEditingProfitVal(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveProfitEdit(row.saleObj, row.displayValue);
+                                if (e.key === 'Escape') setEditingProfitId(null);
+                              }}
+                              onBlur={() => handleSaveProfitEdit(row.saleObj, row.displayValue)}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <span className={cn('text-xs font-black', isPos ? 'text-green-600' : isNeg ? 'text-red-500' : 'text-neutral-900')}>
+                              {(isPos ? '+' : '') + formatCurrency(row.displayValue)}
+                            </span>
+                            {drillDown === 'profit' && row.saleObj && (
+                              <button
+                                className="text-neutral-300 hover:text-primary transition-colors ml-0.5"
+                                title="Editar lucro"
+                                onClick={() => { setEditingProfitId(row.key); setEditingProfitVal(String(row.displayValue.toFixed(2))); }}
+                              >
+                                <Pencil size={11} />
+                              </button>
+                            )}
+                          </>
+                        )}
                       </span>
-                      <span className="col-span-2 text-[10px] text-neutral-400 text-right">{row.dateStr}</span>
+                      <span className="col-span-1 text-[10px] text-neutral-400 text-right">{row.dateStr}</span>
                     </div>
                   );
                 });

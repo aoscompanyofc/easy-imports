@@ -19,10 +19,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const SOURCES = [
-  'Instagram', 'WhatsApp Easy Imports', 'WhatsApp João',
-  'Indicação', 'Facebook', 'TikTok', 'Google', 'Loja Física', 'Outro',
-];
+import { CUSTOMER_SOURCES as SOURCES } from '../lib/constants';
 
 const INACTIVE_MONTHS = 3;
 

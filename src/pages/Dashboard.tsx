@@ -10,7 +10,7 @@ import {
   Plus, ShoppingCart, Package, DollarSign, UserPlus,
   Calendar, TrendingUp, TrendingDown, ArrowRight, ChevronDown, ChevronUp,
   Target, Pencil, Check, RefreshCw, CheckCircle2, XCircle, Trash2,
-  AlertCircle, Clock, X,
+  AlertCircle, Clock, X, MessageCircle,
 } from 'lucide-react';
 
 const META_KEY       = 'easy-imports-meta-mensal';
@@ -118,6 +118,25 @@ function buildTopProducts(sales: any[]) {
     .map(([name, salesCount], i) => ({ id: String(i), name, salesCount }))
     .sort((a, b) => b.salesCount - a.salesCount)
     .slice(0, 5);
+}
+
+const SOURCE_COLORS = ['#FFC107', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F59E0B', '#06B6D4', '#EC4899', '#84CC16'];
+function buildSourceData(sales: any[]) {
+  const counts: Record<string, number> = {};
+  for (const s of sales) {
+    const src = s.customers?.source || null;
+    if (src) counts[src] = (counts[src] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([name, value], i) => ({ name, value, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function buildWhatsAppLink(phone: string, customerName: string, productName: string, saleNumber: string) {
+  const clean = phone.replace(/\D/g, '');
+  const num = clean.startsWith('55') ? clean : `55${clean}`;
+  const msg = `Olá ${customerName}! 😊 Tudo certo com sua compra${productName ? ` do *${productName}*` : ''}${saleNumber ? ` (${saleNumber})` : ''}?\n\nEstamos à disposição para qualquer dúvida! Se precisar de assistência, é só chamar. 🛍️\n\n— *Easy Imports*`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 
 const CHANNEL_COLORS = ['#FFC107', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F59E0B'];
@@ -291,7 +310,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -449,6 +468,7 @@ export const Dashboard: React.FC = () => {
       channelData:    buildChannelData(filtered),
       topProducts:    buildTopProducts(filtered),
       saleTypeData:   buildSaleTypeData(filtered),
+      sourceData:     buildSourceData(filtered),
     };
   }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
 
@@ -1058,6 +1078,36 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </Card>
               )}
+
+              {/* Origem dos Clientes */}
+              {sourceData.length > 0 && (
+                <Card>
+                  <p className="text-sm font-black text-neutral-700 mb-3">Origem dos Clientes</p>
+                  <div className="space-y-2.5">
+                    {sourceData.map(d => {
+                      const total = sourceData.reduce((a, b) => a + b.value, 0);
+                      const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+                      return (
+                        <div key={d.name} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                              <span className="font-semibold text-neutral-700">{d.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-neutral-900">{pct}%</span>
+                              <span className="text-neutral-400">({d.value})</span>
+                            </div>
+                          </div>
+                          <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: d.color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -1106,6 +1156,7 @@ export const Dashboard: React.FC = () => {
                         : '—';
                       const payMethod = sale.payment_method || '';
                       const payColor  = PAYMENT_COLORS[payMethod] || 'bg-neutral-100 text-neutral-600';
+                      const phone = sale.customer_phone || sale.customers?.phone || '';
 
                       return (
                         <div
@@ -1123,6 +1174,18 @@ export const Dashboard: React.FC = () => {
                             <span className={cn('hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full', payColor)}>
                               {getPaymentLabel(payMethod)}
                             </span>
+                          )}
+                          {phone && (
+                            <a
+                              href={buildWhatsAppLink(phone, customerName, productName, sale.sale_number || '')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Enviar mensagem para ${customerName}`}
+                              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <MessageCircle size={15} />
+                            </a>
                           )}
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-bold text-neutral-900">{formatCurrency(value)}</p>

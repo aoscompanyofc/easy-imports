@@ -112,7 +112,7 @@ export const dataService = {
   async getSales() {
     if (useMock) return mockDataService.getSales();
     const { data, error } = await supabase
-      .from('sales').select('*, customers(name, city, phone)').order('created_at', { ascending: false });
+      .from('sales').select('*, customers(name, city, phone, source)').order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },

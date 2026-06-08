@@ -53,10 +53,7 @@ function tagColor(tag: string) {
   return TAG_PALETTE[Math.abs(h)];
 }
 
-const SOURCES = [
-  'Instagram', 'WhatsApp Easy Imports', 'WhatsApp João',
-  'Indicação', 'Facebook', 'TikTok', 'Google', 'Loja Física', 'Outro',
-];
+import { CUSTOMER_SOURCES as SOURCES } from '../lib/constants';
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
 const STAGES = [

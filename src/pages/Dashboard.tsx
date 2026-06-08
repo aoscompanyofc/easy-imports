@@ -146,10 +146,22 @@ function buildWhatsAppLink(phone: string, customerName: string, productName: str
 }
 
 const CHANNEL_COLORS = ['#FFC107', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F59E0B'];
+
+function normalizePaymentMethod(raw: string): string {
+  const r = (raw || '').toLowerCase().trim();
+  if (r.startsWith('pix'))           return 'PIX';
+  if (r.startsWith('crédito') || r.startsWith('credito') || r.includes('credit')) return 'Cartão de Crédito';
+  if (r.startsWith('débito')  || r.startsWith('debito')  || r.includes('debit'))  return 'Cartão de Débito';
+  if (r.startsWith('dinheiro') || r === 'cash')     return 'Dinheiro';
+  if (r.startsWith('transfer') || r === 'transferência') return 'Transferência';
+  if (r === 'boleto')               return 'Boleto';
+  return raw || 'Outro';
+}
+
 function buildChannelData(sales: any[]) {
   const counts: Record<string, number> = {};
   for (const s of sales) {
-    const method = s.payment_method || 'Outros';
+    const method = normalizePaymentMethod(s.payment_method || 'Outro');
     counts[method] = (counts[method] || 0) + 1;
   }
   return Object.entries(counts)
@@ -1032,7 +1044,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* ── Charts row ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
             <div className="lg:col-span-2">
               <RevenueChart
                 data={chartData}

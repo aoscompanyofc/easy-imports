@@ -16,22 +16,22 @@ export const ChannelChart: React.FC<ChannelChartProps> = ({ data }) => {
   const total = data.reduce((acc, curr) => acc + curr.value, 0);
 
   return (
-    <Card className="h-full">
+    <Card>
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-neutral-900">Vendas por canal</h3>
-        <p className="text-sm text-neutral-500">Distribuição das vendas do período</p>
+        <h3 className="text-base font-bold text-neutral-900">Vendas por canal</h3>
+        <p className="text-xs text-neutral-500">Distribuição das vendas do período</p>
       </div>
 
-      <div className="h-[200px] sm:h-[260px]">
+      <div className="h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={50}
-              outerRadius={72}
-              paddingAngle={5}
+              innerRadius={48}
+              outerRadius={68}
+              paddingAngle={4}
               dataKey="value"
             >
               {data.map((entry, index) => (
@@ -40,24 +40,22 @@ export const ChannelChart: React.FC<ChannelChartProps> = ({ data }) => {
             </Pie>
             <Tooltip
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              formatter={(value: number) => [`${value} vendas (${((value / total) * 100).toFixed(1)}%)`, 'Canal']}
+              formatter={(value: number) => [`${value} venda${value !== 1 ? 's' : ''} (${((value / total) * 100).toFixed(1)}%)`, '']}
             />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-4">
+      <div className="space-y-1.5 mt-3">
         {data.map((item) => (
-          <div key={item.name} className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-neutral-700 truncate max-w-[100px]">
-                {item.name}
-              </span>
-              <span className="text-[10px] text-neutral-400">
-                {item.value} vendas ({((item.value / total) * 100).toFixed(1)}%)
-              </span>
+          <div key={item.name} className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+              <span className="text-xs font-semibold text-neutral-700 truncate">{item.name}</span>
             </div>
+            <span className="text-xs text-neutral-400 flex-shrink-0">
+              {item.value} ({((item.value / total) * 100).toFixed(0)}%)
+            </span>
           </div>
         ))}
       </div>

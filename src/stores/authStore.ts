@@ -44,7 +44,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   login: async (email, password) => {
     if (isSupabaseConfigured()) {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      type SignInResult = Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+      const timeoutPromise = new Promise<SignInResult>((_, reject) =>
+        setTimeout(() => reject(new Error('Tempo limite de conexão. Verifique sua internet e tente novamente.')), 10000)
+      );
+
+      const { data: signInData, error: signInError } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeoutPromise,
+      ]);
 
       if (!signInError && signInData.user) {
         const user = makeUser(signInData.user);

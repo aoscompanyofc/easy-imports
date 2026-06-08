@@ -626,6 +626,7 @@ export const Dashboard: React.FC = () => {
   }, [allSales]);
 
   const [showFutureDetail, setShowFutureDetail] = useState(false);
+  const [channelView, setChannelView] = useState<'pie' | 'bar'>('pie');
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
@@ -1043,9 +1044,10 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
 
-          {/* ── Charts row ── */}
+          {/* ── Main content: charts + vendas unificados ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-            <div className="lg:col-span-2">
+            {/* Esquerda 2/3: gráfico de receita + lista de vendas */}
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               <RevenueChart
                 data={chartData}
                 title={`Faturamento — ${periodLabel}`}
@@ -1055,12 +1057,111 @@ export const Dashboard: React.FC = () => {
                     : `${chartData.length} dia${chartData.length !== 1 ? 's' : ''} no período`
                 }
               />
+
+              {/* Vendas do Período */}
+              <Card className="flex flex-col">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-lg font-bold text-neutral-900">Vendas do Período</h3>
+                    <p className="text-sm text-neutral-400">
+                      {filteredSales.length === 0
+                        ? 'Nenhuma venda neste período'
+                        : `${filteredSales.length} venda${filteredSales.length !== 1 ? 's' : ''} — ${periodLabel}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/vendas')}
+                    className="flex items-center gap-1 text-sm font-bold text-primary hover:underline"
+                  >
+                    Ver todas <ArrowRight size={14} />
+                  </button>
+                </div>
+
+                {filteredSales.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-3 text-center">
+                    <div className="w-14 h-14 bg-neutral-100 rounded-2xl flex items-center justify-center">
+                      <ShoppingCart size={24} className="text-neutral-300" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-neutral-600 text-sm">Sem vendas no período selecionado</p>
+                      <p className="text-xs text-neutral-400 mt-0.5">Escolha outro período ou registre uma venda.</p>
+                    </div>
+                    <Button size="sm" onClick={() => navigate('/vendas')} leftIcon={<Plus size={14} />}>
+                      Registrar Venda
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredSales.slice(0, 8).map((sale) => {
+                      const customerName = sale.customer_name || sale.customers?.name || 'Cliente';
+                      const productName  = sale.product_name || 'Produto';
+                      const value        = Number(sale.total_amount || 0);
+                      const dateStr      = sale.created_at
+                        ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        : '—';
+                      const payMethod = sale.payment_method || '';
+                      const payColor  = PAYMENT_COLORS[payMethod] || 'bg-neutral-100 text-neutral-600';
+                      const phone = sale.customer_phone || sale.customers?.phone || '';
+
+                      return (
+                        <div
+                          key={sale.id}
+                          className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl hover:bg-neutral-50 transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary-900 flex-shrink-0">
+                            {getInitials(customerName)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-neutral-900 truncate">{customerName}</p>
+                            <p className="text-xs text-neutral-400 truncate">{productName}</p>
+                          </div>
+                          {payMethod && (
+                            <span className={cn('hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full', payColor)}>
+                              {getPaymentLabel(payMethod)}
+                            </span>
+                          )}
+                          {phone && (
+                            <a
+                              href={buildWhatsAppLink(phone, customerName, productName, sale.sale_number || '')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Enviar mensagem para ${customerName}`}
+                              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <MessageCircle size={15} />
+                            </a>
+                          )}
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-neutral-900">{formatCurrency(value)}</p>
+                            <p className="text-[10px] text-neutral-400">{dateStr}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredSales.length > 8 && (
+                      <button
+                        onClick={() => navigate('/vendas')}
+                        className="w-full text-center py-2.5 text-xs font-bold text-primary hover:underline"
+                      >
+                        + {filteredSales.length - 8} venda{filteredSales.length - 8 !== 1 ? 's' : ''} — Ver todas
+                      </button>
+                    )}
+                  </div>
+                )}
+              </Card>
             </div>
+
+            {/* Direita 1/3: sidebar com gráficos + alertas */}
             <div className="space-y-4">
               {channelData.length > 0 ? (
-                <ChannelChart data={channelData} />
+                <ChannelChart
+                  data={channelData}
+                  view={channelView}
+                  onToggleView={() => setChannelView(v => v === 'pie' ? 'bar' : 'pie')}
+                />
               ) : (
-                <Card className="flex flex-col justify-center items-center p-8 text-center space-y-4 h-full min-h-[200px]">
+                <Card className="flex flex-col justify-center items-center p-8 text-center space-y-4 min-h-[180px]">
                   <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center">
                     <ShoppingCart size={22} className="text-neutral-300" />
                   </div>
@@ -1070,6 +1171,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </Card>
               )}
+
               {/* Receita por tipo (venda vs troca) */}
               {saleTypeData.length > 0 && (
                 <Card>
@@ -1135,106 +1237,8 @@ export const Dashboard: React.FC = () => {
                   </div>
                 )}
               </Card>
-            </div>
-          </div>
 
-          {/* ── Recent Sales ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Card className="h-full flex flex-col">
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h3 className="text-lg font-bold text-neutral-900">Vendas do Período</h3>
-                    <p className="text-sm text-neutral-400">
-                      {filteredSales.length === 0
-                        ? 'Nenhuma venda neste período'
-                        : `${filteredSales.length} venda${filteredSales.length !== 1 ? 's' : ''} — ${periodLabel}`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => navigate('/vendas')}
-                    className="flex items-center gap-1 text-sm font-bold text-primary hover:underline"
-                  >
-                    Ver todas <ArrowRight size={14} />
-                  </button>
-                </div>
-
-                {filteredSales.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center py-12 space-y-3 text-center">
-                    <div className="w-14 h-14 bg-neutral-100 rounded-2xl flex items-center justify-center">
-                      <ShoppingCart size={24} className="text-neutral-300" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-neutral-600 text-sm">Sem vendas no período selecionado</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">Escolha outro período ou registre uma venda.</p>
-                    </div>
-                    <Button size="sm" onClick={() => navigate('/vendas')} leftIcon={<Plus size={14} />}>
-                      Registrar Venda
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {filteredSales.slice(0, 6).map((sale) => {
-                      const customerName = sale.customer_name || sale.customers?.name || 'Cliente';
-                      const productName  = sale.product_name || 'Produto';
-                      const value        = Number(sale.total_amount || 0);
-                      const dateStr      = sale.created_at
-                        ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                        : '—';
-                      const payMethod = sale.payment_method || '';
-                      const payColor  = PAYMENT_COLORS[payMethod] || 'bg-neutral-100 text-neutral-600';
-                      const phone = sale.customer_phone || sale.customers?.phone || '';
-
-                      return (
-                        <div
-                          key={sale.id}
-                          className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl hover:bg-neutral-50 transition-colors"
-                        >
-                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary-900 flex-shrink-0">
-                            {getInitials(customerName)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-neutral-900 truncate">{customerName}</p>
-                            <p className="text-xs text-neutral-400 truncate">{productName}</p>
-                          </div>
-                          {payMethod && (
-                            <span className={cn('hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full', payColor)}>
-                              {getPaymentLabel(payMethod)}
-                            </span>
-                          )}
-                          {phone && (
-                            <a
-                              href={buildWhatsAppLink(phone, customerName, productName, sale.sale_number || '')}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`Enviar mensagem para ${customerName}`}
-                              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <MessageCircle size={15} />
-                            </a>
-                          )}
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-bold text-neutral-900">{formatCurrency(value)}</p>
-                            <p className="text-[10px] text-neutral-400">{dateStr}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {filteredSales.length > 6 && (
-                      <button
-                        onClick={() => navigate('/vendas')}
-                        className="w-full text-center py-2.5 text-xs font-bold text-primary hover:underline"
-                      >
-                        + {filteredSales.length - 6} venda{filteredSales.length - 6 !== 1 ? 's' : ''} — Ver todas
-                      </button>
-                    )}
-                  </div>
-                )}
-              </Card>
-            </div>
-
-            <div>
+              {/* Alertas de estoque */}
               <AlertsList />
             </div>
           </div>

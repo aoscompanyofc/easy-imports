@@ -111,13 +111,21 @@ export const useAuthStore = create<AuthStore>((set) => ({
       return;
     }
 
+    // Timeout de 6s: se Supabase não responder, desbloqueia o app usando o estado do localStorage
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const user = makeUser(session.user);
+      const result = await Promise.race([
+        supabase.auth.getSession().then(r => r.data.session),
+        timeout,
+      ]);
+      if (result?.user) {
+        const user = makeUser(result.user);
         set({ isAuthenticated: true, user });
         setStorage(STORAGE_KEY, { isAuthenticated: true, user });
         afterLogin(user);
+      } else if (result === null) {
+        // Timeout — usa estado salvo no localStorage (não altera isAuthenticated)
       } else {
         set({ isAuthenticated: false, user: null });
         removeStorage(STORAGE_KEY);

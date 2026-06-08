@@ -16,5 +16,6 @@ const isConfigured = supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && isVal
 
 export const supabase = createClient(
   isConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  supabaseAnonKey && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' ? supabaseAnonKey : 'placeholder'
+  supabaseAnonKey && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' ? supabaseAnonKey : 'placeholder',
+  { auth: { storageKey: 'easy-imports-auth-v1' } }
 );

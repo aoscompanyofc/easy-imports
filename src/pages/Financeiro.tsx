@@ -157,7 +157,7 @@ export const Financeiro: React.FC = () => {
     const key = `${sale.id}-${instIndex}`;
     try {
       setEffectingKey(key);
-      const insts: any[] = JSON.parse(sale.installments_json || '[]');
+      const insts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
       const paid_at = new Date().toISOString().slice(0, 10);
       const updated = insts.map((inst: any, i: number) =>
         i === instIndex ? { ...inst, paid_at } : inst

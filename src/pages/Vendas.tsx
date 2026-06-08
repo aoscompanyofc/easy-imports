@@ -527,7 +527,7 @@ export const Vendas: React.FC = () => {
           const origSale = sales.find((s: any) => s.id === editSaleId);
           const prevInsts: any[] = (() => { try { return JSON.parse(origSale?.installments_json || '[]'); } catch { return []; } })();
           if (prevInsts.length > 0) {
-            const newInsts = JSON.parse(installmentsJson) as any[];
+            const newInsts: any[] = (() => { try { return JSON.parse(installmentsJson || '[]'); } catch { return []; } })();
             // Match by is_entrada flag and n value to preserve paid_at correctly
             editInstJson = JSON.stringify(newInsts.map((inst) => {
               const prev = inst.is_entrada
@@ -1109,7 +1109,7 @@ export const Vendas: React.FC = () => {
     const key = `${sale.id}-${instIndex}`;
     try {
       setMarkingPaid(key);
-      const installments: any[] = JSON.parse(sale.installments_json || '[]');
+      const installments: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
       const paid_at = new Date().toISOString().slice(0, 10);
       const updated = installments.map((inst, i) =>
         i === instIndex ? { ...inst, paid_at } : inst

@@ -17,6 +17,7 @@ const META_KEY       = 'easy-imports-meta-mensal';
 const META_MONTH_KEY = 'easy-imports-meta-month';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
@@ -27,7 +28,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // ─── Period types ─────────────────────────────────────────────────────────────
-type Period = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
+type Period = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'all' | 'custom';
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'today',      label: 'Hoje'          },
@@ -36,6 +37,7 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: 'last_week',  label: 'Sem. Passada'  },
   { id: 'this_month', label: 'Este Mês'      },
   { id: 'last_month', label: 'Mês Anterior'  },
+  { id: 'all',        label: 'Tudo'          },
   { id: 'custom',     label: 'Personalizado' },
 ];
 
@@ -76,6 +78,9 @@ function getDateRange(period: Period, from: string, to: string): [Date, Date] {
     return [start, end];
   }
 
+  if (period === 'all')
+    return [new Date(0), new Date(today.getTime() + ms * 3650)];
+
   // custom
   const start = from ? new Date(from + 'T00:00:00') : new Date(0);
   const end   = to   ? new Date(to   + 'T23:59:59') : new Date(today.getTime() + ms);
@@ -83,6 +88,7 @@ function getDateRange(period: Period, from: string, to: string): [Date, Date] {
 }
 
 function getPeriodLabel(period: Period, from: string, to: string): string {
+  if (period === 'all')   return 'Todas as operações';
   if (period === 'custom') {
     if (from && to) return `${from.split('-').reverse().join('/')} → ${to.split('-').reverse().join('/')}`;
     if (from)       return `A partir de ${from.split('-').reverse().join('/')}`;
@@ -192,7 +198,7 @@ export const Dashboard: React.FC = () => {
 
   // Period filter state
   const today = new Date().toISOString().split('T')[0];
-  const [period, setPeriod]       = useState<Period>('today');
+  const [period, setPeriod]       = useState<Period>('this_month');
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo]     = useState(today);
   const [showCustom, setShowCustom] = useState(false);
@@ -300,8 +306,9 @@ export const Dashboard: React.FC = () => {
         .reduce((acc: number, p: any) =>
           acc + Number(p.purchase_price || 0), 0);
       setStockValue(sv);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Dashboard error:', error);
+      toast.error('Erro ao carregar dados: ' + (error?.message || 'Tente recarregar a página'));
     } finally {
       setIsLoading(false);
     }
@@ -1080,9 +1087,9 @@ export const Dashboard: React.FC = () => {
               )}
 
               {/* Origem dos Clientes */}
-              {sourceData.length > 0 && (
-                <Card>
-                  <p className="text-sm font-black text-neutral-700 mb-3">Origem dos Clientes</p>
+              <Card>
+                <p className="text-sm font-black text-neutral-700 mb-3">Origem dos Clientes</p>
+                {sourceData.length > 0 ? (
                   <div className="space-y-2.5">
                     {sourceData.map(d => {
                       const total = sourceData.reduce((a, b) => a + b.value, 0);
@@ -1106,8 +1113,16 @@ export const Dashboard: React.FC = () => {
                       );
                     })}
                   </div>
-                </Card>
-              )}
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4 text-center gap-2">
+                    <p className="text-xs text-neutral-500 font-semibold">Nenhuma origem cadastrada</p>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">Ao cadastrar clientes, selecione a origem<br/>(Instagram, OLX, Indicação…) para ver o gráfico.</p>
+                    <button onClick={() => navigate('/clientes')} className="mt-1 text-[11px] font-bold text-primary hover:underline">
+                      Ir para Clientes →
+                    </button>
+                  </div>
+                )}
+              </Card>
             </div>
           </div>
 

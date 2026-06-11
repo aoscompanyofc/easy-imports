@@ -628,29 +628,23 @@ export const Dashboard: React.FC = () => {
   const [showFutureDetail, setShowFutureDetail] = useState(false);
   const [channelView, setChannelView] = useState<'pie' | 'bar'>('pie');
 
-  // Tendência do estoque: compara valor atual com final de ontem
-  const prevDayStockValue = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    // Reconstrói costMap
-    const cm: Record<string, number> = {};
-    for (const t of allTransactions) {
-      if (t.type === 'expense' && t.category === 'stock') {
-        if (t.description?.startsWith('Custo Mercadoria #')) {
-          const prefix = t.description.replace('Custo Mercadoria #', '').trim();
-          cm[`uuid:${prefix}`] = (cm[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
-        } else if (t.description?.startsWith('Custo ') && !t.description?.startsWith('Custo Parcela ')) {
-          const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
-          if (match) cm[match[1]] = (cm[match[1]] || 0) + Number(t.amount || 0);
-        }
-      }
-    }
-    // Vendas feitas hoje reduzem o estoque — ontem o estoque era atual + custo dessas vendas
-    const soldToday = allSales.filter(s => s.created_at && new Date(s.created_at) >= todayStart);
-    const costSoldToday = soldToday.reduce((acc, s) =>
-      acc + (cm[s.sale_number] ?? cm[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
-    return stockValue + costSoldToday;
-  }, [allSales, allTransactions, stockValue]);
+  // Tendência do estoque: persiste valor por dia no localStorage e compara com ontem
+  const [prevDayStockValue, setPrevDayStockValue] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isLoading || stockValue === 0) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterdayStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    let history: Record<string, number> = {};
+    try { history = JSON.parse(localStorage.getItem('ei-stock-history') || '{}'); } catch {}
+    if (history[yesterdayStr] != null) setPrevDayStockValue(history[yesterdayStr]);
+    // Salva valor de hoje e mantém só os últimos 7 dias
+    history[todayStr] = stockValue;
+    const keys = Object.keys(history).sort().slice(-7);
+    const trimmed: Record<string, number> = {};
+    keys.forEach(k => { trimmed[k] = history[k]; });
+    try { localStorage.setItem('ei-stock-history', JSON.stringify(trimmed)); } catch {}
+  }, [stockValue, isLoading]);
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {

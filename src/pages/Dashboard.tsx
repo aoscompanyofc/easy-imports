@@ -329,7 +329,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, stockMovements, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -469,6 +469,21 @@ export const Dashboard: React.FC = () => {
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
     const prevStockSnapshot = period !== 'custom' ? stockValue + costSoldAfterStart : null;
 
+    // Movimentação do estoque no período (saídas = vendas)
+    const movByProduct: Record<string, { name: string; count: number; cost: number; revenue: number; lastDate: string }> = {};
+    for (const s of filtered) {
+      const name = s.product_name || 'Produto';
+      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      const rev  = Number(s.total_amount || 0);
+      const date = s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
+      if (!movByProduct[name]) movByProduct[name] = { name, count: 0, cost: 0, revenue: 0, lastDate: date };
+      movByProduct[name].count++;
+      movByProduct[name].cost    += cost;
+      movByProduct[name].revenue += rev;
+      movByProduct[name].lastDate = date;
+    }
+    const stockMovements = Object.values(movByProduct).sort((a, b) => b.count - a.count);
+
     const prazoSales = filtered.filter(s => (s.sale_type || '') === 'prazo');
     const prazoTotal = prazoSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const prazoReceived = prazoSales.reduce((acc, s) => {
@@ -490,12 +505,13 @@ export const Dashboard: React.FC = () => {
       instCostMap,
       revenueMap,
       profitAdjMap,
-      chartData:        buildChartDataForRange(filtered, start, end),
-      channelData:      buildChannelData(filtered),
-      topProducts:      buildTopProducts(filtered),
-      saleTypeData:     buildSaleTypeData(filtered),
-      sourceData:       buildSourceData(filtered),
+      chartData:         buildChartDataForRange(filtered, start, end),
+      channelData:       buildChannelData(filtered),
+      topProducts:       buildTopProducts(filtered),
+      saleTypeData:      buildSaleTypeData(filtered),
+      sourceData:        buildSourceData(filtered),
       prevStockAtPeriod: prevStockSnapshot,
+      stockMovements,
     };
   }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
 
@@ -855,7 +871,7 @@ export const Dashboard: React.FC = () => {
 
               {/* Estoque */}
               <button
-                onClick={() => navigate('/estoque')}
+                onClick={() => setDrillDown('stock')}
                 className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
               >
                 <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
@@ -864,6 +880,19 @@ export const Dashboard: React.FC = () => {
                   <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
                   <TrendBadge cur={stockAtPeriod} prev={prevStockAtPeriod} />
                 </div>
+                {stockMovements.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 w-full">
+                    {stockMovements.slice(0, 2).map(m => (
+                      <div key={m.name} className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-500 truncate">{m.count}× {m.name}</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-red-400 flex-shrink-0">-{formatCurrency(m.cost > 0 ? m.cost : m.revenue)}</span>
+                      </div>
+                    ))}
+                    {stockMovements.length > 2 && (
+                      <p className="text-[9px] text-neutral-400">+{stockMovements.length - 2} produto{stockMovements.length - 2 !== 1 ? 's' : ''}…</p>
+                    )}
+                  </div>
+                )}
               </button>
             </div>
           </div>
@@ -1458,7 +1487,7 @@ export const Dashboard: React.FC = () => {
       })()}
 
       {/* ── Drill-down Modal ── */}
-      {drillDown && drillDown !== 'prazo' && (
+      {drillDown && drillDown !== 'prazo' && drillDown !== 'stock' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
           <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
@@ -1627,6 +1656,100 @@ export const Dashboard: React.FC = () => {
               >
                 Ver em Vendas <ArrowRight size={12} />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Modal: Movimentação do Estoque ── */}
+      {drillDown === 'stock' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
+          <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+              <div>
+                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Saídas do Estoque</p>
+                <p className="text-base font-black text-neutral-900 mt-0.5">{periodLabel}</p>
+                <div className="flex gap-3 mt-0.5">
+                  <span className="text-xs text-neutral-500">{filteredSales.length} venda{filteredSales.length !== 1 ? 's' : ''}</span>
+                  {stockMovements.reduce((a, m) => a + m.cost, 0) > 0 && (
+                    <span className="text-xs text-red-500 font-bold">
+                      Custo total saído: {formatCurrency(stockMovements.reduce((a, m) => a + m.cost, 0))}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setDrillDown(null)} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Column headers */}
+            <div className="grid grid-cols-12 gap-2 px-5 py-2 bg-neutral-50 border-b border-neutral-100 text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+              <span className="col-span-5">Produto</span>
+              <span className="col-span-1 text-center">Qtd</span>
+              <span className="col-span-3 text-right">Custo saído</span>
+              <span className="col-span-3 text-right">Receita</span>
+            </div>
+
+            {/* Rows */}
+            <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
+              {stockMovements.length === 0 ? (
+                <div className="flex items-center justify-center py-12 text-sm text-neutral-400">
+                  Nenhuma saída de estoque neste período.
+                </div>
+              ) : (
+                stockMovements.map((m) => {
+                  const totalCost = stockMovements.reduce((a, x) => a + x.cost, 0);
+                  const pct = totalCost > 0 && m.cost > 0 ? Math.round((m.cost / totalCost) * 100) : 0;
+                  return (
+                    <div key={m.name} className="px-5 py-3.5 hover:bg-neutral-50 transition-colors">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-5 min-w-0">
+                          <p className="text-sm font-bold text-neutral-800 truncate">{m.name}</p>
+                          {pct > 0 && (
+                            <div className="mt-1 w-full h-1 bg-neutral-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-red-300 rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="col-span-1 text-xs font-black text-neutral-700 text-center">{m.count}×</span>
+                        <span className="col-span-3 text-xs font-black text-right text-red-500">
+                          {m.cost > 0 ? `-${formatCurrency(m.cost)}` : '—'}
+                        </span>
+                        <span className="col-span-3 text-xs font-black text-right text-neutral-900">
+                          {formatCurrency(m.revenue)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer totals */}
+            <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50">
+              <div className="grid grid-cols-12 gap-2 items-center">
+                <span className="col-span-6 text-xs font-black text-neutral-600">
+                  {stockMovements.reduce((a, m) => a + m.count, 0)} item{stockMovements.reduce((a, m) => a + m.count, 0) !== 1 ? 's' : ''} saíram do estoque
+                </span>
+                <span className="col-span-3 text-xs font-black text-right text-red-500">
+                  {stockMovements.reduce((a, m) => a + m.cost, 0) > 0
+                    ? `-${formatCurrency(stockMovements.reduce((a, m) => a + m.cost, 0))}`
+                    : '—'}
+                </span>
+                <span className="col-span-3 text-xs font-black text-right text-neutral-900">
+                  {formatCurrency(stockMovements.reduce((a, m) => a + m.revenue, 0))}
+                </span>
+              </div>
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={() => { setDrillDown(null); navigate('/estoque'); }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                >
+                  Ver Estoque completo <ArrowRight size={12} />
+                </button>
+              </div>
             </div>
           </div>
         </div>

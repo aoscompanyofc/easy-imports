@@ -329,7 +329,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -462,6 +462,13 @@ export const Dashboard: React.FC = () => {
       acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
     const stockSnapshot = stockValue + costSoldAfterPeriod;
 
+    // Estoque no período anterior: custo das vendas desde o início do período atual
+    // adicionado ao estoque atual = o que havia no início do período = fim do anterior
+    const salesAfterStart = allSales.filter(s => s.created_at && new Date(s.created_at) >= start);
+    const costSoldAfterStart = salesAfterStart.reduce((acc, s) =>
+      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+    const prevStockSnapshot = period !== 'custom' ? stockValue + costSoldAfterStart : null;
+
     const prazoSales = filtered.filter(s => (s.sale_type || '') === 'prazo');
     const prazoTotal = prazoSales.reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
     const prazoReceived = prazoSales.reduce((acc, s) => {
@@ -483,11 +490,12 @@ export const Dashboard: React.FC = () => {
       instCostMap,
       revenueMap,
       profitAdjMap,
-      chartData:      buildChartDataForRange(filtered, start, end),
-      channelData:    buildChannelData(filtered),
-      topProducts:    buildTopProducts(filtered),
-      saleTypeData:   buildSaleTypeData(filtered),
-      sourceData:     buildSourceData(filtered),
+      chartData:        buildChartDataForRange(filtered, start, end),
+      channelData:      buildChannelData(filtered),
+      topProducts:      buildTopProducts(filtered),
+      saleTypeData:     buildSaleTypeData(filtered),
+      sourceData:       buildSourceData(filtered),
+      prevStockAtPeriod: prevStockSnapshot,
     };
   }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
 
@@ -627,24 +635,6 @@ export const Dashboard: React.FC = () => {
 
   const [showFutureDetail, setShowFutureDetail] = useState(false);
   const [channelView, setChannelView] = useState<'pie' | 'bar'>('pie');
-
-  // Tendência do estoque: persiste valor por dia no localStorage e compara com ontem
-  const [prevDayStockValue, setPrevDayStockValue] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isLoading || stockValue === 0) return;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const yesterdayStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    let history: Record<string, number> = {};
-    try { history = JSON.parse(localStorage.getItem('ei-stock-history') || '{}'); } catch {}
-    if (history[yesterdayStr] != null) setPrevDayStockValue(history[yesterdayStr]);
-    // Salva valor de hoje e mantém só os últimos 7 dias
-    history[todayStr] = stockValue;
-    const keys = Object.keys(history).sort().slice(-7);
-    const trimmed: Record<string, number> = {};
-    keys.forEach(k => { trimmed[k] = history[k]; });
-    try { localStorage.setItem('ei-stock-history', JSON.stringify(trimmed)); } catch {}
-  }, [stockValue, isLoading]);
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
@@ -872,7 +862,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
                 <div className="flex items-center justify-between gap-1">
                   <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
-                  <TrendBadge cur={stockValue} prev={prevDayStockValue} />
+                  <TrendBadge cur={stockAtPeriod} prev={prevStockAtPeriod} />
                 </div>
               </button>
             </div>

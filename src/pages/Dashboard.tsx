@@ -628,11 +628,11 @@ export const Dashboard: React.FC = () => {
   const [showFutureDetail, setShowFutureDetail] = useState(false);
   const [channelView, setChannelView] = useState<'pie' | 'bar'>('pie');
 
-  // Tendência do estoque: compara valor atual com final do mês anterior
-  const prevMonthStockValue = useMemo(() => {
+  // Tendência do estoque: compara valor atual com final de ontem
+  const prevDayStockValue = useMemo(() => {
     const now = new Date();
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    // Reconstrói costMap para vendas deste mês
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Reconstrói costMap
     const cm: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
@@ -645,11 +645,11 @@ export const Dashboard: React.FC = () => {
         }
       }
     }
-    const soldThisMonth = allSales.filter(s => s.created_at && new Date(s.created_at) >= thisMonthStart);
-    const costSoldThisMonth = soldThisMonth.reduce((acc, s) =>
+    // Vendas feitas hoje reduzem o estoque — ontem o estoque era atual + custo dessas vendas
+    const soldToday = allSales.filter(s => s.created_at && new Date(s.created_at) >= todayStart);
+    const costSoldToday = soldToday.reduce((acc, s) =>
       acc + (cm[s.sale_number] ?? cm[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
-    // Estoque ao final do mês anterior = atual + custo do que foi vendido este mês
-    return stockValue + costSoldThisMonth;
+    return stockValue + costSoldToday;
   }, [allSales, allTransactions, stockValue]);
 
   // ─── Prazo installment alerts ────────────────────────────────────────────────
@@ -878,7 +878,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
                 <div className="flex items-center justify-between gap-1">
                   <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
-                  <TrendBadge cur={stockValue} prev={prevMonthStockValue} />
+                  <TrendBadge cur={stockValue} prev={prevDayStockValue} />
                 </div>
               </button>
             </div>

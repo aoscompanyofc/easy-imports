@@ -628,6 +628,30 @@ export const Dashboard: React.FC = () => {
   const [showFutureDetail, setShowFutureDetail] = useState(false);
   const [channelView, setChannelView] = useState<'pie' | 'bar'>('pie');
 
+  // Tendência do estoque: compara valor atual com final do mês anterior
+  const prevMonthStockValue = useMemo(() => {
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Reconstrói costMap para vendas deste mês
+    const cm: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.type === 'expense' && t.category === 'stock') {
+        if (t.description?.startsWith('Custo Mercadoria #')) {
+          const prefix = t.description.replace('Custo Mercadoria #', '').trim();
+          cm[`uuid:${prefix}`] = (cm[`uuid:${prefix}`] || 0) + Number(t.amount || 0);
+        } else if (t.description?.startsWith('Custo ') && !t.description?.startsWith('Custo Parcela ')) {
+          const match = t.description.match(/^Custo (#[A-Z0-9]+)/);
+          if (match) cm[match[1]] = (cm[match[1]] || 0) + Number(t.amount || 0);
+        }
+      }
+    }
+    const soldThisMonth = allSales.filter(s => s.created_at && new Date(s.created_at) >= thisMonthStart);
+    const costSoldThisMonth = soldThisMonth.reduce((acc, s) =>
+      acc + (cm[s.sale_number] ?? cm[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+    // Estoque ao final do mês anterior = atual + custo do que foi vendido este mês
+    return stockValue + costSoldThisMonth;
+  }, [allSales, allTransactions, stockValue]);
+
   // ─── Prazo installment alerts ────────────────────────────────────────────────
   const { overdueInstallments, dueSoonInstallments } = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -854,6 +878,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
                 <div className="flex items-center justify-between gap-1">
                   <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
+                  <TrendBadge cur={stockValue} prev={prevMonthStockValue} />
                 </div>
               </button>
             </div>

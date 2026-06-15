@@ -10,6 +10,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
+import { CustomerForm, type CustomerFormData, emptyCustomerForm, customerFormToPayload } from '../components/CustomerForm';
+import { safeUUID } from '../lib/storage';
+import { PostSaleLogistics } from '../components/PostSaleLogistics';
+import type { SaleMsgData } from '../lib/logisticsMessages';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
@@ -61,7 +65,7 @@ interface AdditionalOutgoingItem {
 }
 
 const emptyAdditionalItem = (): AdditionalOutgoingItem => ({
-  id: crypto.randomUUID(),
+  id: safeUUID(),
   selectedProduct: '',
   name_override: '',
   imei_override: '',
@@ -228,10 +232,11 @@ export const Vendas: React.FC = () => {
 
   const [form, setForm] = useState(emptyForm());
   const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', cpf: '', email: '', address: '' });
+  const [newCustomer, setNewCustomer] = useState<CustomerFormData>(emptyCustomerForm());
   const [postSaleData, setPostSaleData] = useState<{
     customerName: string; phone: string; signLink: string;
     saleNumber: string; saleType: string;
+    msg: SaleMsgData; address: string;
   } | null>(null);
 
   const setF = (field: string) =>
@@ -380,8 +385,17 @@ export const Vendas: React.FC = () => {
     // Nunca processar se não estiver no passo final do wizard
     if (wizardStep < 4) return;
 
+    // Anti duplo-clique / reentrada — evita venda duplicada
+    if (isSaving) return;
+
     if (!form.selectedCustomer && !form.product_name_manual && !form.selectedProduct) {
       toast.error('Selecione um cliente e um produto.');
+      return;
+    }
+
+    // Data da operação precisa ser válida — evita crash em toISOString()
+    if (isNaN(new Date(form.sale_date).getTime())) {
+      toast.error('Data da operação inválida. Verifique o campo Data e Hora.');
       return;
     }
 
@@ -498,6 +512,9 @@ export const Vendas: React.FC = () => {
     // Open PDF window synchronously (before any await) to avoid popup blocker
     const printWin = !isEditMode ? window.open('', '_blank', 'width=920,height=1060') : null;
 
+    // true assim que a venda é gravada — usado para não tratar falhas posteriores como "venda falhou"
+    let saleCommitted = false;
+
     try {
       setIsSaving(true);
 
@@ -508,17 +525,14 @@ export const Vendas: React.FC = () => {
         let customerPhone = form.customer_phone || selectedCustomerData?.phone;
 
         if (showNewCustomer && newCustomer.name.trim()) {
-          const created = await dataService.addCustomer({
-            name: newCustomer.name.trim(), phone: newCustomer.phone.trim(),
-            email: newCustomer.email.trim(), cpf: newCustomer.cpf.trim(), city: newCustomer.address.trim(),
-          });
+          const created = await dataService.addCustomer(customerFormToPayload(newCustomer));
           customerId = created.id; customerName = created.name;
           customerPhone = created.phone || customerPhone;
           setCustomers((prev) => [created, ...prev]);
         }
 
         const resolvedCpf  = newCustomer.cpf.trim()     || form.customer_cpf  || selectedCustomerData?.cpf  || '';
-        const resolvedCity = newCustomer.address.trim()  || form.customer_city || selectedCustomerData?.city || '';
+        const resolvedCity = newCustomer.city.trim()  || form.customer_city || selectedCustomerData?.city || '';
         const primaryDevice = incomingDevices[0] || emptyTradeInDevice();
 
         // Preserve paid_at values from existing installments
@@ -573,7 +587,7 @@ export const Vendas: React.FC = () => {
         setIsModalOpen(false); setIsEditMode(false); setEditSaleId(null);
         setAdditionalItems([]);
         setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]);
-        setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
+        setShowNewCustomer(false); setNewCustomer(emptyCustomerForm());
         fetchData();
         return;
       }
@@ -585,13 +599,7 @@ export const Vendas: React.FC = () => {
       let customerPhone = form.customer_phone || selectedCustomerData?.phone;
 
       if (showNewCustomer && newCustomer.name.trim()) {
-        const created = await dataService.addCustomer({
-          name: newCustomer.name.trim(),
-          phone: newCustomer.phone.trim(),
-          email: newCustomer.email.trim(),
-          cpf: newCustomer.cpf.trim(),
-          city: newCustomer.address.trim(),
-        });
+        const created = await dataService.addCustomer(customerFormToPayload(newCustomer));
         customerId = created.id;
         customerName = created.name;
         customerPhone = created.phone || customerPhone;
@@ -601,9 +609,43 @@ export const Vendas: React.FC = () => {
         }
       }
 
+      // Auto-cadastra o comprador como cliente quando os dados foram digitados
+      // direto na venda (campo "Nome (se não cadastrado)") sem usar "Novo cliente"
+      // nem selecionar um cliente já existente. Dedup por nome/telefone para não duplicar.
+      const inlineName = form.seller_name.trim();
+      if (!customerId && inlineName && inlineName.toLowerCase() !== 'avulso') {
+        const inlinePhone = (form.customer_phone || '').replace(/\D/g, '');
+        const existing = customers.find((c: any) => {
+          const sameName = (c.name || '').trim().toLowerCase() === inlineName.toLowerCase();
+          const samePhone = inlinePhone && (c.phone || '').replace(/\D/g, '') === inlinePhone;
+          return sameName || samePhone;
+        });
+        if (existing) {
+          customerId = existing.id;
+          customerName = existing.name;
+          customerPhone = existing.phone || customerPhone;
+        } else {
+          try {
+            const created = await dataService.addCustomer({
+              name: inlineName,
+              phone: form.customer_phone || '',
+              email: '',
+              cpf: form.customer_cpf || '',
+              city: form.customer_city || '',
+            });
+            customerId = created.id;
+            customerName = created.name;
+            customerPhone = created.phone || customerPhone;
+            setCustomers((prev) => [created, ...prev]);
+          } catch {
+            // Falha ao cadastrar cliente não bloqueia a venda — segue com nome avulso
+          }
+        }
+      }
+
       // Resolve customer fields — new customer form takes priority over existing customer data
       const resolvedCpf = newCustomer.cpf.trim() || form.customer_cpf || selectedCustomerData?.cpf || '';
-      const resolvedCity = newCustomer.address.trim() || form.customer_city || selectedCustomerData?.city || '';
+      const resolvedCity = newCustomer.city.trim() || form.customer_city || selectedCustomerData?.city || '';
 
       const primaryDevice = incomingDevices[0] || emptyTradeInDevice();
       const repSeller = sellers.find((s) => s.id === form.rep_id);
@@ -667,6 +709,8 @@ export const Vendas: React.FC = () => {
             ]
           : [])
       );
+      // A venda já está persistida — falhas a partir daqui não devem sugerir "venda falhou"
+      saleCommitted = true;
 
       // For troca/prazo: add ALL incoming devices to stock
       if (form.sale_type === 'troca' || (isPrazo && incomingDevices.some(d => d.model.trim()))) {
@@ -902,17 +946,79 @@ export const Vendas: React.FC = () => {
       const whatsappPhone = form.whatsapp_number || customerPhone || '';
       const postName = customerName;
 
-      setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type });
+      // Dados para gerar as mensagens prontas (cliente + motoboy)
+      const incomingValue = Number(primaryDevice?.purchase_price) || 0;
+      const msgItems = additionalItems
+        .map((it) => {
+          const prod = products.find((p: any) => p.id === it.selectedProduct);
+          const name = it.name_override?.trim() || prod?.name || '';
+          if (!name) return null;
+          return {
+            name,
+            capacity: it.capacity_override || prod?.product_capacity || '',
+            color: it.color_override || prod?.product_color || '',
+            condition: it.condition_override || prod?.product_condition || '',
+            price: Number(it.price_override) || prod?.sale_price || 0,
+          };
+        })
+        .filter(Boolean) as SaleMsgData['items'];
+      const isNovoSale = (form.pdf_type === 'novo') ||
+        !!form.product_condition?.toLowerCase().startsWith('novo');
+      const instCount = form.sale_type === 'prazo' ? (Number(form.prazo_count) || form.installments || 1) : 0;
+      // Dispositivos de troca (para troca e prazo com trade-in)
+      const tradeInDevices = incomingDevices
+        .filter((d: any) => (d.model || '').trim())
+        .map((d: any) => ({ model: d.model.trim(), value: Number(d.purchase_price) || 0 }));
+      const totalTradeInValue = tradeInDevices.reduce((a: number, d: any) => a + d.value, 0);
+
+      const msg: SaleMsgData = {
+        saleType: form.sale_type,
+        saleNumber,
+        customerName: postName,
+        phone: whatsappPhone,
+        productName: productName || '',
+        capacity: form.product_capacity || '',
+        color: form.product_color || '',
+        condition: form.product_condition || '',
+        isNovo: isNovoSale,
+        totalAmount,
+        paymentMethod: resolvedPaymentMethod || form.payment_method || '',
+        installments: instCount,
+        installmentValue: instCount > 1 ? (Number(form.prazo_value) || 0) : undefined,
+        entradaAmount: isPrazo && prazoHasEntrada && prazoEntrada > 0 ? prazoEntrada : undefined,
+        incomingName: form.sale_type === 'troca' ? (primaryDevice?.model || '') : undefined,
+        incomingValue: form.sale_type === 'troca' ? incomingValue : undefined,
+        cashReceived: form.sale_type === 'troca' ? Math.max(0, totalAmount - incomingValue) : undefined,
+        incomingDevices: tradeInDevices.length > 0 ? tradeInDevices : undefined,
+        items: msgItems,
+        saleDateISO: new Date(form.sale_date).toISOString(),
+      };
+
+      setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type, msg, address: resolvedCity || '' });
       setIsModalOpen(false);
       setAdditionalItems([]);
       setForm(emptyForm());
       setIncomingDevices([emptyTradeInDevice()]);
       setShowNewCustomer(false);
-      setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
+      setNewCustomer(emptyCustomerForm());
       fetchData();
     } catch (error: any) {
       printWin?.close();
-      toast.error('Erro ao salvar: ' + error.message);
+      if (saleCommitted) {
+        // A venda JÁ foi gravada — o erro foi num passo posterior (estoque/financeiro/PDF).
+        // Não sugerir nova tentativa (evita venda duplicada); fecha e recarrega.
+        console.error('Pós-venda falhou:', error);
+        toast.error('Venda registrada, mas houve um erro ao finalizar (estoque/financeiro). Confira em Estoque e Financeiro.', { duration: 6000 });
+        setIsModalOpen(false);
+        setAdditionalItems([]);
+        setForm(emptyForm());
+        setIncomingDevices([emptyTradeInDevice()]);
+        setShowNewCustomer(false);
+        setNewCustomer(emptyCustomerForm());
+        fetchData();
+      } else {
+        toast.error('Erro ao salvar: ' + (error?.message || 'tente novamente'));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1302,7 +1408,7 @@ export const Vendas: React.FC = () => {
             <strong>{formatCurrency(sales.reduce((a, s) => a + Number(s.total_amount || 0), 0))}</strong> total
           </p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' }); setWizardStep(1); setIsModalOpen(true); }}>
+        <Button leftIcon={<Plus size={20} />} onClick={() => { setForm(emptyForm()); setIncomingDevices([emptyTradeInDevice()]); setShowNewCustomer(false); setNewCustomer(emptyCustomerForm()); setWizardStep(1); setIsModalOpen(true); }}>
           Nova Operação
         </Button>
       </div>
@@ -1393,10 +1499,13 @@ export const Vendas: React.FC = () => {
 
             return (
               <div key={monthKey} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
-                {/* Month header */}
-                <button
+                {/* Month header — div (não button) para permitir o botão de CSV aninhado */}
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleMonth(monthKey)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMonth(monthKey); } }}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     {isOpen ? <ChevronDown size={20} className="text-neutral-400" /> : <ChevronRight size={20} className="text-neutral-400" />}
@@ -1418,7 +1527,7 @@ export const Vendas: React.FC = () => {
                       <p className="text-xs text-neutral-400">total do mês</p>
                     </div>
                   </div>
-                </button>
+                </div>
 
                 {/* Sales rows */}
                 {isOpen && (
@@ -1622,7 +1731,7 @@ export const Vendas: React.FC = () => {
                                 if (storedOutgoing.length > 1) {
                                   setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
                                     ...emptyAdditionalItem(),
-                                    id: crypto.randomUUID(),
+                                    id: safeUUID(),
                                     selectedProduct: item.product_id || '',
                                     name_override: item.name || '',
                                     imei_override: item.imei || '',
@@ -1635,7 +1744,7 @@ export const Vendas: React.FC = () => {
                                   setAdditionalItems([]);
                                 }
                                 setShowNewCustomer(false);
-                                setNewCustomer({ name: '', phone: '', cpf: '', email: '', address: '' });
+                                setNewCustomer(emptyCustomerForm());
                                 setIsEditMode(true);
                                 setEditSaleId(sale.id);
                                 setEditSaleNumber(sale.sale_number || '');
@@ -1852,54 +1961,9 @@ export const Vendas: React.FC = () => {
                 {showNewCustomer ? (
                   <div className="sm:col-span-2 bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
                     <p className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
-                      <UserPlus size={13} /> Novo Cliente — será salvo na sua base
+                      <UserPlus size={13} /> Novo Cliente — será salvo na sua base de Clientes
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="sm:col-span-2">
-                        <Input
-                          label="Nome Completo *"
-                          placeholder="João da Silva"
-                          value={newCustomer.name}
-                          onChange={(e) => setNewCustomer((c) => ({ ...c, name: e.target.value }))}
-                          autoComplete="off"
-                          required={showNewCustomer}
-                        />
-                      </div>
-                      <Input
-                        label="Telefone / WhatsApp"
-                        type="tel"
-                        placeholder="(11) 99999-9999"
-                        value={newCustomer.phone}
-                        onChange={(e) => setNewCustomer((c) => ({ ...c, phone: e.target.value }))}
-                        autoComplete="off"
-                      />
-                      <Input
-                        label="CPF / CNPJ"
-                        placeholder="CPF ou CNPJ"
-                        value={newCustomer.cpf}
-                        onChange={(e) => setNewCustomer((c) => ({ ...c, cpf: e.target.value }))}
-                        autoComplete="off"
-                      />
-                      <div className="sm:col-span-2">
-                        <Input
-                          label="E-mail"
-                          type="email"
-                          placeholder="joao@email.com"
-                          value={newCustomer.email}
-                          onChange={(e) => setNewCustomer((c) => ({ ...c, email: e.target.value }))}
-                          autoComplete="off"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <Input
-                          label="Endereço"
-                          placeholder="Rua, número, bairro, cidade — SP"
-                          value={newCustomer.address}
-                          onChange={(e) => setNewCustomer((c) => ({ ...c, address: e.target.value }))}
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
+                    <CustomerForm data={newCustomer} onChange={setNewCustomer} />
                   </div>
                 ) : (
                   <div className="sm:col-span-2">
@@ -3367,7 +3431,7 @@ export const Vendas: React.FC = () => {
             const customerName = showNewCustomer ? newCustomer.name : (selectedCustomerData?.name || form.seller_name || '—');
             const customerPhone = showNewCustomer ? newCustomer.phone : (form.whatsapp_number || selectedCustomerData?.phone || '—');
             const customerCpf = showNewCustomer ? newCustomer.cpf : (form.customer_cpf || selectedCustomerData?.cpf || '—');
-            const customerAddr = showNewCustomer ? newCustomer.address : (form.customer_city || selectedCustomerData?.city || '—');
+            const customerAddr = showNewCustomer ? newCustomer.city : (form.customer_city || selectedCustomerData?.city || '—');
 
             // Build all outgoing products list for review
             const allOutgoing = (() => {
@@ -3597,10 +3661,10 @@ export const Vendas: React.FC = () => {
         isOpen={!!postSaleData}
         onClose={() => setPostSaleData(null)}
         title="✅ Operação registrada!"
-        maxWidth="md"
+        maxWidth="lg"
       >
         {postSaleData && (() => {
-          const { customerName, phone, signLink, saleNumber, saleType } = postSaleData;
+          const { customerName, phone, signLink, saleNumber, saleType, msg, address } = postSaleData;
           const waNumber = toWhatsAppNumber(phone);
           const companyName = useProfileStore.getState().name || 'Five Akon';
           const waMessage = [
@@ -3687,14 +3751,23 @@ export const Vendas: React.FC = () => {
                     Copiar link de assinatura
                   </button>
                 )}
-
-                <button
-                  onClick={() => setPostSaleData(null)}
-                  className="w-full py-2.5 rounded-xl text-neutral-500 hover:text-neutral-700 text-sm font-medium transition-colors"
-                >
-                  Fechar
-                </button>
               </div>
+
+              {/* ── Mensagens prontas (cliente + motoboy) ── */}
+              <div className="pt-4 border-t border-neutral-200">
+                <p className="text-sm font-black text-neutral-800 mb-1">📦 Mensagens prontas</p>
+                <p className="text-xs text-neutral-500 mb-3">
+                  Preencha a entrega e copie a mensagem do cliente e a corrida do motoboy.
+                </p>
+                <PostSaleLogistics sale={msg} defaultAddress={address} />
+              </div>
+
+              <button
+                onClick={() => setPostSaleData(null)}
+                className="w-full py-2.5 rounded-xl text-neutral-500 hover:text-neutral-700 text-sm font-medium transition-colors"
+              >
+                Fechar
+              </button>
             </div>
           );
         })()}
@@ -4499,7 +4572,9 @@ export const Vendas: React.FC = () => {
                                   await handleMarkPaid(detailSale, i);
                                   setDetailSale((prev: any) => {
                                     if (!prev) return prev;
-                                    const insts = JSON.parse(prev.installments_json || '[]');
+                                    let insts: any[] = [];
+                                    try { insts = JSON.parse(prev.installments_json || '[]'); } catch { return prev; }
+                                    if (!Array.isArray(insts)) return prev;
                                     const upd = insts.map((x: any, idx: number) => idx === i ? { ...x, paid_at: new Date().toISOString().slice(0, 10) } : x);
                                     return { ...prev, installments_json: JSON.stringify(upd) };
                                   });

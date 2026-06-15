@@ -1,0 +1,324 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Copy, Check, Send, Truck, User, MapPin, Clock, RotateCcw, Package, RefreshCw, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
+import {
+  SaleMsgData, DeliveryInfo, emptyDelivery, CHARGE_MODES,
+  buildClientMessage, buildMotoboyMessage, waLink,
+} from '../lib/logisticsMessages';
+
+// Sugere a cobrança inicial a partir do tipo de venda e forma de pagamento
+function inferChargeMode(paymentMethod: string, sale: SaleMsgData): DeliveryInfo['chargeMode'] {
+  // Compra: a loja paga ao cliente — sempre "pago" pelo dinheiro que a loja leva
+  if (sale.saleType === 'compra') return 'dinheiro';
+  // Prazo: cobrança da entrada na entrega, se houver; caso contrário já está pago
+  if (sale.saleType === 'prazo') {
+    return sale.entradaAmount && sale.entradaAmount > 0 ? 'aguardar_pix' : 'pago';
+  }
+  // Troca: cobrar a diferença na entrega se houver
+  if (sale.saleType === 'troca') {
+    if (!sale.cashReceived || sale.cashReceived === 0) return 'pago';
+    const p = (paymentMethod || '').toLowerCase();
+    if (p.includes('pix')) return 'aguardar_pix';
+    if (p.includes('dinheiro')) return 'dinheiro';
+    if (p.includes('cartão') || p.includes('cartao') || p.includes('crédito') || p.includes('débito')) return 'maquininha';
+    return 'aguardar_pix';
+  }
+  // Venda normal
+  const p = (paymentMethod || '').toLowerCase();
+  if (p.includes('pix')) return 'aguardar_pix';
+  if (p.includes('dinheiro')) return 'dinheiro';
+  if (p.includes('cartão') || p.includes('cartao') || p.includes('crédito') || p.includes('débito')) return 'maquininha';
+  return 'pago';
+}
+
+const PICKUP_KEY = 'easy-imports-last-pickup';
+const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const inputCls =
+  'w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all';
+const labelCls = 'block text-[11px] font-bold text-neutral-500 mb-1 uppercase tracking-wide';
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  }
+}
+
+const MessageCard: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  accent: string;
+  value: string;
+  onChange: (v: string) => void;
+  onRegenerate: () => void;
+  waHref: string;
+  waLabel: string;
+}> = ({ title, icon, accent, value, onChange, onRegenerate, waHref, waLabel }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="rounded-2xl border border-neutral-200 overflow-hidden">
+      <div className={`flex items-center justify-between px-4 py-2.5 ${accent}`}>
+        <div className="flex items-center gap-2 font-bold text-sm">{icon}{title}</div>
+        <button
+          type="button"
+          onClick={onRegenerate}
+          title="Gerar novamente a partir dos campos"
+          className="flex items-center gap-1 text-[11px] font-bold opacity-80 hover:opacity-100 transition-opacity"
+        >
+          <RotateCcw size={12} /> Regerar
+        </button>
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={Math.min(16, Math.max(6, value.split('\n').length + 1))}
+        className="w-full px-4 py-3 text-sm font-mono leading-relaxed outline-none resize-y bg-white text-neutral-800"
+      />
+      <div className="flex items-center gap-2 p-3 border-t border-neutral-100 bg-neutral-50">
+        <button
+          type="button"
+          onClick={async () => {
+            const ok = await copyText(value);
+            if (ok) { setCopied(true); toast.success('Mensagem copiada!'); setTimeout(() => setCopied(false), 1800); }
+            else toast.error('Não foi possível copiar');
+          }}
+          className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-neutral-800 transition-colors"
+        >
+          {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar</>}
+        </button>
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold text-sm py-2.5 rounded-xl hover:brightness-95 transition-all"
+        >
+          <Send size={16} /> {waLabel}
+        </a>
+      </div>
+    </div>
+  );
+};
+
+export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: string }> = ({ sale, defaultAddress }) => {
+  const [delivery, setDelivery] = useState<DeliveryInfo>(() => ({
+    ...emptyDelivery(),
+    deliveryAddress: defaultAddress || '',
+    recipient: sale.customerName || '',
+    pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
+    chargeMode: inferChargeMode(sale.paymentMethod, sale),
+  }));
+
+  // Mensagens geradas (derivadas) + versão editável manual
+  const generatedClient = useMemo(() => buildClientMessage(sale, delivery), [sale, delivery]);
+  const generatedMotoboy = useMemo(() => buildMotoboyMessage(sale, delivery), [sale, delivery]);
+
+  const [clientMsg, setClientMsg] = useState(generatedClient);
+  const [motoboyMsg, setMotoboyMsg] = useState(generatedMotoboy);
+  const [clientEdited, setClientEdited] = useState(false);
+  const [motoboyEdited, setMotoboyEdited] = useState(false);
+
+  // Enquanto o usuário não editou manualmente, a mensagem acompanha os campos ao vivo
+  useEffect(() => { if (!clientEdited) setClientMsg(generatedClient); }, [generatedClient, clientEdited]);
+  useEffect(() => { if (!motoboyEdited) setMotoboyMsg(generatedMotoboy); }, [generatedMotoboy, motoboyEdited]);
+
+  const set = (k: keyof DeliveryInfo) => (v: any) => setDelivery((d) => ({ ...d, [k]: v }));
+
+  const persistPickup = () => {
+    if (delivery.pickupLocation.trim()) localStorage.setItem(PICKUP_KEY, delivery.pickupLocation.trim());
+  };
+
+  // Aparelhos a recolher (troca)
+  const collectDevices =
+    sale.incomingDevices?.length
+      ? sale.incomingDevices
+      : sale.incomingName
+        ? [{ model: sale.incomingName, value: sale.incomingValue || 0 }]
+        : [];
+
+  return (
+    <div className="space-y-4">
+
+      {/* Banner de troca — 3 passos */}
+      {sale.saleType === 'troca' && (
+        <div className="rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
+          <p className="text-xs font-black text-neutral-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <RefreshCw size={13} /> Corrida de Troca — 3 passos
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white rounded-xl p-2.5 border border-neutral-100">
+              <div className="text-lg mb-1">🏪</div>
+              <p className="text-[10px] font-bold text-neutral-600">1. Coleta</p>
+              <p className="text-[10px] text-neutral-400">Busca na loja</p>
+            </div>
+            <div className="bg-white rounded-xl p-2.5 border border-neutral-100">
+              <div className="text-lg mb-1">📦</div>
+              <p className="text-[10px] font-bold text-neutral-600">2. Entrega</p>
+              <p className="text-[10px] text-neutral-400">Leva pro cliente</p>
+            </div>
+            <div className="bg-primary/10 rounded-xl p-2.5 border border-primary/30">
+              <div className="text-lg mb-1">🔄</div>
+              <p className="text-[10px] font-bold text-primary-700">3. Recolhe</p>
+              <p className="text-[10px] text-primary-600">Pega o aparelho</p>
+            </div>
+          </div>
+          {collectDevices.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-[11px] font-black text-neutral-500 uppercase tracking-wide flex items-center gap-1">
+                <AlertTriangle size={11} className="text-amber-500" /> Motoboy deve recolher:
+              </p>
+              {collectDevices.map((dev, i) => (
+                <div key={i} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span className="text-xs font-bold text-amber-800">📱 {dev.model}</span>
+                  {dev.value > 0 && <span className="text-xs font-black text-amber-700">{brl(dev.value)}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {sale.cashReceived != null && (
+            <div className="mt-2 flex items-center justify-between bg-white border border-neutral-200 rounded-lg px-3 py-2">
+              <span className="text-[11px] font-bold text-neutral-600">
+                {sale.cashReceived > 0 ? '💵 Diferença a cobrar na entrega:' : '✅ Troca direta — sem cobrança'}
+              </span>
+              {sale.cashReceived > 0 && (
+                <span className="text-xs font-black text-neutral-900">{brl(sale.cashReceived)}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Banner de prazo com entrada */}
+      {sale.saleType === 'prazo' && sale.entradaAmount && sale.entradaAmount > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <p className="text-xs font-black text-blue-700 uppercase tracking-widest mb-1">Venda a Prazo com Entrada</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-blue-600">💵 Entrada a cobrar na entrega:</span>
+            <span className="text-sm font-black text-blue-800">{brl(sale.entradaAmount)}</span>
+          </div>
+          {sale.installments && sale.installmentValue && (
+            <p className="text-[11px] text-blue-500 mt-1">
+              + {sale.installments}x de {brl(sale.installmentValue)} via PIX (mensais)
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Form de entrega */}
+      <div className="rounded-2xl border border-neutral-200 p-4 space-y-3">
+        <p className="text-xs font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
+          <Truck size={14} /> Dados da entrega
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">
+            <label className={labelCls}><MapPin size={11} className="inline mr-1" />Endereço de entrega</label>
+            <input className={inputCls} value={delivery.deliveryAddress} placeholder="Rua, número, bairro — cidade"
+              onChange={(e) => set('deliveryAddress')(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}><User size={11} className="inline mr-1" />Entregar em mãos para</label>
+            <input className={inputCls} value={delivery.recipient} placeholder="Nome de quem recebe"
+              onChange={(e) => set('recipient')(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}><Clock size={11} className="inline mr-1" />Previsão de entrega</label>
+            <input className={inputCls} value={delivery.deliveryTime} placeholder="Ex: até 11h30 / entre 14h e 15h"
+              onChange={(e) => set('deliveryTime')(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}><Package size={11} className="inline mr-1" />Local de coleta (motoboy) *</label>
+            <input
+              className={
+                delivery.pickupLocation.trim()
+                  ? inputCls
+                  : inputCls.replace('border-neutral-200', 'border-red-300 bg-red-50/50')
+              }
+              value={delivery.pickupLocation}
+              placeholder="Obrigatório — de onde o motoboy retira"
+              onBlur={persistPickup}
+              onChange={(e) => set('pickupLocation')(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>Contato na coleta</label>
+            <input className={inputCls} value={delivery.pickupContact} placeholder="Com quem retirar"
+              onChange={(e) => set('pickupContact')(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>Horário de coleta</label>
+            <input className={inputCls} value={delivery.pickupTime} placeholder="Ex: entre 13h30 e 14h"
+              onChange={(e) => set('pickupTime')(e.target.value)} />
+          </div>
+          <div className="flex items-end gap-2">
+            <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 cursor-pointer select-none py-2">
+              <input type="checkbox" checked={delivery.freightFree}
+                onChange={(e) => set('freightFree')(e.target.checked)}
+                className="w-4 h-4 accent-primary" />
+              Frete grátis
+            </label>
+            {!delivery.freightFree && (
+              <input className={inputCls + ' flex-1'} value={delivery.freightValue} placeholder="Valor do frete"
+                onChange={(e) => set('freightValue')(e.target.value)} />
+            )}
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Cobrança na entrega</label>
+            <div className="grid grid-cols-2 gap-2">
+              {CHARGE_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => set('chargeMode')(m.id)}
+                  className={[
+                    'py-2.5 px-2 rounded-xl text-xs font-bold border-2 transition-all text-center',
+                    delivery.chargeMode === m.id
+                      ? 'bg-primary border-primary text-neutral-900'
+                      : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary/40',
+                  ].join(' ')}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Observações / instruções</label>
+            <textarea className={inputCls + ' resize-none'} rows={2} value={delivery.instructions}
+              placeholder="Ex: aguardar confirmação do PIX · deixar no carro do Netinho · só entregar"
+              onChange={(e) => set('instructions')(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Mensagens geradas */}
+      <MessageCard
+        title="Mensagem para o Cliente"
+        icon={<User size={15} />}
+        accent="bg-primary/10 text-neutral-900"
+        value={clientMsg}
+        onChange={(v) => { setClientMsg(v); setClientEdited(true); }}
+        onRegenerate={() => { setClientEdited(false); setClientMsg(generatedClient); }}
+        waHref={waLink(sale.phone || '', clientMsg)}
+        waLabel="Enviar ao cliente"
+      />
+      <MessageCard
+        title="Mensagem para o Motoboy"
+        icon={<Truck size={15} />}
+        accent="bg-neutral-900 text-white"
+        value={motoboyMsg}
+        onChange={(v) => { setMotoboyMsg(v); setMotoboyEdited(true); }}
+        onRegenerate={() => { setMotoboyEdited(false); setMotoboyMsg(generatedMotoboy); }}
+        waHref={waLink('', motoboyMsg)}
+        waLabel="Abrir no WhatsApp"
+      />
+    </div>
+  );
+};

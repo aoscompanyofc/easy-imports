@@ -30,12 +30,11 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  // Liquid Glass variants
   const variants = {
-    primary: 'btn-glass bg-primary/80 text-neutral-900 font-semibold hover:bg-primary/90 border-primary/40',
-    secondary: 'btn-glass glass-hover',
-    danger: 'btn-glass text-danger border-danger/40 hover:bg-danger/10',
-    ghost: 'glass-focus text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/50 border-transparent',
+    primary: 'bg-primary text-neutral-900 font-semibold hover:bg-primary-600 shadow-sm',
+    secondary: 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300',
+    danger: 'bg-white border border-red-200 text-danger hover:bg-red-50',
+    ghost: 'text-neutral-600 hover:bg-neutral-100 border border-transparent',
   };
 
   const sizes = {

@@ -21,7 +21,7 @@ import { isConnected as gcIsConnected, createCalendarEvent } from '../lib/google
 import { sendWppNotification, buildSaleNotificationText } from '../lib/whatsappNotify';
 import { useProfileStore } from '../stores/profileStore';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -452,8 +452,9 @@ export const Vendas: React.FC = () => {
         items.push({ n: 0, due: prazoEntradaDue, amount: prazoEntrada, paid_at: null, is_entrada: true });
       }
       const [fy, fm, fd] = form.prazo_first_due.split('-').map(Number);
+      const firstDueBase = new Date(fy, fm - 1, fd);
       Array.from({ length: prazoCount }, (_, i) => {
-        const d = new Date(fy, fm - 1 + i, fd);
+        const d = addMonths(firstDueBase, i);
         const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         items.push({ n: i + 1, due, amount: prazoValue, paid_at: null });
       });
@@ -988,7 +989,7 @@ export const Vendas: React.FC = () => {
         entradaAmount: isPrazo && prazoHasEntrada && prazoEntrada > 0 ? prazoEntrada : undefined,
         incomingName: form.sale_type === 'troca' ? (primaryDevice?.model || '') : undefined,
         incomingValue: form.sale_type === 'troca' ? incomingValue : undefined,
-        cashReceived: form.sale_type === 'troca' ? Math.max(0, totalAmount - incomingValue) : undefined,
+        cashReceived: form.sale_type === 'troca' ? Math.max(0, (unitPrice * form.quantity + additionalItemsTotal) - totalTradeInValue) : undefined,
         incomingDevices: tradeInDevices.length > 0 ? tradeInDevices : undefined,
         items: msgItems,
         saleDateISO: new Date(form.sale_date).toISOString(),
@@ -1099,6 +1100,7 @@ export const Vendas: React.FC = () => {
           const editEntradaVal = editHasEntrada ? Math.max(0, Number(editForm.prazo_entrada_value) || 0) : 0;
           const editEntradaDue = editHasEntrada ? editForm.prazo_entrada_due : '';
           const [fy, fm, fd] = editForm.prazo_first_due.split('-').map(Number);
+          const editFirstDueBase = new Date(fy, fm - 1, fd);
           const existingInsts: any[] = (() => { try { return JSON.parse(editSale.installments_json || '[]'); } catch { return []; } })();
           const newInsts: any[] = [];
           if (editHasEntrada && editEntradaVal > 0 && editEntradaDue) {
@@ -1106,7 +1108,7 @@ export const Vendas: React.FC = () => {
             newInsts.push({ n: 0, due: editEntradaDue, amount: editEntradaVal, paid_at: prevEntrada?.paid_at || null, is_entrada: true });
           }
           Array.from({ length: count }, (_, i) => {
-            const d = new Date(fy, fm - 1 + i, fd);
+            const d = addMonths(editFirstDueBase, i);
             const due = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const prevInst = existingInsts.find((p: any) => !p.is_entrada && p.n === i + 1);
             newInsts.push({ n: i + 1, due, amount: value, paid_at: prevInst?.paid_at || null });

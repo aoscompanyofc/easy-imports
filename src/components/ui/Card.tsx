@@ -26,7 +26,7 @@ export const Card: React.FC<CardProps> = ({
   };
 
   const variants = {
-    default: 'bg-white border border-neutral-200 shadow-sm',
+    default: 'bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-shadow',
     bordered: 'bg-white border-2 border-neutral-200',
     elevated: 'bg-white border border-neutral-200 shadow-md hover:shadow-lg',
   };

@@ -631,4 +631,54 @@ export const dataService = {
     if (error) throw error;
     return true;
   },
+
+  // ─── Dashboard Layout (widgets modulares) ─────────────────────────────
+  // Persiste em Supabase (tabela dashboard_layouts) com fallback para
+  // localStorage caso a tabela ainda não exista — assim funciona de imediato.
+  async getDashboardLayout(): Promise<any[] | null> {
+    const local = () => {
+      try {
+        const raw = localStorage.getItem('easy-imports-dashboard-layout');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    };
+    if (useMock) return local();
+    try {
+      const uid = await getUid();
+      const { data, error } = await supabase
+        .from('dashboard_layouts')
+        .select('layout')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (error) {
+        if (isTableErr(error)) return local();
+        throw error;
+      }
+      if (data?.layout) return data.layout as any[];
+      return local();
+    } catch {
+      return local();
+    }
+  },
+  async saveDashboardLayout(layout: any[]): Promise<boolean> {
+    // Sempre grava local como cache/fallback offline.
+    try {
+      localStorage.setItem('easy-imports-dashboard-layout', JSON.stringify(layout));
+    } catch { /* ignore */ }
+    if (useMock) return true;
+    try {
+      const uid = await getUid();
+      const { error } = await supabase
+        .from('dashboard_layouts')
+        .upsert(
+          { user_id: uid, layout, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        );
+      if (error && !isTableErr(error)) throw error;
+      return true;
+    } catch {
+      // Tabela inexistente ou offline: o localStorage já guardou.
+      return true;
+    }
+  },
 };

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { MetricCard } from '../components/dashboard/MetricCard';
+import { WidgetGrid } from '../components/dashboard/WidgetGrid';
+import { type WidgetContext } from '../lib/dashboardWidgets';
 import { RevenueChart } from '../components/dashboard/RevenueChart';
 import { ChannelChart } from '../components/dashboard/ChannelChart';
 import { AlertsList } from '../components/dashboard/AlertsList';
@@ -695,208 +698,8 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 
-  return (
-    <div className="space-y-6 pb-10">
-
-      {/* ── Header ── */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight">Dashboard</h2>
-            <p className="text-neutral-500 font-medium text-sm">
-              Exibindo dados de: <strong className="text-neutral-800">{periodLabel}</strong>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-400">
-              <Calendar size={14} />
-              <span>Hoje, {new Date().toLocaleDateString('pt-BR')}</span>
-            </div>
-            <button
-              onClick={fetchDashboardData}
-              title="Atualizar dados"
-              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-            >
-              <RefreshCw size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* Period pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-          {PERIODS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => handlePeriodClick(p.id)}
-              className={cn(
-                'flex-shrink-0 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all border whitespace-nowrap',
-                period === p.id
-                  ? 'bg-primary border-primary/60 text-neutral-900 shadow-sm'
-                  : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary/40 hover:text-neutral-900'
-              )}
-            >
-              {p.id === 'custom' && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar size={13} />
-                  {p.label}
-                </span>
-              )}
-              {p.id !== 'custom' && p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom date range */}
-        {period === 'custom' && (
-          <div className="flex flex-wrap items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-neutral-600 whitespace-nowrap">De:</label>
-              <input
-                type="date"
-                value={customFrom}
-                max={customTo || today}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-xl bg-white text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-neutral-600 whitespace-nowrap">Até:</label>
-              <input
-                type="date"
-                value={customTo}
-                min={customFrom}
-                max={today}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="px-3 py-2 border border-neutral-200 rounded-xl bg-white text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-              />
-            </div>
-            {customFrom && customTo && (
-              <span className="text-xs font-bold text-neutral-500 bg-white border border-neutral-200 px-3 py-2 rounded-xl">
-                {salesCount} venda{salesCount !== 1 ? 's' : ''} neste período
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isLoading ? <Skeleton /> : (
-        <>
-          {/* ── Metric Cards ── */}
-          {/* Trend helper */}
-          {(() => {
-            const TrendBadge = ({ cur, prev }: { cur: number; prev: number | null }) => {
-              if (prev === null || prev === 0) return null;
-              const pct = ((cur - prev) / Math.abs(prev)) * 100;
-              const up = cur >= prev;
-              return (
-                <div className={cn('flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold', up ? 'text-green-600' : 'text-red-500')}>
-                  {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {up ? '+' : ''}{Math.abs(pct).toFixed(0)}%
-                </div>
-              );
-            };
-            return (
-          <div className="space-y-3 sm:space-y-4">
-            {/* Faturamento — destaque, largura total */}
-            <button
-              onClick={() => setDrillDown('revenue')}
-              className="w-full bg-white rounded-2xl border border-neutral-200 shadow-sm p-4 sm:p-6 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.99]"
-            >
-              <p className="text-[11px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
-              <p className="text-3xl sm:text-4xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-[11px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
-                <TrendBadge cur={revenue} prev={prevRevenue} />
-              </div>
-            </button>
-
-            {/* Demais cards — 2×2 no mobile, 4 em linha no desktop */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {/* Caixa Real */}
-              <button
-                onClick={() => setDrillDown('cash')}
-                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
-                <p className="text-lg sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido</p>
-              </button>
-              {/* Lucro Realizado */}
-              <button
-                onClick={() => setDrillDown('profit')}
-                className={cn(
-                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:shadow-md transition-all active:scale-[0.98]',
-                  netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
-                )}
-              >
-                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Realizado</p>
-                <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
-                  {formatCurrency(netProfit)}
-                </p>
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Vendas pagas · {periodLabel}</p>
-                  <TrendBadge cur={netProfit} prev={prevProfit} />
-                </div>
-              </button>
-
-              {/* Receita Prevista */}
-              <button
-                onClick={() => globalPrazoSales.length > 0 && setDrillDown('prazo')}
-                className={cn(
-                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
-                  globalPrazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
-                )}
-              >
-                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
-                <p className={cn('text-base sm:text-2xl font-black truncate', pendingReceivables > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
-                  {pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}
-                </p>
-                {globalPrazoTotal > 0 ? (
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
-                      Recebido: {formatCurrency(globalPrazoReceived)}
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
-                      {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} ativa{globalPrazoSales.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Sem vendas a prazo ativas</p>
-                )}
-              </button>
-
-              {/* Estoque */}
-              <button
-                onClick={() => setDrillDown('stock')}
-                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
-                <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
-                  <TrendBadge cur={stockAtPeriod} prev={prevStockAtPeriod} />
-                </div>
-                {stockMovements.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 w-full">
-                    {stockMovements.slice(0, 2).map(m => (
-                      <div key={m.name} className="flex items-center justify-between gap-1">
-                        <span className="text-[9px] sm:text-[10px] text-neutral-500 truncate">{m.count}× {m.name}</span>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-red-400 flex-shrink-0">-{formatCurrency(m.cost > 0 ? m.cost : m.revenue)}</span>
-                      </div>
-                    ))}
-                    {stockMovements.length > 2 && (
-                      <p className="text-[9px] text-neutral-400">+{stockMovements.length - 2} produto{stockMovements.length - 2 !== 1 ? 's' : ''}…</p>
-                    )}
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-            );
-          })()}
-
-          {/* ── Alertas de Parcelas a Prazo ── */}
-          {(overdueInstallments.length > 0 || dueSoonInstallments.length > 0) && (
+  const sections: Record<string, React.ReactNode> = {
+    'sec-installment-alerts': (overdueInstallments.length > 0 || dueSoonInstallments.length > 0) ? (
             <div className="space-y-2">
               {overdueInstallments.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
@@ -945,9 +748,8 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-          )}
-
-          {/* ── Meta Mensal ── */}
+    ) : null,
+    'sec-meta': (
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2.5">
@@ -1077,11 +879,8 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* ── Main content: charts + vendas unificados ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-            {/* Esquerda 2/3: gráfico de receita + lista de vendas */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+    ),
+    'sec-revenue-chart': (
               <RevenueChart
                 data={chartData}
                 title={`Faturamento — ${periodLabel}`}
@@ -1091,8 +890,8 @@ export const Dashboard: React.FC = () => {
                     : `${chartData.length} dia${chartData.length !== 1 ? 's' : ''} no período`
                 }
               />
-
-              {/* Vendas do Período */}
+    ),
+    'sec-sales-list': (
               <Card className="flex flex-col">
                 <div className="flex items-center justify-between mb-5">
                   <div>
@@ -1184,10 +983,8 @@ export const Dashboard: React.FC = () => {
                   </div>
                 )}
               </Card>
-            </div>
-
-            {/* Direita 1/3: sidebar com gráficos + alertas */}
-            <div className="space-y-4">
+    ),
+    'sec-channel': (<>
               {channelData.length > 0 ? (
                 <ChannelChart
                   data={channelData}
@@ -1205,9 +1002,8 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </Card>
               )}
-
-              {/* Receita por tipo (venda vs troca) */}
-              {saleTypeData.length > 0 && (
+    </>),
+    'sec-sale-type': saleTypeData.length > 0 ? (
                 <Card>
                   <p className="text-sm font-black text-neutral-700 mb-3">Receita por Tipo</p>
                   <div className="space-y-2.5">
@@ -1232,9 +1028,8 @@ export const Dashboard: React.FC = () => {
                     })}
                   </div>
                 </Card>
-              )}
-
-              {/* Origem dos Clientes */}
+    ) : null,
+    'sec-origin': (
               <Card>
                 <p className="text-sm font-black text-neutral-700 mb-3">Origem dos Clientes</p>
                 {sourceData.length > 0 ? (
@@ -1271,14 +1066,11 @@ export const Dashboard: React.FC = () => {
                   </div>
                 )}
               </Card>
-
-              {/* Alertas de estoque */}
+    ),
+    'sec-stock-alerts': (
               <AlertsList />
-            </div>
-          </div>
-
-          {/* ── Top Products ── */}
-          {topProducts.length > 0 && (
+    ),
+    'sec-top-products': topProducts.length > 0 ? (
             <Card>
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -1317,9 +1109,8 @@ export const Dashboard: React.FC = () => {
                 })}
               </div>
             </Card>
-          )}
-
-          {/* ── Summary strip ── */}
+    ) : null,
+    'sec-summary': (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
               { label: 'Faturamento',      value: formatCurrency(revenue),   icon: TrendingUp,  color: 'text-primary'      },
@@ -1338,6 +1129,228 @@ export const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
+    ),
+  };
+
+  return (
+    <div className="space-y-6 pb-10">
+
+      {/* ── Header ── */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight">Dashboard</h2>
+            <p className="text-neutral-500 font-medium text-sm">
+              Exibindo dados de: <strong className="text-neutral-800">{periodLabel}</strong>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <Calendar size={14} />
+              <span>Hoje, {new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+            <button
+              onClick={fetchDashboardData}
+              title="Atualizar dados"
+              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Period pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          {PERIODS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => handlePeriodClick(p.id)}
+              className={cn(
+                'flex-shrink-0 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all border whitespace-nowrap',
+                period === p.id
+                  ? 'bg-primary border-primary/60 text-neutral-900 shadow-sm'
+                  : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary/40 hover:text-neutral-900'
+              )}
+            >
+              {p.id === 'custom' && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={13} />
+                  {p.label}
+                </span>
+              )}
+              {p.id !== 'custom' && p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date range */}
+        {period === 'custom' && (
+          <div className="flex flex-wrap items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-neutral-600 whitespace-nowrap">De:</label>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo || today}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl bg-white text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-neutral-600 whitespace-nowrap">Até:</label>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                max={today}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="px-3 py-2 border border-neutral-200 rounded-xl bg-white text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+              />
+            </div>
+            {customFrom && customTo && (
+              <span className="text-xs font-bold text-neutral-500 bg-white border border-neutral-200 px-3 py-2 rounded-xl">
+                {salesCount} venda{salesCount !== 1 ? 's' : ''} neste período
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isLoading ? <Skeleton /> : (
+        <>
+          {/* ── Metric Cards ── */}
+          {/* Trend helper */}
+          {(() => {
+            const TrendBadge = ({ cur, prev }: { cur: number; prev: number | null }) => {
+              if (prev === null || prev === 0) return null;
+              const pct = ((cur - prev) / Math.abs(prev)) * 100;
+              const up = cur >= prev;
+              return (
+                <div className={cn('flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold', up ? 'text-green-600' : 'text-red-500')}>
+                  {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                  {up ? '+' : ''}{Math.abs(pct).toFixed(0)}%
+                </div>
+              );
+            };
+            const widgetCtx: WidgetContext = {
+              revenue, cash, netProfit, salesCount,
+              prevRevenue: prevRevenue ?? 0,
+              prevProfit: prevProfit ?? 0,
+              pendingReceivables,
+              prazoReceived: globalPrazoReceived,
+              prazoCount: globalPrazoSales.length,
+              stockValue: stockAtPeriod,
+              stockUnits: 0,
+              meta,
+              periodLabel,
+              allSales,
+              ...(() => { const [s, e] = getDateRange(period, customFrom, customTo); return { start: s, end: e }; })(),
+              formatCurrency,
+            };
+            return (
+          <>
+          <WidgetGrid ctx={widgetCtx} sections={sections} onDrill={(k) => setDrillDown(k)} />
+          {false && (
+          <div className="space-y-3 sm:space-y-4">
+            {/* Faturamento — destaque, largura total */}
+            <button
+              onClick={() => setDrillDown('revenue')}
+              className="w-full bg-white rounded-2xl border border-neutral-200 shadow-sm p-4 sm:p-6 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.99]"
+            >
+              <p className="text-[11px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
+              <p className="text-3xl sm:text-4xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[11px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
+                <TrendBadge cur={revenue} prev={prevRevenue} />
+              </div>
+            </button>
+
+            {/* Demais cards — 2×2 no mobile, 4 em linha no desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {/* Caixa Real */}
+              <button
+                onClick={() => setDrillDown('cash')}
+                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
+                <p className="text-lg sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido</p>
+              </button>
+              {/* Lucro Realizado */}
+              <button
+                onClick={() => setDrillDown('profit')}
+                className={cn(
+                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:shadow-md transition-all active:scale-[0.98]',
+                  netProfit >= 0 ? 'bg-white border-neutral-200 hover:border-green-300' : 'bg-red-50 border-red-200 hover:border-red-400',
+                )}
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Lucro Realizado</p>
+                <p className={cn('text-base sm:text-2xl font-black truncate', netProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                  {formatCurrency(netProfit)}
+                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Vendas pagas · {periodLabel}</p>
+                  <TrendBadge cur={netProfit} prev={prevProfit} />
+                </div>
+              </button>
+
+              {/* Receita Prevista */}
+              <button
+                onClick={() => globalPrazoSales.length > 0 && setDrillDown('prazo')}
+                className={cn(
+                  'rounded-2xl border shadow-sm p-3 sm:p-5 flex flex-col gap-1.5 min-w-0 overflow-hidden text-left transition-all',
+                  globalPrazoTotal > 0 ? 'bg-blue-50/50 border-blue-200/60 hover:border-blue-400 hover:shadow-md active:scale-[0.98]' : 'bg-white border-neutral-200 cursor-default',
+                )}
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Receita Prevista</p>
+                <p className={cn('text-base sm:text-2xl font-black truncate', pendingReceivables > 0 ? 'text-neutral-900' : 'text-neutral-400')}>
+                  {pendingReceivables > 0 ? formatCurrency(pendingReceivables) : '—'}
+                </p>
+                {globalPrazoTotal > 0 ? (
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] sm:text-xs font-bold truncate" style={{ color: '#16a34a' }}>
+                      Recebido: {formatCurrency(globalPrazoReceived)}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-neutral-400 truncate">
+                      {globalPrazoSales.length} venda{globalPrazoSales.length !== 1 ? 's' : ''} ativa{globalPrazoSales.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Sem vendas a prazo ativas</p>
+                )}
+              </button>
+
+              {/* Estoque */}
+              <button
+                onClick={() => setDrillDown('stock')}
+                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Estoque</p>
+                <p className="text-base sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(stockAtPeriod)}</p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Valor em estoque · {periodLabel}</p>
+                  <TrendBadge cur={stockAtPeriod} prev={prevStockAtPeriod} />
+                </div>
+                {stockMovements.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 w-full">
+                    {stockMovements.slice(0, 2).map(m => (
+                      <div key={m.name} className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-500 truncate">{m.count}× {m.name}</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-red-400 flex-shrink-0">-{formatCurrency(m.cost > 0 ? m.cost : m.revenue)}</span>
+                      </div>
+                    ))}
+                    {stockMovements.length > 2 && (
+                      <p className="text-[9px] text-neutral-400">+{stockMovements.length - 2} produto{stockMovements.length - 2 !== 1 ? 's' : ''}…</p>
+                    )}
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+          )}
+          </>
+            );
+          })()}
         </>
       )}
 
@@ -1379,9 +1392,9 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Drill-down Modal: Receita Prevista (Prazo) ── */}
-      {drillDown === 'prazo' && (() => {
+      {drillDown === 'prazo' && createPortal((() => {
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
             <div className="relative w-full max-w-2xl max-h-[88vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
               {/* Header */}
@@ -1480,11 +1493,11 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         );
-      })()}
+      })(), document.body)}
 
       {/* ── Drill-down Modal ── */}
-      {drillDown && drillDown !== 'prazo' && drillDown !== 'stock' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {drillDown && drillDown !== 'prazo' && drillDown !== 'stock' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
           <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
@@ -1655,10 +1668,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
       {/* ── Modal: Movimentação do Estoque ── */}
-      {drillDown === 'stock' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {drillDown === 'stock' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrillDown(null)} />
           <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
@@ -1749,7 +1762,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

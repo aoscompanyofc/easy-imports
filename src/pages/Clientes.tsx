@@ -454,7 +454,10 @@ export const Clientes: React.FC = () => {
                   <div className="flex items-center gap-3 px-4 py-3">
                     <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
                     <span className="text-sm font-medium text-neutral-800">
-                      {new Date(c.birthday + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      {(() => {
+                        const raw = String(c.birthday).slice(0, 10);
+                        return new Date(raw + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                      })()}
                     </span>
                   </div>
                 )}

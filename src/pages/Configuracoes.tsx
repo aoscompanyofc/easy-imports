@@ -3,6 +3,7 @@ import {
   Settings, User, Bell, Shield, Database, Link, Trash2, Save,
   Key, RefreshCw, Camera, Users, Plus, X, Copy, Check, Loader2,
   Eye, EyeOff, MessageCircle, Shuffle, Calendar, Unlink, AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import {
   getClientId, setClientId, isConnected, connect, disconnect,
@@ -18,6 +19,10 @@ import { SignaturePad } from '../components/ui/SignaturePad';
 import { usePermissionsStore, ALL_PAGES, DEFAULT_VENDEDOR_PAGES, PageKey } from '../stores/permissionsStore';
 import { dataService } from '../lib/dataService';
 import * as wppNotify from '../lib/whatsappNotify';
+import {
+  getAISettings, saveAISettings, DEFAULT_MODELS, PROVIDER_LABELS,
+  type AIProvider, type AISettings,
+} from '../lib/aiSettings';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
@@ -42,6 +47,7 @@ const PAGE_LABELS: Record<PageKey, string> = {
   mensagens: 'Mensagens Prontas',
   calculadora: 'Calculadora de Taxas',
   configuracoes: 'Configurações',
+  'liquid-glass': 'Liquid Glass',
 };
 
 // Pages that vendedores can be granted access to (admins always have all)
@@ -114,6 +120,7 @@ export const Configuracoes: React.FC = () => {
     { id: 'database', icon: Database, label: 'Dados & Backup' },
     { id: 'integrations', icon: Link, label: 'Integrações' },
     { id: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+    { id: 'ia', icon: Sparkles, label: 'IA' },
     ...(isAdmin ? [{ id: 'equipe', icon: Users, label: 'Equipe' }] : []),
   ];
 
@@ -148,6 +155,13 @@ export const Configuracoes: React.FC = () => {
   const [wppPhone, setWppPhone] = useState(wppNotify.getWppNotifyPhone());
   const [wppApiKey, setWppApiKey] = useState(wppNotify.getWppNotifyApiKey());
   const [wppTestSending, setWppTestSending] = useState(false);
+
+  // ── IA ──
+  const [ai, setAi] = useState<AISettings>(() => getAISettings());
+  const [showAiKey, setShowAiKey] = useState(false);
+  const [aiTesting, setAiTesting] = useState(false);
+  const setAiProvider = (provider: AIProvider) =>
+    setAi((prev) => ({ ...prev, provider, model: prev.model || DEFAULT_MODELS[provider] }));
 
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -898,6 +912,182 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                 </div>
               </div>
             </Card>
+          </div>
+        );
+
+      case 'ia':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={24} className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-neutral-900">Inteligência Artificial</h3>
+                  <p className="text-sm text-neutral-500">Conecte sua própria IA para gerar insights e criar cards no Dashboard.</p>
+                </div>
+                <span className={[
+                  'px-3 py-1 rounded-full text-xs font-bold flex-shrink-0',
+                  ai.apiKey && (ai.provider !== 'custom' || ai.baseUrl) ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500',
+                ].join(' ')}>
+                  {ai.apiKey && (ai.provider !== 'custom' || ai.baseUrl) ? '● Conectada' : '○ Desconectada'}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Provedor de IA</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {(['claude', 'openai', 'custom'] as AIProvider[]).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setAiProvider(p)}
+                        className={[
+                          'px-3 py-2.5 rounded-xl border text-sm font-bold transition-all text-left',
+                          ai.provider === p
+                            ? 'border-primary bg-primary/5 text-neutral-900'
+                            : 'border-neutral-200 text-neutral-500 hover:border-neutral-300',
+                        ].join(' ')}
+                      >
+                        {PROVIDER_LABELS[p]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {ai.provider === 'custom' && (
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-1.5">URL base da API (compatível com OpenAI)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      placeholder="https://sua-ia.com/v1"
+                      value={ai.baseUrl}
+                      onChange={(e) => setAi({ ...ai, baseUrl: e.target.value })}
+                    />
+                    <p className="text-xs text-neutral-400 mt-1">O endpoint deve aceitar <code>POST /chat/completions</code> (padrão OpenAI). Ex: Groq, OpenRouter, LM Studio.</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showAiKey ? 'text' : 'password'}
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 pr-11 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                      placeholder={ai.provider === 'claude' ? 'sk-ant-...' : 'sk-...'}
+                      value={ai.apiKey}
+                      onChange={(e) => setAi({ ...ai, apiKey: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAiKey((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                    >
+                      {showAiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    {ai.provider === 'claude' && <>Crie em <strong>console.anthropic.com</strong> → API Keys.</>}
+                    {ai.provider === 'openai' && <>Crie em <strong>platform.openai.com</strong> → API Keys.</>}
+                    {ai.provider === 'custom' && <>Use a chave do provedor escolhido.</>}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-1.5">Modelo</label>
+                  <input
+                    type="text"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    placeholder={DEFAULT_MODELS[ai.provider] || 'nome-do-modelo'}
+                    value={ai.model}
+                    onChange={(e) => setAi({ ...ai, model: e.target.value })}
+                  />
+                  <p className="text-xs text-neutral-400 mt-1">
+                    Sugestão: {DEFAULT_MODELS[ai.provider] || 'consulte a documentação do provedor'}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      const clean = { ...ai, apiKey: ai.apiKey.trim(), baseUrl: ai.baseUrl.trim(), model: (ai.model || DEFAULT_MODELS[ai.provider]).trim() };
+                      saveAISettings(clean);
+                      setAi(clean);
+                      toast.success('Configuração de IA salva!');
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    loading={aiTesting}
+                    disabled={!ai.apiKey || (ai.provider === 'custom' && !ai.baseUrl)}
+                    onClick={async () => {
+                      const clean = { ...ai, apiKey: ai.apiKey.trim(), baseUrl: ai.baseUrl.trim(), model: (ai.model || DEFAULT_MODELS[ai.provider]).trim() };
+                      saveAISettings(clean);
+                      setAi(clean);
+                      setAiTesting(true);
+                      try {
+                        const res = await fetch('/api/insight', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({
+                            mode: 'insight',
+                            summary: 'Teste de conexão. Responda apenas: Conexão OK.',
+                            provider: clean.provider,
+                            apiKey: clean.apiKey,
+                            model: clean.model,
+                            baseUrl: clean.baseUrl,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data?.insight) toast.success('IA conectada! Resposta: ' + String(data.insight).slice(0, 60));
+                        else if (data?.error) toast.error('Falha: ' + String(data.error).slice(0, 120));
+                        else toast.error('Sem resposta da IA. Verifique a chave e o modelo.');
+                      } catch (e: any) {
+                        toast.error('Erro ao conectar: ' + String(e?.message || e).slice(0, 120));
+                      } finally {
+                        setAiTesting(false);
+                      }
+                    }}
+                  >
+                    Testar conexão
+                  </Button>
+                </div>
+
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 space-y-1.5 text-sm text-neutral-600">
+                  <p className="font-bold text-neutral-900">Como funciona</p>
+                  <p>A chave é usada para gerar os <strong>Insights Inteligentes</strong> e ajudar a <strong>criar cards por descrição</strong> no Dashboard.</p>
+                  <p>Sem uma IA conectada, o sistema continua funcionando com análises automáticas locais — só não gera os textos personalizados.</p>
+                  <p className="text-xs text-neutral-400 pt-1">A chave fica salva apenas neste navegador e é enviada com segurança ao servidor a cada análise.</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+
+      case 'notifications':
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+              <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center">
+                <Bell size={28} className="text-neutral-400" />
+              </div>
+              <div>
+                <p className="font-bold text-neutral-700">Notificações por WhatsApp</p>
+                <p className="text-sm text-neutral-400 mt-1 max-w-xs">
+                  Configure notificações automáticas na aba <strong>WhatsApp</strong> ao lado.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab('whatsapp')}
+                className="px-5 py-2.5 bg-neutral-900 text-white rounded-xl font-bold text-sm hover:bg-neutral-800 transition-colors"
+              >
+                Ir para WhatsApp →
+              </button>
+            </div>
           </div>
         );
 

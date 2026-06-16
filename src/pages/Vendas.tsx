@@ -162,7 +162,7 @@ const emptyForm = () => ({
   // Pagamento
   payment_method: 'PIX',
   installments: 1,
-  sale_date: new Date().toISOString().slice(0, 16),
+  sale_date: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })(),
   // WhatsApp para envio automático do link de assinatura
   whatsapp_number: '',
   // Tipo de garantia no PDF: 'novo' = fabricante 1 ano | 'seminovo' = 90 dias Easy Imports

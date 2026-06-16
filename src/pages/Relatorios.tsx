@@ -119,8 +119,8 @@ export const Relatorios: React.FC = () => {
   // ─── Leads ──────────────────────────────────────────────────────────────────
   const leadsData = useMemo(() => {
     const total = leads.length;
-    const convertidos = leads.filter((l) => l.status === 'converted' || l.status === 'convertido').length;
-    const qualificados = leads.filter((l) => l.status === 'qualified' || l.status === 'qualificado').length;
+    const convertidos = leads.filter((l) => l.status === 'closed').length;
+    const qualificados = leads.filter((l) => l.status === 'proposal' || l.status === 'negotiating').length;
     const taxa = total > 0 ? (convertidos / total) * 100 : 0;
     const bySource: Record<string, number> = {};
     leads.forEach((l) => {

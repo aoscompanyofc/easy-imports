@@ -3,7 +3,7 @@ import {
   Bell, Search, Menu, LogOut, Settings,
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, LucideIcon,
-  User, Loader2, Sun, Moon, Calculator,
+  User, Loader2, Sun, Moon, Calculator, Sparkles,
 } from 'lucide-react';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   vendedores: 'Vendedores', mensagens: 'Mensagens Prontas',
   calculadora: 'Calculadora de Taxas',
   configuracoes: 'Configurações',
+  'liquid-glass': 'Liquid Glass',
 };
 
 interface PageRoute { type: 'page'; keywords: string[]; path: string; label: string; icon: LucideIcon; }
@@ -38,6 +39,7 @@ const SEARCH_ROUTES: PageRoute[] = [
   { type: 'page', keywords: ['documentação', 'documentos', 'arquivos'], path: '/documentacao', label: 'Documentação', icon: FileText },
   { type: 'page', keywords: ['calculadora', 'taxa', 'taxas', 'maquininha', 'parcelamento', 'juros', 'cartão'], path: '/calculadora', label: 'Calculadora de Taxas', icon: Calculator },
   { type: 'page', keywords: ['configurações', 'config', 'perfil', 'conta', 'equipe'], path: '/configuracoes', label: 'Configurações', icon: Settings },
+  { type: 'page', keywords: ['liquid', 'glass', 'apple', 'tahoe', 'tema', 'design', 'visual'], path: '/liquid-glass', label: 'Liquid Glass', icon: Sparkles },
 ];
 
 // ─── PT-BR date parsing ──────────────────────────────────────────

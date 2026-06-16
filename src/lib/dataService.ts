@@ -1,11 +1,6 @@
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { mockDataService } from './mockDataService';
-
-const isSupabaseConfigured = () => {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  return url && url !== 'YOUR_SUPABASE_URL' && key && key !== 'YOUR_SUPABASE_ANON_KEY';
-};
+import { safeUUID } from './storage';
 
 const useMock = !isSupabaseConfigured();
 
@@ -53,12 +48,25 @@ export const dataService = {
   async clearAllData() {
     if (useMock) return mockDataService.clearAllData();
     const uid = await getUid();
-    await supabase.from('sale_items').delete().eq('user_id', uid);
-    await supabase.from('sales').delete().eq('user_id', uid);
-    await supabase.from('products').delete().eq('user_id', uid);
-    await supabase.from('customers').delete().eq('user_id', uid);
-    await supabase.from('leads').delete().eq('user_id', uid);
-    await supabase.from('transactions').delete().eq('user_id', uid);
+    // Apaga TODOS os dados de negócio do usuário — começa o sistema do zero.
+    // Cada delete é tolerante a tabela inexistente (42P01) para não travar o reset.
+    const wipe = async (table: string, col: string) => {
+      const { error } = await supabase.from(table).delete().eq(col, uid);
+      if (error && !isTableErr(error)) throw error;
+    };
+    await wipe('sale_items', 'user_id');
+    await wipe('sales', 'user_id');
+    await wipe('products', 'user_id');
+    await wipe('customers', 'user_id');
+    await wipe('leads', 'user_id');
+    await wipe('transactions', 'user_id');
+    await wipe('campaigns', 'user_id');
+    await wipe('suppliers', 'user_id');
+    await wipe('sellers', 'user_id');
+    await wipe('documents', 'user_id');
+    // Limpa também metas/preferências locais ligadas aos dados
+    ['easy-imports-meta-mensal', 'easy-imports-meta-month', 'needs_customer_migration']
+      .forEach((k) => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
     return true;
   },
 
@@ -131,7 +139,7 @@ export const dataService = {
       rep_seller_id, rep_seller_name, incoming_devices_json, installments_json,
       outgoing_items_json,
     } = sale;
-    const sign_token = crypto.randomUUID();
+    const sign_token = safeUUID();
     const inst = installments || 1;
     const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid };
 
@@ -292,6 +300,9 @@ export const dataService = {
     await supabase.from('transactions').delete()
       .eq('description', `Custo Mercadoria #${prefix}`).eq('user_id', uid);
 
+    // Remove sale_items before removing the sale (FK integrity)
+    await supabase.from('sale_items').delete().eq('sale_id', id);
+
     const { error } = await supabase.from('sales').delete().eq('id', id);
     if (error) throw error;
     return true;
@@ -450,38 +461,42 @@ export const dataService = {
     const { data, error } = await supabase
       .from('campaigns').select('*').order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    // Schema antigo usa 'channel'; o app lê 'platform' — mapeia para compatibilidade
+    return (data || []).map((c: any) => ({ ...c, platform: c.platform ?? c.channel }));
   },
   async addCampaign(campaign: any) {
     if (useMock) return mockDataService.addCampaign(campaign);
     const uid = await getUid();
     const { name, platform, budget, spent, leads_count, status, start_date,
             description, objective, end_date, results_text, target_audience } = campaign;
-    const fullPayload = { name, platform, budget, spent, leads_count, status, start_date,
-      description, objective, end_date, results_text, target_audience, user_id: uid };
-    try {
-      const { data, error } = await supabase.from('campaigns').insert([fullPayload]).select();
-      if (error) throw error;
-      return data[0];
-    } catch (e: any) {
-      if (e?.code === '42703') {
-        // Extra columns don't exist yet — fallback to basic schema
-        const { data, error } = await supabase
-          .from('campaigns')
-          .insert([{ name, platform, budget, spent, leads_count, status, start_date, user_id: uid }])
-          .select();
-        if (error) throw error;
-        return data[0];
-      }
-      throw e;
-    }
+    // Payloads progressivos: degrada conforme colunas ausentes (schema cache / PGRST204 / 42703)
+    const base = { name, budget, status, start_date, user_id: uid };
+    return tryInsert('campaigns', [
+      { ...base, platform, spent, leads_count, description, objective, end_date, results_text, target_audience },
+      { ...base, platform, spent, leads_count, end_date, target_audience },
+      { ...base, platform, end_date, target_audience },
+      { ...base, channel: platform, end_date, target_audience },
+      { ...base, end_date },
+      base,
+    ]);
   },
   async updateCampaign(id: string, updates: any) {
     if (useMock) return mockDataService.updateCampaign(id, updates);
-    const { data, error } = await supabase
-      .from('campaigns').update(updates).eq('id', id).select();
-    if (error) throw error;
-    return data[0];
+    const { name, platform, budget, spent, leads_count, status, start_date,
+            description, objective, end_date, results_text, target_audience } = updates;
+    const base: any = {};
+    if (name        !== undefined) base.name = name;
+    if (budget      !== undefined) base.budget = budget;
+    if (status      !== undefined) base.status = status;
+    if (start_date  !== undefined) base.start_date = start_date;
+    return tryUpdate('campaigns', id, [
+      { ...base, platform, spent, leads_count, description, objective, end_date, results_text, target_audience },
+      { ...base, platform, spent, leads_count, end_date, target_audience },
+      { ...base, platform, end_date, target_audience },
+      { ...base, channel: platform, end_date, target_audience },
+      { ...base, end_date },
+      base,
+    ]);
   },
   async deleteCampaign(id: string) {
     if (useMock) return mockDataService.deleteCampaign(id);
@@ -505,7 +520,7 @@ export const dataService = {
     return data || [];
   },
   async addSeller(seller: { name: string; role: string; monthly_goal: number; color: string }) {
-    if (useMock) return { id: crypto.randomUUID(), ...seller, active: true, created_at: new Date().toISOString() };
+    if (useMock) return { id: safeUUID(), ...seller, active: true, created_at: new Date().toISOString() };
     const uid = await getUid();
     const { data, error } = await supabase
       .from('sellers')
@@ -591,18 +606,24 @@ export const dataService = {
     const { data, error } = await supabase
       .from('documents').select('*').order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    // Schema antigo usa name/type/content; o app lê title/category/file_url — mapeia
+    return (data || []).map((d: any) => ({
+      ...d,
+      title: d.title ?? d.name ?? '',
+      category: d.category ?? d.type ?? 'Outros',
+      file_url: d.file_url ?? d.content ?? '',
+    }));
   },
   async addDocument(document: any) {
     if (useMock) return mockDataService.addDocument(document);
     const uid = await getUid();
     const { title, category, file_url } = document;
-    const { data, error } = await supabase
-      .from('documents')
-      .insert([{ title, category, file_url, user_id: uid }])
-      .select();
-    if (error) throw error;
-    return data[0];
+    // Schema novo (title/category/file_url) → fallback schema antigo (name/type/content)
+    return tryInsert('documents', [
+      { title, category, file_url, user_id: uid },
+      { name: title, type: category, content: file_url, user_id: uid },
+      { name: title, user_id: uid },
+    ]);
   },
   async deleteDocument(id: string) {
     if (useMock) return mockDataService.deleteDocument(id);

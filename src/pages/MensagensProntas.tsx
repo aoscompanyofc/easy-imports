@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { safeUUID } from '../lib/storage';
 import { Modal } from '../components/ui/Modal';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
@@ -265,7 +266,7 @@ export const MensagensProntas: React.FC = () => {
       return;
     }
     const next: MessageTemplate = {
-      id: crypto.randomUUID(),
+      id: safeUUID(),
       title: newTitle.trim(),
       category: newCategory,
       message: newMessage.trim(),

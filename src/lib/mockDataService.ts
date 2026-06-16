@@ -1,3 +1,4 @@
+import { safeUUID } from './storage';
 import { getStorage, setStorage, removeStorage } from './storage';
 
 // Helper to manage local storage data
@@ -27,7 +28,7 @@ export const mockDataService = {
   },
   async addProduct(product: any) {
     const data = getCollection('products');
-    const newProduct = { ...product, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newProduct = { ...product, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('products', [newProduct, ...data]);
     return newProduct;
   },
@@ -55,7 +56,7 @@ export const mockDataService = {
   },
   async addSale(sale: any, items: any[]) {
     const sales = getCollection('sales');
-    const newSale = { ...sale, id: crypto.randomUUID(), created_at: sale.created_at || new Date().toISOString() };
+    const newSale = { ...sale, id: safeUUID(), created_at: sale.created_at || new Date().toISOString() };
     saveCollection('sales', [newSale, ...sales]);
     
     const products = getCollection('products');
@@ -104,7 +105,7 @@ export const mockDataService = {
   },
   async addCustomer(customer: any) {
     const data = getCollection('customers');
-    const newCustomer = { ...customer, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newCustomer = { ...customer, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('customers', [newCustomer, ...data]);
     return newCustomer;
   },
@@ -121,7 +122,7 @@ export const mockDataService = {
   },
   async addLead(lead: any) {
     const data = getCollection('leads');
-    const newLead = { ...lead, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newLead = { ...lead, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('leads', [newLead, ...data]);
     return newLead;
   },
@@ -144,7 +145,7 @@ export const mockDataService = {
   },
   async addTransaction(transaction: any) {
     const data = getCollection('transactions');
-    const newTransaction = { ...transaction, id: crypto.randomUUID(), created_at: new Date().toISOString(), date: transaction.date || new Date().toISOString() };
+    const newTransaction = { ...transaction, id: safeUUID(), created_at: new Date().toISOString(), date: transaction.date || new Date().toISOString() };
     saveCollection('transactions', [newTransaction, ...data]);
     return newTransaction;
   },
@@ -161,7 +162,7 @@ export const mockDataService = {
   },
   async addSupplier(supplier: any) {
     const data = getCollection('suppliers');
-    const newSupplier = { ...supplier, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newSupplier = { ...supplier, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('suppliers', [newSupplier, ...data]);
     return newSupplier;
   },
@@ -172,7 +173,7 @@ export const mockDataService = {
   },
   async addCampaign(campaign: any) {
     const data = getCollection('campaigns');
-    const newCampaign = { ...campaign, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newCampaign = { ...campaign, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('campaigns', [newCampaign, ...data]);
     return newCampaign;
   },
@@ -200,7 +201,7 @@ export const mockDataService = {
   },
   async addDocument(document: any) {
     const data = getCollection('documents');
-    const newDoc = { ...document, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const newDoc = { ...document, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('documents', [newDoc, ...data]);
     return newDoc;
   }

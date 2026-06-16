@@ -40,6 +40,7 @@ const PAGE_LABELS: Record<PageKey, string> = {
   documentacao: 'Documentação',
   vendedores: 'Vendedores',
   mensagens: 'Mensagens Prontas',
+  calculadora: 'Calculadora de Taxas',
   configuracoes: 'Configurações',
 };
 
@@ -253,17 +254,25 @@ export const Configuracoes: React.FC = () => {
   };
 
   const handleClearData = async () => {
-    if (confirm('TEM CERTEZA? Isso apagará todos os dados (Estoque, Vendas, Clientes) PERMANENTEMENTE.')) {
-      try {
-        setIsCleaning(true);
-        await dataService.clearAllData();
-        toast.success('Sistema resetado com sucesso!');
-        window.location.reload();
-      } catch (error: any) {
-        toast.error('Erro ao limpar dados: ' + error.message);
-      } finally {
-        setIsCleaning(false);
-      }
+    const typed = prompt(
+      'ATENÇÃO: isso vai apagar TUDO (vendas, pagamentos, estoque, clientes, leads, fornecedores, ' +
+      'campanhas, vendedores e documentos) de forma PERMANENTE e irreversível.\n\n' +
+      'Para confirmar, digite ZERAR abaixo:'
+    );
+    if (typed === null) return; // cancelou
+    if (typed.trim().toUpperCase() !== 'ZERAR') {
+      toast.error('Confirmação incorreta. Nada foi apagado.');
+      return;
+    }
+    try {
+      setIsCleaning(true);
+      await dataService.clearAllData();
+      toast.success('Sistema zerado! Começando do zero.');
+      window.location.reload();
+    } catch (error: any) {
+      toast.error('Erro ao limpar dados: ' + error.message);
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -583,12 +592,14 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                   <Trash2 size={24} />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-neutral-900">Zona de Perigo: Resetar Sistema</h4>
+                  <h4 className="font-bold text-neutral-900">Começar o Sistema do Zero</h4>
                   <p className="text-sm text-neutral-600 mb-4">
-                    Isso apagará todos os produtos, vendas, clientes, leads e transações. Esta ação não pode ser desfeita.
+                    Apaga <strong>tudo</strong>: vendas, pagamentos/transações, estoque, clientes, leads,
+                    fornecedores, campanhas, vendedores e documentos. O sistema volta totalmente limpo,
+                    como no primeiro dia. Esta ação <strong>não pode ser desfeita</strong> — faça um backup antes.
                   </p>
                   <Button variant="danger" loading={isCleaning} onClick={handleClearData} leftIcon={<RefreshCw size={18} />}>
-                    Resetar Tudo (Dashboard Zerado)
+                    Começar do Zero
                   </Button>
                 </div>
               </div>

@@ -797,34 +797,30 @@ export const Dashboard: React.FC = () => {
             };
             return (
           <div className="space-y-3 sm:space-y-4">
-            {/* Linha 1: Faturamento + Caixa Real — mais largos (2 colunas) */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {/* Faturamento */}
-              <button
-                onClick={() => setDrillDown('revenue')}
-                className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
-                <p className="text-lg sm:text-3xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
-                  <TrendBadge cur={revenue} prev={prevRevenue} />
-                </div>
-              </button>
+            {/* Faturamento — destaque, largura total */}
+            <button
+              onClick={() => setDrillDown('revenue')}
+              className="w-full bg-white rounded-2xl border border-neutral-200 shadow-sm p-4 sm:p-6 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.99]"
+            >
+              <p className="text-[11px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Faturamento</p>
+              <p className="text-3xl sm:text-4xl font-black text-neutral-900 truncate">{formatCurrency(revenue)}</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[11px] sm:text-xs text-neutral-400 truncate">Preço cheio · {periodLabel}</p>
+                <TrendBadge cur={revenue} prev={prevRevenue} />
+              </div>
+            </button>
 
+            {/* Demais cards — 2×2 no mobile, 4 em linha no desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Caixa Real */}
               <button
                 onClick={() => setDrillDown('cash')}
                 className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-3 sm:p-5 flex flex-col gap-1 min-w-0 overflow-hidden text-left hover:border-primary/40 hover:shadow-md transition-all active:scale-[0.98]"
               >
                 <p className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-widest truncate">Caixa Real</p>
-                <p className="text-lg sm:text-3xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
-                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido · {periodLabel}</p>
+                <p className="text-lg sm:text-2xl font-black text-neutral-900 truncate">{formatCurrency(cash)}</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 truncate">Efetivamente recebido</p>
               </button>
-            </div>
-
-            {/* Linha 2: Lucro + Receita Prevista + Estoque */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {/* Lucro Realizado */}
               <button
                 onClick={() => setDrillDown('profit')}

@@ -19,7 +19,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-import { CUSTOMER_SOURCES as SOURCES } from '../lib/constants';
+import { CustomerForm, type CustomerFormData, emptyCustomerForm } from '../components/CustomerForm';
 
 const INACTIVE_MONTHS = 3;
 
@@ -27,8 +27,8 @@ function daysSince(dateStr: string) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-type FormData = { name: string; email: string; phone: string; cpf: string; city: string; notes: string; source: string; birthday: string };
-const emptyForm = (): FormData => ({ name: '', email: '', phone: '', cpf: '', city: '', notes: '', source: 'Instagram', birthday: '' });
+type FormData = CustomerFormData;
+const emptyForm = emptyCustomerForm;
 
 function norm(s: string) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -47,45 +47,6 @@ const AVATAR_COLORS = [
 function avatarColor(name: string) {
   return AVATAR_COLORS[((name || '').charCodeAt(0) || 0) % AVATAR_COLORS.length];
 }
-
-const CustomerForm = ({ data, onChange }: { data: FormData; onChange: (d: FormData) => void }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div className="md:col-span-2">
-      <Input label="Nome Completo *" placeholder="Ex: Ricardo Santos" required
-        value={data.name} onChange={(e) => onChange({ ...data, name: e.target.value })} autoComplete="off" />
-    </div>
-    <Input label="Telefone" placeholder="(11) 99999-9999"
-      value={data.phone} onChange={(e) => onChange({ ...data, phone: e.target.value })} autoComplete="off" />
-    <Input label="Email" type="email" placeholder="cliente@email.com"
-      value={data.email} onChange={(e) => onChange({ ...data, email: e.target.value })} autoComplete="off" />
-    <Input label="CPF / CNPJ" placeholder="CPF ou CNPJ"
-      value={data.cpf} onChange={(e) => onChange({ ...data, cpf: e.target.value })} autoComplete="off" />
-    <Input label="Endereço / Cidade" placeholder="Rua, número, bairro, cidade"
-      value={data.city} onChange={(e) => onChange({ ...data, city: e.target.value })} autoComplete="off" />
-    <div>
-      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Origem</label>
-      <select
-        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-        value={data.source}
-        onChange={(e) => onChange({ ...data, source: e.target.value })}
-      >
-        {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
-    </div>
-    <Input label="Data de Nascimento" type="date"
-      value={data.birthday} onChange={(e) => onChange({ ...data, birthday: e.target.value })} />
-    <div className="md:col-span-2">
-      <label className="block text-sm font-bold text-neutral-700 mb-1.5">Observações</label>
-      <textarea
-        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
-        rows={3}
-        placeholder="Informações adicionais sobre o cliente..."
-        value={data.notes}
-        onChange={(e) => onChange({ ...data, notes: e.target.value })}
-      />
-    </div>
-  </div>
-);
 
 const TYPE_BADGE: Record<string, string> = {
   venda: 'bg-neutral-900 text-white',

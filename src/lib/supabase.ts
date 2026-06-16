@@ -12,10 +12,18 @@ const isValidUrl = (url: string) => {
   }
 };
 
-const isConfigured = supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && isValidUrl(supabaseUrl);
+const _configured =
+  !!supabaseUrl &&
+  supabaseUrl !== 'YOUR_SUPABASE_URL' &&
+  isValidUrl(supabaseUrl) &&
+  !!supabaseAnonKey &&
+  supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY';
+
+/** Single source of truth — import this instead of re-declaring in every file. */
+export const isSupabaseConfigured = () => _configured;
 
 export const supabase = createClient(
-  isConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  supabaseAnonKey && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' ? supabaseAnonKey : 'placeholder',
+  _configured ? supabaseUrl : 'https://placeholder.supabase.co',
+  _configured ? supabaseAnonKey : 'placeholder',
   { auth: { storageKey: 'easy-imports-auth-v1' } }
 );

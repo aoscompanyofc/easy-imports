@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User, AuthState } from '../types';
 import { getStorage, setStorage, removeStorage } from '../lib/storage';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useProfileStore } from './profileStore';
 import { usePermissionsStore } from './permissionsStore';
 
@@ -14,12 +14,6 @@ interface AuthStore extends AuthState {
 }
 
 const STORAGE_KEY = 'easy_imports_auth';
-
-const isSupabaseConfigured = () => {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  return url && url !== 'YOUR_SUPABASE_URL' && key && key !== 'YOUR_SUPABASE_ANON_KEY';
-};
 
 const storedAuth = getStorage<{ isAuthenticated: boolean; user: User | null } | null>(STORAGE_KEY, null);
 
@@ -115,6 +109,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   checkAuth: async () => {
     if (!isSupabaseConfigured()) {
+      // Restore permissions for mock session from localStorage
+      const stored = getStorage<{ isAuthenticated: boolean; user: User | null } | null>(STORAGE_KEY, null);
+      if (stored?.isAuthenticated && stored.user) {
+        afterLogin(stored.user);
+      }
       set({ isLoading: false });
       return;
     }

@@ -3,7 +3,7 @@ import {
   Bell, Search, Menu, LogOut, Settings,
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, LucideIcon,
-  User, Loader2, Sun, Moon,
+  User, Loader2, Sun, Moon, Calculator,
 } from 'lucide-react';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,7 +17,10 @@ const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard', vendas: 'Vendas', estoque: 'Estoque',
   clientes: 'Clientes', leads: 'Leads', financeiro: 'Financeiro',
   fornecedores: 'Fornecedores', marketing: 'Marketing',
-  relatorios: 'Relatórios', documentacao: 'Documentação', configuracoes: 'Configurações',
+  relatorios: 'Relatórios', documentacao: 'Documentação',
+  vendedores: 'Vendedores', mensagens: 'Mensagens Prontas',
+  calculadora: 'Calculadora de Taxas',
+  configuracoes: 'Configurações',
 };
 
 interface PageRoute { type: 'page'; keywords: string[]; path: string; label: string; icon: LucideIcon; }
@@ -33,6 +36,7 @@ const SEARCH_ROUTES: PageRoute[] = [
   { type: 'page', keywords: ['marketing', 'campanha', 'publicidade'], path: '/marketing', label: 'Marketing', icon: Megaphone },
   { type: 'page', keywords: ['relatórios', 'relatorios', 'relatorio', 'analise'], path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
   { type: 'page', keywords: ['documentação', 'documentos', 'arquivos'], path: '/documentacao', label: 'Documentação', icon: FileText },
+  { type: 'page', keywords: ['calculadora', 'taxa', 'taxas', 'maquininha', 'parcelamento', 'juros', 'cartão'], path: '/calculadora', label: 'Calculadora de Taxas', icon: Calculator },
   { type: 'page', keywords: ['configurações', 'config', 'perfil', 'conta', 'equipe'], path: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
@@ -273,7 +277,8 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
   useEffect(() => {
     const r = buildResults(searchQuery, sales, customers, products);
     setResults(r);
-    setIsSearchOpen(r.length > 0 && searchQuery.trim().length > 0);
+    // Keep dropdown open whenever there's a query (shows results or "no results" message)
+    setIsSearchOpen(searchQuery.trim().length > 0);
     setSelectedIndex(0);
   }, [searchQuery, sales, customers, products]);
 
@@ -318,9 +323,9 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
-    logout();
+    await logout();
     navigate('/login');
   };
 

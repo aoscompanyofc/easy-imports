@@ -5,14 +5,33 @@ import { AppRoutes } from './routes';
 import { useAuthStore } from './stores/authStore';
 import { useThemeStore } from './stores/themeStore';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { usePermissionsStore } from './stores/permissionsStore';
+import { removeStorage } from './lib/storage';
 
 function App() {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, logout } = useAuthStore();
   const { isDark } = useThemeStore();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Listen for session expiry / sign-out events from Supabase
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_OUT') {
+          // Clear local state without calling supabase.signOut again (already done)
+          removeStorage('easy_imports_auth');
+          usePermissionsStore.getState().reset();
+          useAuthStore.setState({ isAuthenticated: false, user: null, isLoading: false });
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [logout]);
 
   useEffect(() => {
     if (isDark) {

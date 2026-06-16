@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export const ALL_PAGES = [
   'dashboard', 'vendas', 'estoque', 'clientes', 'leads',
   'financeiro', 'fornecedores', 'marketing', 'relatorios',
-  'documentacao', 'vendedores', 'mensagens', 'configuracoes',
+  'documentacao', 'vendedores', 'mensagens', 'calculadora', 'configuracoes',
 ] as const;
 
 export type PageKey = typeof ALL_PAGES[number];
@@ -29,15 +29,26 @@ export const usePermissionsStore = create<PermissionsStore>((set) => ({
   loaded: false,
 
   loadPermissions: async (email: string) => {
+    if (!isSupabaseConfigured()) {
+      set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+      return;
+    }
     try {
-      const { data } = await supabase
+      const TIMED_OUT = 'TIMED_OUT' as const;
+      const timeout = new Promise<typeof TIMED_OUT>((resolve) => setTimeout(() => resolve(TIMED_OUT), 6000));
+      const query = supabase
         .from('team_members')
         .select('role, allowed_pages')
         .eq('email', email)
         .maybeSingle();
+      const result = await Promise.race([query, timeout]);
+      if (result === TIMED_OUT) {
+        set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
+        return;
+      }
+      const { data } = result as Awaited<typeof query>;
 
       if (data) {
-        // Found in team_members → restricted collaborator
         set({
           role: data.role as 'admin' | 'vendedor',
           allowedPages: data.allowed_pages as string[],
@@ -45,7 +56,6 @@ export const usePermissionsStore = create<PermissionsStore>((set) => ({
           loaded: true,
         });
       } else {
-        // No record → owner (admin)
         set({ role: 'admin', allowedPages: [...ALL_PAGES], isAdmin: true, loaded: true });
       }
     } catch (err: any) {

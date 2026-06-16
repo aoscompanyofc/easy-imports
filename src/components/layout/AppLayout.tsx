@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
-import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut } from 'lucide-react';
+import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
@@ -25,6 +26,9 @@ const menuItems = [
   { icon: Megaphone, label: 'Marketing', path: '/marketing' },
   { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
   { icon: FileText, label: 'Documentação', path: '/documentacao' },
+  { icon: Users2, label: 'Vendedores', path: '/vendedores' },
+  { icon: MessageSquare, label: 'Mensagens', path: '/mensagens' },
+  { icon: Calculator, label: 'Calculadora', path: '/calculadora' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
 
@@ -33,6 +37,7 @@ export const AppLayout: React.FC = () => {
   const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const visibleMenuItems = menuItems.filter(
     (item) => allowedPages.includes(item.path.slice(1))
@@ -63,8 +68,8 @@ export const AppLayout: React.FC = () => {
     return () => { document.body.style.overflow = ''; };
   }, [isMobileMenuOpen]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -150,7 +155,10 @@ export const AppLayout: React.FC = () => {
 
         <main className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto w-full">
-            <Outlet />
+            {/* Isola crashes por página: header/sidebar permanecem e recupera ao navegar */}
+            <ErrorBoundary key={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
 

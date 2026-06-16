@@ -1,10 +1,11 @@
 // Geração das mensagens de WhatsApp prontas para copiar:
 //  • Cliente  — confirmação do pedido (estilo Easy Imports)
 //  • Motoboy  — corrida passo a passo para cada tipo de venda
+//  • Recolha  — corrida separada para buscar aparelho (troca com recolha no dia seguinte)
 //
 // Tipos cobertos:
 //  venda  → coleta na loja → entrega no cliente
-//  troca  → coleta na loja → entrega no cliente → RECOLHE aparelho do cliente
+//  troca  → coleta na loja → entrega no cliente → RECOLHE aparelho do cliente (mesmo dia ou dia seguinte)
 //  prazo  → igual venda, com instruções de parcelamento e entrada (se houver)
 //  compra → vai ao cliente → PAGA e RECOLHE aparelho → traz para a loja
 
@@ -50,26 +51,38 @@ export interface DeliveryInfo {
   freightValue: string;
   instructions: string;
   chargeMode: 'pago' | 'aguardar_pix' | 'maquininha' | 'dinheiro';
+  // Troca: recolher aparelho em corrida separada (dia seguinte)
+  deferCollection: boolean;
+  collectionDate: string;      // YYYY-MM-DD da recolha agendada
+  collectionTime: string;      // horário estimado da recolha
 }
 
-export const emptyDelivery = (): DeliveryInfo => ({
-  deliveryAddress: '',
-  deliveryTime: '',
-  pickupLocation: '',
-  pickupContact: '',
-  pickupTime: '',
-  recipient: '',
-  freightFree: true,
-  freightValue: '',
-  instructions: '',
-  chargeMode: 'pago',
-});
+export const emptyDelivery = (): DeliveryInfo => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return {
+    deliveryAddress: '',
+    deliveryTime: '',
+    pickupLocation: '',
+    pickupContact: '',
+    pickupTime: '',
+    recipient: '',
+    freightFree: true,
+    freightValue: '',
+    instructions: '',
+    chargeMode: 'pago',
+    deferCollection: false,
+    collectionDate: tomorrow.toISOString().split('T')[0],
+    collectionTime: '',
+  };
+};
 
+// Label sem emoji — ícones ficam no componente (Lucide, identidade visual)
 export const CHARGE_MODES: { id: DeliveryInfo['chargeMode']; label: string }[] = [
-  { id: 'pago',         label: '✅ Já pago' },
-  { id: 'aguardar_pix', label: '⏳ Aguardar PIX na entrega' },
-  { id: 'maquininha',   label: '💳 Cobrar na maquininha' },
-  { id: 'dinheiro',     label: '💵 Receber em dinheiro' },
+  { id: 'pago',         label: 'Já pago' },
+  { id: 'aguardar_pix', label: 'Aguardar PIX na entrega' },
+  { id: 'maquininha',   label: 'Cobrar na maquininha' },
+  { id: 'dinheiro',     label: 'Receber em dinheiro' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -172,7 +185,6 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
   if (s.saleType === 'troca') {
     lines.push('');
     lines.push('🔄 Detalhes da troca:');
-    // Múltiplos dispositivos ou device único
     const devs = s.incomingDevices?.length
       ? s.incomingDevices
       : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
@@ -184,6 +196,15 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
       lines.push(`  💵 Diferença a pagar: ${brl(s.cashReceived)}`);
     } else if (s.cashReceived === 0) {
       lines.push('  ✅ Sem diferença — troca direta!');
+    }
+
+    // Recolha no dia seguinte — aviso ao cliente
+    if (d.deferCollection) {
+      lines.push('');
+      lines.push('📅 Recolha do seu aparelho:');
+      lines.push(`  Nosso motoboy buscará seu ${devs.map(d => d.model).join(' e ')} em`);
+      lines.push(`  ${d.collectionDate ? dateBR(d.collectionDate) : 'data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime}` : ''}`);
+      lines.push('  Fique tranquilo para transferir seus dados! 😊');
     }
   }
 
@@ -241,7 +262,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   const lines: string[] = [];
 
   const typeLabel =
-    s.saleType === 'troca'  ? 'TROCA — 3 PASSOS'  :
+    s.saleType === 'troca'  ? (d.deferCollection ? 'TROCA — ENTREGA + RECOLHA AMANHÃ' : 'TROCA — 3 PASSOS')  :
     s.saleType === 'compra' ? 'COMPRA — COLETA'    :
     s.saleType === 'prazo'  ? 'ENTREGA A PRAZO'    : 'ENTREGA';
 
@@ -269,8 +290,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     lines.push(SEP);
     lines.push('');
     lines.push('⚠️ IMPORTANTE');
-    const amount = s.totalAmount;
-    chargeLineMotoboy(d, amount).forEach(l => lines.push(l));
+    chargeLineMotoboy(d, s.totalAmount).forEach(l => lines.push(l));
     if (d.instructions.trim()) lines.push(`📌 ${d.instructions.trim()}`);
     lines.push('✅ Avisar a loja após finalizar');
     lines.push('');
@@ -313,29 +333,49 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   lines.push('');
   chargeLineMotoboy(d, chargeAmount).forEach(l => lines.push(l));
 
-  // PASSO 3 (somente troca): Recolher aparelho do cliente
+  // PASSO 3: Recolher aparelho do cliente
   if (s.saleType === 'troca') {
-    lines.push('');
-    lines.push(SEP);
-    lines.push('');
-    lines.push('🔄 PASSO 3 — RECOLHER APARELHO DO CLIENTE');
-
     const devs = s.incomingDevices?.length
       ? s.incomingDevices
       : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
 
-    if (devs.length > 0) {
-      devs.forEach(dev => {
-        lines.push(`📱 ${dev.model}${dev.value > 0 ? ` — avaliado em ${brl(dev.value)}` : ''}`);
-      });
-    } else {
-      lines.push('📱 Aparelho do cliente (confirmar modelo na entrega)');
-    }
-
     lines.push('');
-    lines.push('⚠️ NÃO SAIR SEM O APARELHO DO CLIENTE!');
-    lines.push('📸 Fotografar o aparelho antes de guardar (frente e verso)');
-    lines.push('🔒 Guardar bem embalado — trazer direto para a loja');
+    lines.push(SEP);
+    lines.push('');
+
+    if (d.deferCollection) {
+      // Recolha adiada — NÃO pegar hoje
+      lines.push('📅 PASSO 3 — RECOLHA AGENDADA PARA OUTRA DATA');
+      lines.push('');
+      lines.push('⚠️ NÃO recolher o aparelho hoje!');
+      lines.push('✅ O cliente precisa de tempo para migrar os dados.');
+      if (d.collectionDate) {
+        lines.push(`📅 Recolha agendada: ${dateBR(d.collectionDate)}${d.collectionTime ? ` · ${d.collectionTime}` : ''}`);
+      }
+      if (devs.length > 0) {
+        lines.push('');
+        lines.push('📱 Aparelho a recolher na próxima corrida:');
+        devs.forEach(dev => {
+          lines.push(`   ${dev.model}${dev.value > 0 ? ` — ${brl(dev.value)}` : ''}`);
+        });
+      }
+      lines.push('');
+      lines.push('📋 Hoje: apenas entregar e cobrar. Informar ao cliente o dia da recolha.');
+    } else {
+      // Recolha na mesma corrida
+      lines.push('🔄 PASSO 3 — RECOLHER APARELHO DO CLIENTE');
+      if (devs.length > 0) {
+        devs.forEach(dev => {
+          lines.push(`📱 ${dev.model}${dev.value > 0 ? ` — avaliado em ${brl(dev.value)}` : ''}`);
+        });
+      } else {
+        lines.push('📱 Aparelho do cliente (confirmar modelo na entrega)');
+      }
+      lines.push('');
+      lines.push('⚠️ NÃO SAIR SEM O APARELHO DO CLIENTE!');
+      lines.push('📸 Fotografar o aparelho antes de guardar (frente e verso)');
+      lines.push('🔒 Guardar bem embalado — trazer direto para a loja');
+    }
   }
 
   lines.push('');
@@ -343,13 +383,51 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   lines.push('');
   lines.push('📋 CHECKLIST FINAL');
   lines.push('📸 Fotografar a entrega (produto nas mãos do cliente)');
-  if (s.saleType === 'troca') {
+  if (s.saleType === 'troca' && !d.deferCollection) {
     lines.push('📱 Conferir que recolheu o aparelho do cliente');
   }
   if (d.instructions.trim()) lines.push(`📌 ${d.instructions.trim()}`);
   lines.push('✅ Avisar a loja após finalizar a corrida');
   lines.push('');
   lines.push('🚀 Easy Imports agradece! Boa corrida! 🏍️📦');
+  return lines.join('\n');
+}
+
+// ─── Mensagem de RECOLHA (corrida separada — dia seguinte) ──────────────────
+export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string {
+  const devs = s.incomingDevices?.length
+    ? s.incomingDevices
+    : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
+
+  const lines: string[] = [];
+  lines.push('🏍️ CORRIDA EASY IMPORTS — RECOLHA DE APARELHO');
+  lines.push(`📅 ${d.collectionDate ? dateBR(d.collectionDate) : 'Data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime}` : ''}${s.saleNumber ? ` · ${s.saleNumber}` : ''}`);
+  lines.push('');
+  lines.push('📍 ENDEREÇO DO CLIENTE');
+  lines.push(d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO');
+  lines.push(`👤 Retirar com ${d.recipient.trim() || s.customerName || 'cliente'}`);
+  if (d.collectionTime.trim()) lines.push(`⏰ Horário: ${d.collectionTime.trim()}`);
+  lines.push('');
+  lines.push(SEP);
+  lines.push('');
+  lines.push('📱 APARELHO A RECOLHER:');
+  if (devs.length > 0) {
+    devs.forEach(dev => {
+      lines.push(`   ${dev.model}${dev.value > 0 ? ` — avaliado em ${brl(dev.value)}` : ''}`);
+    });
+  } else {
+    lines.push('   Confirmar modelo com o cliente');
+  }
+  lines.push('');
+  lines.push(SEP);
+  lines.push('');
+  lines.push('⚠️ ATENÇÃO RECOLHA');
+  lines.push('⚠️ NÃO SAIR SEM O APARELHO DO CLIENTE!');
+  lines.push('📸 Fotografar o aparelho (frente e verso) antes de guardar');
+  lines.push('🔒 Trazer diretamente para a loja, bem embalado');
+  lines.push('✅ Avisar a loja assim que recolher');
+  lines.push('');
+  lines.push('🚀 Easy Imports agradece! Boa corrida! 🏍️');
   return lines.join('\n');
 }
 

@@ -32,13 +32,24 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       if (saved && Array.isArray(saved) && saved.length > 0) {
         // Filtra widgets que não existem mais no registry
         let valid = saved.filter((w: WidgetInstance) => WIDGET_MAP[w.widgetId]);
+        const before = valid.length;
+        // Deduplica: cada widget é único no dashboard (sem cards repetidos)
+        const seen = new Set<string>();
+        valid = valid.filter((w: WidgetInstance) => {
+          if (seen.has(w.widgetId)) return false;
+          seen.add(w.widgetId);
+          return true;
+        });
         // Migração: se o layout salvo (versão antiga) não tem nenhuma seção,
         // anexa as seções padrão para o usuário não perder gráficos/listas.
         if (valid.length > 0 && !valid.some((w: WidgetInstance) => isSectionWidget(w.widgetId))) {
           const sectionDefaults = DEFAULT_LAYOUT.filter((w) => isSectionWidget(w.widgetId));
           valid = [...valid, ...sectionDefaults];
         }
-        set({ widgets: valid.length > 0 ? valid : DEFAULT_LAYOUT, loaded: true });
+        const finalWidgets = valid.length > 0 ? valid : DEFAULT_LAYOUT;
+        set({ widgets: finalWidgets, loaded: true });
+        // Se limpou duplicatas ou migrou, regrava o layout corrigido.
+        if (valid.length !== before) get().persist();
         return;
       }
     } catch {
@@ -61,6 +72,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   addWidget: (widgetId) => {
     const def = WIDGET_MAP[widgetId];
     if (!def) return;
+    // Evita duplicatas: cada card existe uma única vez no dashboard.
+    if (get().widgets.some((w) => w.widgetId === widgetId)) return;
     const instance: WidgetInstance = {
       instanceId: safeUUID(),
       widgetId,

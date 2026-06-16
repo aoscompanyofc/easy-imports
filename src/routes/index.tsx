@@ -18,7 +18,6 @@ import { Vendedores } from '../pages/Vendedores';
 import { MensagensProntas } from '../pages/MensagensProntas';
 import { CalculadoraTaxas } from '../pages/CalculadoraTaxas';
 import { Assinar } from '../pages/Assinar';
-import { LiquidGlassPlayground } from '../pages/LiquidGlassPlayground';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -42,7 +41,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="/mensagens" element={<MensagensProntas />} />
         <Route path="/calculadora" element={<CalculadoraTaxas />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
-        <Route path="/liquid-glass" element={<LiquidGlassPlayground />} />
         
         {/* Default route redirect to dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

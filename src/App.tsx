@@ -33,11 +33,15 @@ function App() {
     return () => subscription.unsubscribe();
   }, [logout]);
 
+  // Liquid Glass imersivo: dark mode ativa o tema de vidro da Apple em todo o app.
   useEffect(() => {
+    const root = document.documentElement;
     if (isDark) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      root.classList.add('liquid-glass-theme');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.classList.remove('liquid-glass-theme');
     }
   }, [isDark]);
 

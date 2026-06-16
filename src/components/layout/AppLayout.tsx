@@ -4,11 +4,10 @@ import { Sidebar } from './Sidebar';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
-import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator, Sparkles } from 'lucide-react';
+import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
-import { useThemeStore } from '../../stores/themeStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -30,7 +29,6 @@ const menuItems = [
   { icon: Users2, label: 'Vendedores', path: '/vendedores' },
   { icon: MessageSquare, label: 'Mensagens', path: '/mensagens' },
   { icon: Calculator, label: 'Calculadora', path: '/calculadora' },
-  { icon: Sparkles, label: 'Liquid Glass', path: '/liquid-glass' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
 
@@ -38,7 +36,6 @@ export const AppLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
-  const { isLiquidGlass } = useThemeStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -78,8 +75,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className={cn(
-      "flex min-h-screen bg-neutral-50 overflow-x-hidden transition-colors duration-300",
-      isLiquidGlass && "liquid-glass-theme"
+      "flex min-h-screen bg-neutral-50 overflow-x-hidden transition-colors duration-300"
     )}>
       {/* Desktop Sidebar */}
       <Sidebar />

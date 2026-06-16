@@ -25,16 +25,17 @@ export const Card: React.FC<CardProps> = ({
     lg: 'p-8',
   };
 
+  // Liquid Glass variants
   const variants = {
-    default: 'bg-white border border-neutral-200 shadow-card',
-    bordered: 'bg-white border border-neutral-200',
-    elevated: 'bg-white border border-neutral-100 shadow-card-hover',
+    default: 'card-glass',
+    bordered: 'glass rounded-3xl',
+    elevated: 'card-glass glass-hover',
   };
 
   return (
     <div
       className={cn(
-        'rounded-xl overflow-hidden',
+        'rounded-3xl overflow-hidden transition-all duration-200',
         variants[variant],
         paddings[padding],
         className

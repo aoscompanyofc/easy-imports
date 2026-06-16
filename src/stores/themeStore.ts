@@ -13,8 +13,8 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      isDark: false,
-      isLiquidGlass: false,
+      isDark: true,
+      isLiquidGlass: true,
       toggle: () => set((s) => ({ isDark: !s.isDark })),
       setDark: (v) => set({ isDark: v }),
       toggleLiquidGlass: () => set((s) => ({ isLiquidGlass: !s.isLiquidGlass })),

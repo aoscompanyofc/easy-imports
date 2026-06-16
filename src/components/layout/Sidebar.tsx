@@ -4,7 +4,6 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
   ChevronLeft, ChevronRight, LucideIcon, Users2, MessageSquare, Calculator,
-  Sparkles,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
@@ -29,7 +28,6 @@ const ALL_MENU_ITEMS = [
   { icon: Users2,          label: 'Vendedores',    path: '/vendedores'    },
   { icon: MessageSquare,   label: 'Mensagens',     path: '/mensagens'     },
   { icon: Calculator,      label: 'Calculadora',   path: '/calculadora'   },
-  { icon: Sparkles,        label: 'Liquid Glass',  path: '/liquid-glass'  },
 ];
 
 const SETTINGS_ITEM = { icon: Settings, label: 'Configurações', path: '/configuracoes' };

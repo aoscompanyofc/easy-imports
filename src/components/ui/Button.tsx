@@ -30,23 +30,25 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
+  // Liquid Glass variants
   const variants = {
-    primary: 'bg-primary text-neutral-900 font-semibold hover:bg-primary-600 border-transparent shadow-card',
-    secondary: 'bg-white border-neutral-200 text-neutral-900 hover:bg-neutral-50 shadow-card',
-    danger: 'bg-white border-danger text-danger hover:bg-danger-light shadow-card',
-    ghost: 'bg-transparent text-neutral-600 hover:bg-neutral-100 border-transparent',
+    primary: 'btn-glass bg-primary/80 text-neutral-900 font-semibold hover:bg-primary/90 border-primary/40',
+    secondary: 'btn-glass glass-hover',
+    danger: 'btn-glass text-danger border-danger/40 hover:bg-danger/10',
+    ghost: 'glass-focus text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/50 border-transparent',
   };
 
   const sizes = {
-    sm: iconOnly ? 'w-8 h-8' : 'h-8 px-3 text-sm',
-    md: iconOnly ? 'w-11 h-11' : 'h-11 px-4 text-base',
-    lg: iconOnly ? 'w-14 h-14' : 'h-14 px-6 text-lg',
+    sm: iconOnly ? 'w-9 h-9 text-xs' : 'h-9 px-3 text-sm',
+    md: iconOnly ? 'w-11 h-11 text-base' : 'h-11 px-5 text-base',
+    lg: iconOnly ? 'w-13 h-13 text-lg' : 'h-13 px-6 text-lg',
   };
 
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center rounded-lg border transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none gap-2',
+        'inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200',
+        'active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none gap-2',
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',
@@ -57,7 +59,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading ? (
-        <Loader2 className={cn(size === 'sm' ? 'w-4 h-4' : 'w-5 h-5', 'animate-spin')} />
+        <Loader2 className={cn(size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6', 'animate-spin')} aria-label="Loading" />
       ) : (
         <>
           {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}

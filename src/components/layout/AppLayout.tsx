@@ -130,7 +130,7 @@ export const AppLayout: React.FC = () => {
                     'flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200',
                     isActive
                       ? 'bg-primary text-neutral-900 font-bold shadow-lg shadow-primary/20'
-                      : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'
+                      : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
                   )
                 }
               >

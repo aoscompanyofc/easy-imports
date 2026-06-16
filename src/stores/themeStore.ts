@@ -14,7 +14,7 @@ export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
       isDark: true,
-      isLiquidGlass: true,
+      isLiquidGlass: false,
       toggle: () => set((s) => ({ isDark: !s.isDark })),
       setDark: (v) => set({ isDark: v }),
       toggleLiquidGlass: () => set((s) => ({ isLiquidGlass: !s.isLiquidGlass })),

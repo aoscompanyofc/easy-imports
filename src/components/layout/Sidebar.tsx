@@ -52,15 +52,15 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
         'group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 overflow-hidden',
         isCollapsed ? 'justify-center' : '',
         isActive
-          ? 'bg-neutral-900 text-white'
-          : 'text-neutral-400 hover:bg-neutral-100 hover:text-neutral-800'
+          ? 'bg-neutral-900 text-white dark:bg-primary/15 dark:text-primary'
+          : 'text-neutral-400 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200'
       )}
     >
       <Icon
         size={17}
         className={cn(
           'flex-shrink-0 transition-colors duration-150',
-          isActive ? 'text-white' : 'group-hover:text-neutral-700'
+          isActive ? 'text-white dark:text-primary' : 'group-hover:text-neutral-700 dark:group-hover:text-neutral-200'
         )}
       />
       {!isCollapsed && (

@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Calculator, Copy, Check, Download, Image as ImageIcon, CreditCard, Plus } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { Calculator, Copy, Check, Download, Image as ImageIcon, CreditCard, Plus, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BRANDS, CardBrand, simulate, brl } from '../lib/cardRates';
+
+const DEFAULT_MSG = `Ta na mao! De quantas vezes fica bom pra vc? 😊\n\nAtenção somente a bandeira. Simulação só vale pra Visa e Master, beleza?`;
 
 // ─── Geração da imagem (canvas) da simulação ────────────────────────────────
 function buildSimulationCanvas(valor: number, brand: CardBrand): HTMLCanvasElement {
@@ -152,7 +154,11 @@ export const CalculadoraTaxas: React.FC = () => {
   const [valorStr, setValorStr] = useState('700');
   const [brand, setBrand] = useState<CardBrand>('visa_master');
   const [copied, setCopied] = useState(false);
+  const [msgCopied, setMsgCopied] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
+  const [msgText, setMsgText] = useState(DEFAULT_MSG);
+  const [highlightMsg, setHighlightMsg] = useState(false);
+  const msgRef = useRef<HTMLTextAreaElement>(null);
 
   const valor = useMemo(() => {
     const cleaned = valorStr.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.');
@@ -200,6 +206,17 @@ export const CalculadoraTaxas: React.FC = () => {
       } catch (e) { rej(e); }
     });
 
+  const copyMsg = async () => {
+    try {
+      await navigator.clipboard.writeText(msgText);
+      setMsgCopied(true);
+      setTimeout(() => setMsgCopied(false), 2000);
+      toast.success('Mensagem copiada! Cole no WhatsApp.');
+    } catch {
+      toast.error('Não foi possível copiar a mensagem.');
+    }
+  };
+
   const shareImage = async () => {
     if (valor <= 0) { toast.error('Informe um valor para simular.'); return; }
     try {
@@ -207,7 +224,8 @@ export const CalculadoraTaxas: React.FC = () => {
       const file = new File([blob], fileName(), { type: 'image/png' });
       const nav: any = navigator;
       if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: 'Simulação Easy Imports' });
+        // Inclui a mensagem no compartilhamento — no WhatsApp mobile vai como legenda
+        await nav.share({ files: [file], title: 'Simulação Easy Imports', text: msgText });
         return;
       }
       throw new Error('share-unsupported');
@@ -227,7 +245,11 @@ export const CalculadoraTaxas: React.FC = () => {
       await navigator.clipboard.write([item]);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast.success('Imagem copiada! Cole em qualquer campo.');
+      // Destaca o campo de mensagem para o usuário copiar em seguida
+      setHighlightMsg(true);
+      setTimeout(() => setHighlightMsg(false), 3000);
+      msgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.success('Imagem copiada! Agora copie a mensagem abaixo.', { duration: 4000, icon: '👇' });
       return true;
     } catch {
       if (!silent) toast('Não foi possível copiar — use "Enviar / Compartilhar".', { icon: '📷' });
@@ -361,7 +383,47 @@ export const CalculadoraTaxas: React.FC = () => {
           </button>
         </div>
         <p className="text-[11px] text-neutral-400 text-center -mt-1">
-          📱 No celular, "Enviar imagem" abre direto o WhatsApp
+          📱 Mobile: "Enviar imagem" envia imagem + mensagem juntos · Desktop: copie imagem, depois copie a mensagem
+        </p>
+      </div>
+
+      {/* Mensagem para o cliente */}
+      <div className={[
+        'bg-white rounded-2xl border-2 shadow-sm p-5 space-y-3 transition-all duration-300',
+        highlightMsg ? 'border-primary shadow-primary/20 shadow-lg' : 'border-neutral-200',
+      ].join(' ')}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-primary/15 flex items-center justify-center">
+              <MessageCircle size={14} className="text-primary-700" />
+            </div>
+            <label className="text-xs font-black text-neutral-500 uppercase tracking-widest">
+              Mensagem para o cliente
+            </label>
+          </div>
+          <button
+            onClick={copyMsg}
+            className={[
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border-2',
+              msgCopied || highlightMsg
+                ? 'bg-primary border-primary text-neutral-900 scale-105'
+                : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary/40 hover:text-neutral-900',
+            ].join(' ')}
+          >
+            {msgCopied ? <><Check size={13} /> Copiada!</> : <><Copy size={13} /> Copiar mensagem</>}
+          </button>
+        </div>
+
+        <textarea
+          ref={msgRef}
+          value={msgText}
+          onChange={(e) => setMsgText(e.target.value)}
+          rows={4}
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none leading-relaxed"
+        />
+
+        <p className="text-[11px] text-neutral-400">
+          Edite o texto acima se precisar. Ao clicar em "Enviar imagem" no celular, imagem e mensagem vão juntas pro WhatsApp.
         </p>
       </div>
 

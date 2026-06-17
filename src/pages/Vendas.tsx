@@ -38,7 +38,7 @@ const SALE_TYPES = [
 
 const PAYMENT_METHODS = ['PIX', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'];
 
-const CONDITIONS = ['Novo', 'Seminovo', 'Usado — Bom Estado', 'Usado — Com Marcas', 'Para Retirada de Peças'];
+const CONDITIONS = ['Novo', 'Como Novo', 'Seminovo', 'Usado — Bom Estado', 'Usado — Com Marcas', 'Para Retirada de Peças'];
 
 // Extended DeviceFormData for trade-in (adds serial + account email for PDF/stock)
 interface TradeInDevice extends DeviceFormData {
@@ -170,8 +170,9 @@ const emptyForm = () => ({
   sale_date: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })(),
   // WhatsApp para envio automático do link de assinatura
   whatsapp_number: '',
-  // Tipo de garantia no PDF: 'novo' = fabricante 1 ano | 'seminovo' = 90 dias Easy Imports
+  // Tipo de garantia: 'novo' | 'seminovo' | 'apple_warranty'
   pdf_type: 'seminovo',
+  warranty_expiry: '',
   // Custo manual (quando produto não vem do estoque)
   product_cost_manual: '',
   // Salvar produto no histórico do estoque mesmo sendo venda sob demanda
@@ -466,6 +467,11 @@ export const Vendas: React.FC = () => {
       installmentsJson = JSON.stringify(items);
     }
 
+    // Encode pdf_type — apple_warranty carries the expiry date
+    const resolvedPdfType = form.pdf_type === 'apple_warranty'
+      ? `apple_warranty:${form.warranty_expiry || ''}`
+      : form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo');
+
     // Build outgoing items JSON (primary + additional) for PDF and edit restoration
     const buildOutgoingItemsJson = () => {
       const primaryProd = form.selectedProduct ? products.find((p: any) => p.id === form.selectedProduct) : null;
@@ -571,7 +577,7 @@ export const Vendas: React.FC = () => {
           product_condition: form.product_condition,
           product_imei: form.product_imei || selectedProductData?.imei || '',
           product_accessories: form.product_accessories,
-          pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+          pdf_type: resolvedPdfType,
           total_amount: totalAmount,
           payment_method: resolvedPaymentMethod,
           installments: isPrazo ? prazoCount : (form.split_payment ? 1 : form.installments),
@@ -690,7 +696,7 @@ export const Vendas: React.FC = () => {
           incoming_condition: primaryDevice.condition || '',
           incoming_battery_health: primaryDevice.battery_health || '',
           incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
-          pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+          pdf_type: resolvedPdfType,
           rep_seller_id: repSeller?.id || null,
           rep_seller_name: repSeller?.name || '',
           incoming_devices_json: incomingDevices.filter((d) => d.model.trim()).length > 0
@@ -893,7 +899,7 @@ export const Vendas: React.FC = () => {
         incoming_battery_health: primaryDevice.battery_health || undefined,
         incoming_purchase_price: Number(primaryDevice.purchase_price) || undefined,
         signature_admin: adminSignature || undefined,
-        pdf_type: form.pdf_type || (form.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+        pdf_type: resolvedPdfType,
         installments_json: installmentsJson || undefined,
         outgoing_items: (() => {
           try {
@@ -1721,7 +1727,8 @@ export const Vendas: React.FC = () => {
                                     ? new Date(sale.created_at).toISOString().slice(0, 16)
                                     : new Date().toISOString().slice(0, 16),
                                   whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
-                                  pdf_type: sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo'),
+                                  pdf_type: sale.pdf_type?.startsWith('apple_warranty') ? 'apple_warranty' : (sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo')),
+                                  warranty_expiry: sale.pdf_type?.startsWith('apple_warranty:') ? sale.pdf_type.split(':')[1] || '' : '',
                                   prazo_count: String(existingInsts.filter((i: any) => !i.is_entrada).length || 1),
                                   prazo_value: (() => { const fi = existingInsts.find((i: any) => !i.is_entrada); return fi?.amount ? String(fi.amount) : ''; })(),
                                   prazo_first_due: existingInsts.find((i: any) => !i.is_entrada)?.due || '',
@@ -2161,7 +2168,13 @@ export const Vendas: React.FC = () => {
                     const val = e.target.value;
                     const cLower = val.toLowerCase();
                     const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
-                    setForm((f) => ({ ...f, product_condition: val, pdf_type: condIsNovo ? 'novo' : 'seminovo' }));
+                    const condIsComoNovo = cLower === 'como novo';
+                    setForm((f: any) => ({
+                      ...f,
+                      product_condition: val,
+                      // 'Como Novo' não auto-seleciona garantia — usuário escolhe manualmente
+                      pdf_type: condIsNovo ? 'novo' : condIsComoNovo ? f.pdf_type : 'seminovo',
+                    }));
                   }}
                 >
                   {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -2247,7 +2260,7 @@ export const Vendas: React.FC = () => {
               )}>
                 <input type="radio" name="pdf_type" value="seminovo"
                   checked={form.pdf_type === 'seminovo'}
-                  onChange={() => setForm((f) => ({ ...f, pdf_type: 'seminovo' }))}
+                  onChange={() => setForm((f) => ({ ...f, pdf_type: 'seminovo', warranty_expiry: '' }))}
                   className="hidden" />
                 <div className="flex items-center gap-2.5">
                   <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
@@ -2259,15 +2272,54 @@ export const Vendas: React.FC = () => {
                 <p className="text-xs text-neutral-500 pl-6.5">Garantia Easy Imports · 90 dias (CDC art. 26)</p>
                 <p className="text-[10px] text-neutral-600 font-semibold pl-6.5">→ PDF imprime: Garantia Easy Imports 90 dias</p>
               </label>
+
+              {/* Terceira opção: Garantia Apple Remanescente */}
+              <label className={cn(
+                'flex flex-col gap-1.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none sm:col-span-2',
+                form.pdf_type === 'apple_warranty'
+                  ? 'border-blue-500 bg-blue-50 shadow-sm'
+                  : 'border-neutral-200 bg-white hover:border-blue-300'
+              )}>
+                <input type="radio" name="pdf_type" value="apple_warranty"
+                  checked={form.pdf_type === 'apple_warranty'}
+                  onChange={() => setForm((f) => ({ ...f, pdf_type: 'apple_warranty' }))}
+                  className="hidden" />
+                <div className="flex items-center gap-2.5">
+                  <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                    form.pdf_type === 'apple_warranty' ? 'border-blue-500' : 'border-neutral-300')}>
+                    {form.pdf_type === 'apple_warranty' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                  </div>
+                  <span className="font-bold text-sm text-neutral-900">Garantia Apple Remanescente</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Usado · Breve Uso</span>
+                </div>
+                <p className="text-xs text-neutral-500 pl-6.5">Produto com pouco uso mas já não é novo — ainda tem garantia Apple ativa</p>
+                <p className="text-[10px] text-neutral-600 font-semibold pl-6.5">→ PDF imprime: Garantia Apple Remanescente válida até [data]</p>
+                {form.pdf_type === 'apple_warranty' && (
+                  <div className="mt-2 pl-6.5">
+                    <label className="block text-xs font-bold text-blue-700 mb-1">Garantia válida até (mês/ano) *</label>
+                    <input
+                      type="month"
+                      className="bg-white border-2 border-blue-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-300 text-neutral-900"
+                      value={form.warranty_expiry}
+                      onChange={(e) => setForm((f: any) => ({ ...f, warranty_expiry: e.target.value }))}
+                    />
+                    {form.warranty_expiry && (
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        Ex: "Garantia Apple Remanescente válida até {new Date(form.warranty_expiry + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}"
+                      </p>
+                    )}
+                  </div>
+                )}
+              </label>
             </div>
 
-            {/* Aviso de inconsistência entre condição e tipo de garantia */}
+            {/* Aviso de inconsistência */}
             {(() => {
               const cLower = (form.product_condition || '').toLowerCase();
               const condIsNovo = cLower === 'novo' || cLower.startsWith('novo ') || cLower.startsWith('novo(');
               if (condIsNovo && form.pdf_type !== 'novo') return (
                 <p className="mt-3 text-xs text-neutral-700 bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-medium">
-                  ⚠️ O estado selecionado é "Novo" mas a garantia do PDF está como Seminovo — verifique se está correto!
+                  ⚠️ O estado selecionado é "Novo" mas a garantia do PDF está diferente — verifique se está correto!
                 </p>
               );
               if (!condIsNovo && form.pdf_type === 'novo') return (
@@ -2275,11 +2327,18 @@ export const Vendas: React.FC = () => {
                   ⚠️ O estado selecionado é Seminovo/Usado mas a garantia do PDF está como Novo — verifique se está correto!
                 </p>
               );
+              if (form.pdf_type === 'apple_warranty' && !form.warranty_expiry) return (
+                <p className="mt-3 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 font-medium">
+                  ⚠️ Selecione a data de validade da Garantia Apple para gerar o PDF corretamente.
+                </p>
+              );
               return (
                 <p className="mt-2 text-xs text-neutral-400 font-medium">
                   {form.pdf_type === 'novo'
-                    ? '✅ Aparelho Novo selecionado — PDF com Garantia do Fabricante (12 meses)'
-                    : '✅ Seminovo/Usado selecionado — PDF com Garantia Easy Imports (90 dias)'}
+                    ? '✅ Aparelho Novo — PDF com Garantia do Fabricante (12 meses)'
+                    : form.pdf_type === 'apple_warranty'
+                      ? '✅ Garantia Apple Remanescente — PDF com validade informada'
+                      : '✅ Seminovo/Usado — PDF com Garantia Easy Imports (90 dias)'}
                 </p>
               );
             })()}
@@ -3538,7 +3597,9 @@ export const Vendas: React.FC = () => {
                   ? (Number(form.sale_price_manual) || selectedProductData?.sale_price || 0)
                   : (Number(form.sale_price_manual) || selectedProductData?.sale_price || 0),
                 cost: selectedProductData?.purchase_price || Number(form.product_cost_manual) || 0,
-                pdf_type: form.pdf_type,
+                pdf_type: form.pdf_type === 'apple_warranty'
+                  ? `apple_warranty:${form.warranty_expiry || ''}`
+                  : form.pdf_type,
               };
               const addl = additionalItems.filter(isAddlItemFilled).map(i => {
                 const p = i.mode === 'stock' ? products.find((pr: any) => pr.id === i.selectedProduct) : null;
@@ -3601,7 +3662,9 @@ export const Vendas: React.FC = () => {
                     <p className="text-[10px] font-black text-white uppercase tracking-widest">
                       Produto{allOutgoing.length > 1 ? `s (${allOutgoing.length})` : ''}
                     </p>
-                    <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Garantia: {form.pdf_type === 'novo' ? 'Fabricante (12m)' : 'Easy Imports (90d)'}</p>
+                    <p className="text-[10px] text-neutral-400 uppercase tracking-wider">
+                      Garantia: {form.pdf_type === 'novo' ? 'Fabricante (12m)' : form.pdf_type === 'apple_warranty' ? `Apple (até ${form.warranty_expiry || '?'})` : 'Easy Imports (90d)'}
+                    </p>
                   </div>
                   <div className="divide-y divide-neutral-100">
                     {allOutgoing.map((p, i) => {

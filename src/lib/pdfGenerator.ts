@@ -368,6 +368,33 @@ function warrantyBlockNovo() {
     </div>`;
 }
 
+function warrantyBlockApple(expiry: string) {
+  return `
+    <div class="g-list-wrap">
+      <div class="g-nc-t">Garantia Apple inclusa:</div>
+      <ul class="g-list">
+        <li>Válida até <strong>${expiry}</strong></li>
+        <li>Defeitos internos de fabricação</li>
+        <li>Suporte: assistência técnica Apple</li>
+      </ul>
+      <div class="g-nc-t" style="margin-top:10px;">NÃO cobre:</div>
+      <ul class="g-list">
+        <li>Quedas e impactos</li>
+        <li>Danos por água ou mau uso</li>
+        <li>Violação por terceiros</li>
+      </ul>
+    </div>`;
+}
+
+function parseAppleExpiry(pdfType?: string): string {
+  if (!pdfType?.startsWith('apple_warranty:')) return '';
+  const raw = pdfType.split(':')[1] || '';
+  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const [y, m] = raw.split('-');
+  if (!y || !m) return raw;
+  return `${months[parseInt(m, 10) - 1] || m} de ${y}`;
+}
+
 // Pre-opened window set by generatePDF when called from an async context
 // (avoids popup blocker since window must be opened in a synchronous event handler)
 let _preOpenedWin: Window | null | undefined = undefined;
@@ -507,7 +534,11 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
   <div class="sec-t">Termo de Garantia</div>
   <div class="sec-b">
     <div class="g-wrap">
-      ${(sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(cond))) ? `
+      ${(() => {
+        const isNovoPDF = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(cond));
+        const isApplePDF = sale.pdf_type?.startsWith('apple_warranty');
+        const appleExpiry = parseAppleExpiry(sale.pdf_type);
+        if (isNovoPDF) return `
       <div class="g-txt">
         Este aparelho é <strong>Novo (lacrado)</strong> e está coberto pela
         <strong>Garantia Oficial do Fabricante</strong>. Consulte a embalagem ou o site
@@ -517,8 +548,18 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
         Em caso de defeito, acione diretamente a
         <strong>assistência técnica autorizada</strong> do fabricante.
       </div>
-      ${warrantyBlockNovo()}
-      ` : `
+      ${warrantyBlockNovo()}`;
+        if (isApplePDF) return `
+      <div class="g-txt">
+        Este aparelho possui <strong>Garantia Apple Remanescente</strong> válida até
+        <strong>${appleExpiry}</strong>.<br><br>
+        A Easy Imports <strong>transfere integralmente a garantia do fabricante</strong> ao comprador.
+        Em caso de defeito durante o período de garantia, o cliente deve acionar diretamente a
+        <strong>assistência técnica Apple</strong>.<br><br>
+        A Easy Imports não fornece garantia adicional além da garantia Apple remanescente.
+      </div>
+      ${warrantyBlockApple(appleExpiry)}`;
+        return `
       <div class="g-txt">
         A <strong>Easy Imports</strong> oferece garantia de <strong>90 (noventa) dias por lei</strong>
         para defeitos técnicos de funcionamento do aparelho, a contar desta data,
@@ -527,8 +568,8 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
         procurar a Easy Imports antes de qualquer intervenção de terceiros.
         Após abertura ou violação por terceiros, a garantia é automaticamente cancelada.
       </div>
-      ${warrantyBlock()}
-      `}
+      ${warrantyBlock()}`;
+      })()}
     </div>
   </div>
 </div>
@@ -600,7 +641,13 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
 
   // Garantia do aparelho entregue pela Easy Imports: usa pdf_type explícito se informado
   const useNewWarranty = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
-  const outWarrantyLabel = useNewWarranty ? 'Garantia do Fabricante (1 ano)' : '90 dias por lei — CDC';
+  const useAppleWarranty = sale.pdf_type?.startsWith('apple_warranty') ?? false;
+  const appleExpiryTroca = parseAppleExpiry(sale.pdf_type);
+  const outWarrantyLabel = useNewWarranty
+    ? 'Garantia do Fabricante (1 ano)'
+    : useAppleWarranty
+      ? `Garantia Apple até ${appleExpiryTroca}`
+      : '90 dias por lei — CDC';
 
   // Aparelho(s) entregue(s) pela Easy Imports ao cliente
   const outgoingBlock = sale.outgoing_items && sale.outgoing_items.length > 1 ? `
@@ -656,17 +703,26 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       </div>
     </div>`;
 
-  // Texto e bloco de garantia (depende se novo ou não)
+  // Texto e bloco de garantia (depende se novo, apple ou seminovo)
   const outWarrantyText = useNewWarranty
     ? `O aparelho entregue pela Easy Imports é <strong>Novo (lacrado)</strong> e coberto pela
        <strong>Garantia Oficial do Fabricante</strong>. Em caso de defeito acione diretamente a
        assistência técnica autorizada. A Easy Imports não fornece garantia adicional para
        aparelhos novos lacrados.`
-    : `O aparelho entregue possui garantia de <strong>90 (noventa) dias</strong> para defeitos
-       técnicos de funcionamento, conforme art. 26 do CDC. Válida apenas para defeitos internos.
-       Procure a Easy Imports antes de qualquer intervenção de terceiros.`;
+    : useAppleWarranty
+      ? `O aparelho entregue possui <strong>Garantia Apple Remanescente</strong> válida até
+         <strong>${appleExpiryTroca}</strong>. A Easy Imports transfere integralmente a garantia
+         do fabricante ao comprador. Em caso de defeito acione a assistência técnica Apple.
+         A Easy Imports não fornece garantia adicional além da garantia Apple remanescente.`
+      : `O aparelho entregue possui garantia de <strong>90 (noventa) dias</strong> para defeitos
+         técnicos de funcionamento, conforme art. 26 do CDC. Válida apenas para defeitos internos.
+         Procure a Easy Imports antes de qualquer intervenção de terceiros.`;
 
-  const outWarrantyBlock = useNewWarranty ? warrantyBlockNovo() : warrantyBlock();
+  const outWarrantyBlock = useNewWarranty
+    ? warrantyBlockNovo()
+    : useAppleWarranty
+      ? warrantyBlockApple(appleExpiryTroca)
+      : warrantyBlock();
 
   const body = `
 <div class="sec">
@@ -844,6 +900,8 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
   const isBom   = (c: string) => c.includes('bom') && !c.includes('seminovo');
   const isUsado = (c: string) => c.includes('usado') || c.includes('defeito');
   const forceNovo = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
+  const forceApple = sale.pdf_type?.startsWith('apple_warranty') ?? false;
+  const appleExpiryPrazo = parseAppleExpiry(sale.pdf_type);
 
   // Installment table rows
   const instRows = insts.map(inst => {
@@ -1022,8 +1080,12 @@ ${tradeInSection}
       <strong>3. Propriedade:</strong> A propriedade do produto somente é transferida definitivamente ao comprador
       após o pagamento integral de todas as parcelas. O produto não pode ser vendido, transferido
       ou dado como garantia antes da quitação total.<br>
-      <strong>4. Garantia:</strong> A Easy Imports concede garantia de 90 dias para defeitos técnicos de funcionamento
-      a partir desta data (art. 26, CDC). Não coberta: quedas, danos por água, mau uso ou violação por terceiros.<br>
+      <strong>4. Garantia:</strong> ${forceApple
+        ? `O aparelho possui Garantia Apple Remanescente válida até ${appleExpiryPrazo}. A Easy Imports transfere a garantia do fabricante ao comprador. Não coberta: quedas, danos por água, mau uso ou violação.`
+        : forceNovo
+          ? `Aparelho Novo coberto pela Garantia Oficial do Fabricante. A Easy Imports não fornece garantia adicional para aparelhos novos. Em caso de defeito acione a assistência técnica autorizada.`
+          : `A Easy Imports concede garantia de 90 dias para defeitos técnicos de funcionamento a partir desta data (art. 26, CDC). Não coberta: quedas, danos por água, mau uso ou violação por terceiros.`
+      }<br>
       <strong>5. Foro:</strong> As partes elegem o foro da comarca de domicílio da vendedora para dirimir eventuais
       controvérsias oriundas deste contrato, com renúncia a qualquer outro.
     </div>

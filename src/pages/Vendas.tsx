@@ -309,6 +309,21 @@ export const Vendas: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Sync edit fields whenever a different sale is opened in the detail modal
+  useEffect(() => {
+    if (!detailSale) return;
+    setDetailCostEditMode(false);
+    setDetailEditSaleVal(String(Number(detailSale.total_amount) || ''));
+    const costFromJson = (() => {
+      try {
+        const items = JSON.parse(detailSale.outgoing_items_json || '[]');
+        if (!items.length) return 0;
+        return items.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+      } catch { return 0; }
+    })();
+    setDetailEditCostVal(costFromJson > 0 ? String(costFromJson) : '');
+  }, [detailSale?.id]);
+
   // Map sale_number / ID-prefix → cost de transações auto-criadas (suporta formato antigo e novo)
   const costBySale = useMemo<Record<string, number>>(() => {
     const map: Record<string, number> = {};
@@ -1304,14 +1319,15 @@ export const Vendas: React.FC = () => {
 
   const handleSaveDetailCostEdit = async () => {
     if (!detailSale) return;
+    const newSale = Number(detailEditSaleVal);
+    const newCost = Number(detailEditCostVal) || 0;
+    if (!newSale || newSale <= 0) { toast.error('Informe o valor que o cliente pagou.'); return; }
     setSavingDetailCostEdit(true);
     try {
-      const newSale = parseFloat(detailEditSaleVal.replace(/\./g, '').replace(',', '.')) || Number(detailSale.total_amount);
-      const newCost = parseFloat(detailEditCostVal.replace(/\./g, '').replace(',', '.')) || 0;
       const outItems: any[] = (() => { try { return JSON.parse(detailSale.outgoing_items_json || '[]'); } catch { return []; } })();
       if (outItems.length > 0) {
         const oldTotal = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
-        if (oldTotal > 0 && outItems.length > 1) {
+        if (oldTotal > 0 && outItems.length > 1 && newCost > 0) {
           const ratio = newCost / oldTotal;
           outItems.forEach((it: any) => { it.cost = Math.round(Number(it.cost || 0) * ratio * 100) / 100; });
         } else {
@@ -1320,13 +1336,14 @@ export const Vendas: React.FC = () => {
       } else {
         outItems.push({ product_id: '', name: detailSale.product_name || '', cost: newCost, price: newSale });
       }
-      await dataService.updateSale(detailSale.id, {
-        total_amount: newSale,
-        outgoing_items_json: JSON.stringify(outItems),
-      });
-      setDetailSale((prev: any) => prev ? { ...prev, total_amount: newSale, outgoing_items_json: JSON.stringify(outItems) } : prev);
-      setDetailCostEditMode(false);
-      toast.success('Valores corrigidos!');
+      const newJson = JSON.stringify(outItems);
+      // Save total_amount always, outgoing_items_json as best-effort
+      await dataService.updateSale(detailSale.id, { total_amount: newSale });
+      try {
+        await dataService.updateSale(detailSale.id, { outgoing_items_json: newJson });
+      } catch { /* column may not exist yet, total_amount already saved */ }
+      setDetailSale((prev: any) => prev ? { ...prev, total_amount: newSale, outgoing_items_json: newJson } : prev);
+      toast.success('Valores salvos!');
       fetchData();
     } catch (e: any) {
       toast.error('Erro ao salvar: ' + e.message);
@@ -4680,104 +4697,71 @@ export const Vendas: React.FC = () => {
                 );
               }
 
-              // Venda / Compra
-              const activeSaleAmt = Number(detailSale.total_amount);
-              const activeDcost = dcost;
-              const dprofit = activeDcost !== null ? activeSaleAmt - activeDcost : null;
-              const dmargin = dprofit !== null && activeSaleAmt > 0
-                ? Math.round((dprofit / activeSaleAmt) * 100)
-                : null;
-              if (activeDcost === null && !detailCostEditMode) return (
-                <button
-                  onClick={() => { setDetailCostEditMode(true); setDetailEditSaleVal(String(activeSaleAmt)); setDetailEditCostVal(''); }}
-                  className="w-full text-xs text-neutral-400 hover:text-neutral-600 py-2 border border-dashed border-neutral-300 rounded-xl transition-colors"
-                >
-                  + Adicionar custo e calcular lucro
-                </button>
-              );
-              if (detailCostEditMode) return (
-                <div className="space-y-3 p-4 bg-neutral-50 border-2 border-primary/40 rounded-2xl">
-                  <p className="text-xs font-black text-neutral-700 uppercase tracking-wide">Corrigir valores</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Preço de venda (R$)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={detailEditSaleVal}
-                        onChange={e => setDetailEditSaleVal(e.target.value)}
-                        className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
-                        placeholder="Ex: 3200"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Custo (R$)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={detailEditCostVal}
-                        onChange={e => setDetailEditCostVal(e.target.value)}
-                        className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
-                        placeholder="Ex: 2900"
-                      />
-                    </div>
-                  </div>
-                  {detailEditSaleVal && detailEditCostVal && (
-                    <div className={cn('flex items-center justify-between px-3 py-2 rounded-xl text-sm font-black',
-                      Number(detailEditSaleVal) - Number(detailEditCostVal) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    )}>
-                      <span>Lucro previsto</span>
-                      <span>{formatCurrency(Number(detailEditSaleVal) - Number(detailEditCostVal))}</span>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSaveDetailCostEdit}
-                      disabled={savingDetailCostEdit || !detailEditSaleVal}
-                      className="flex-1 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-700 disabled:opacity-40 transition-colors"
-                    >
-                      {savingDetailCostEdit ? 'Salvando…' : 'Salvar'}
-                    </button>
-                    <button
-                      onClick={() => setDetailCostEditMode(false)}
-                      className="px-4 py-2 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:bg-neutral-100 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              );
+              // Venda / Compra — painel de valores sempre visível e editável
+              const editedSale = Number(detailEditSaleVal) || 0;
+              const editedCost = Number(detailEditCostVal) || 0;
+              const editedProfit = (editedSale > 0 && editedCost > 0) ? editedSale - editedCost : null;
+              const editedMargin = editedProfit !== null && editedSale > 0
+                ? Math.round((editedProfit / editedSale) * 100) : null;
               return (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-center">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Venda</p>
-                      <p className="text-sm font-black text-neutral-900 mt-0.5">{formatCurrency(activeSaleAmt)}</p>
+                <div className="bg-white border-2 border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="bg-neutral-900 text-white px-4 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest">Valores da operação</p>
+                    <p className="text-[9px] text-neutral-400 mt-0.5">Edite abaixo se os valores estiverem errados e salve</p>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1.5">
+                          O cliente pagou (R$)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={detailEditSaleVal}
+                          onChange={e => setDetailEditSaleVal(e.target.value)}
+                          className="w-full px-3 py-2.5 border-2 border-neutral-200 rounded-xl text-base font-black focus:outline-none focus:border-yellow-400 bg-white"
+                          placeholder="0,00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1.5">
+                          Seu custo (R$)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={detailEditCostVal}
+                          onChange={e => setDetailEditCostVal(e.target.value)}
+                          className="w-full px-3 py-2.5 border-2 border-neutral-200 rounded-xl text-base font-black focus:outline-none focus:border-yellow-400 bg-white"
+                          placeholder="0,00"
+                        />
+                      </div>
                     </div>
-                    <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
-                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
-                      <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(activeDcost!)}</p>
-                    </div>
-                    {dprofit !== null && (
-                      <div className={cn('border rounded-xl p-3 text-center', dprofit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100')}>
-                        <p className={cn('text-[10px] font-black uppercase tracking-wide', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>Lucro</p>
-                        <p className={cn('text-sm font-black mt-0.5', dprofit >= 0 ? 'text-green-600' : 'text-red-600')}>{formatCurrency(dprofit)}</p>
-                        {dmargin !== null && (
-                          <p className={cn('text-[10px] font-bold', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>{dmargin}%</p>
-                        )}
+                    {editedProfit !== null && (
+                      <div className={cn(
+                        'flex items-center justify-between px-4 py-3 rounded-xl',
+                        editedProfit >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                      )}>
+                        <p className={cn('text-xs font-black uppercase tracking-wide', editedProfit >= 0 ? 'text-green-700' : 'text-red-700')}>
+                          {editedProfit >= 0 ? 'Lucro' : 'Prejuízo'}
+                        </p>
+                        <span className={cn('text-lg font-black', editedProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
+                          {editedProfit >= 0 ? '+' : ''}{formatCurrency(editedProfit)}
+                          {editedMargin !== null && <span className="text-sm ml-1 opacity-70">({editedMargin}%)</span>}
+                        </span>
                       </div>
                     )}
+                    <button
+                      onClick={handleSaveDetailCostEdit}
+                      disabled={savingDetailCostEdit || !detailEditSaleVal || Number(detailEditSaleVal) <= 0}
+                      className="w-full py-3 bg-neutral-900 text-white rounded-xl font-black text-sm tracking-wide hover:bg-neutral-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      {savingDetailCostEdit ? 'Salvando…' : 'Salvar valores'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setDetailEditSaleVal(String(activeSaleAmt));
-                      setDetailEditCostVal(String(activeDcost ?? ''));
-                      setDetailCostEditMode(true);
-                    }}
-                    className="w-full text-[11px] text-neutral-400 hover:text-neutral-600 py-1.5 hover:bg-neutral-50 rounded-lg transition-colors text-center"
-                  >
-                    ✏️ Corrigir valores
-                  </button>
                 </div>
               );
             })()}

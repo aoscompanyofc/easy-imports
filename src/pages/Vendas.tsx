@@ -204,6 +204,7 @@ export const Vendas: React.FC = () => {
   const [wizardStep, setWizardStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [detailSale, setDetailSale] = useState<any | null>(null);
+  const [showDetailMsgs, setShowDetailMsgs] = useState(false);
   const [deleteSale, setDeleteSale] = useState<any | null>(null);
   const [isDeletingSale, setIsDeletingSale] = useState(false);
   // Edit mode: reuses the create modal pre-populated with existing sale data
@@ -4331,7 +4332,7 @@ export const Vendas: React.FC = () => {
       </Modal>
 
       {/* ─── DETAIL / PDF MODAL ─── */}
-      <Modal isOpen={!!detailSale} onClose={() => setDetailSale(null)} title={`Operação ${detailSale?.sale_number || ''}`} maxWidth="lg">
+      <Modal isOpen={!!detailSale} onClose={() => { setDetailSale(null); setShowDetailMsgs(false); }} title={`Operação ${detailSale?.sale_number || ''}`} maxWidth="lg">
         {detailSale && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -4618,6 +4619,55 @@ export const Vendas: React.FC = () => {
                 {detailSale.signature_client ? <CheckCircle2 size={13} /> : <Package size={13} />}
                 {detailSale.signature_client ? 'Cliente assinou' : 'Aguardando assinatura do cliente'}
               </div>
+            </div>
+
+            {/* Mensagens WhatsApp */}
+            <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowDetailMsgs(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-neutral-50 hover:bg-neutral-100 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-bold text-neutral-700">
+                  <MessageCircle size={15} className="text-green-600" />
+                  Mensagens WhatsApp
+                </span>
+                <span className="text-xs text-neutral-400">{showDetailMsgs ? '▲ fechar' : '▼ abrir'}</span>
+              </button>
+              {showDetailMsgs && (() => {
+                const storedDevs: any[] = (() => { try { return JSON.parse(detailSale.incoming_devices_json || '[]'); } catch { return []; } })();
+                const tradeInValue = Number(detailSale.incoming_purchase_price || 0);
+                const detailMsg: SaleMsgData = {
+                  saleType: detailSale.sale_type || 'venda',
+                  saleNumber: detailSale.sale_number || '',
+                  customerName: detailSale.customer_name || detailSale.seller_name || '',
+                  phone: detailSale.customer_phone || detailSale.seller_phone || '',
+                  productName: detailSale.product_name || '',
+                  capacity: detailSale.product_capacity || '',
+                  color: detailSale.product_color || '',
+                  condition: detailSale.product_condition || '',
+                  isNovo: !!(detailSale.product_condition || '').toLowerCase().startsWith('novo'),
+                  totalAmount: Number(detailSale.total_amount) || 0,
+                  paymentMethod: detailSale.payment_method || '',
+                  installments: detailSale.installments || 0,
+                  installmentValue: (detailSale.installments || 0) > 1 ? Number(detailSale.total_amount) / (detailSale.installments || 1) : undefined,
+                  entradaAmount: detailSale.sale_type === 'prazo' ? Number(detailSale.entrada_amount || 0) || undefined : undefined,
+                  incomingName: detailSale.incoming_name?.trim() || undefined,
+                  incomingValue: tradeInValue || undefined,
+                  cashReceived: detailSale.sale_type === 'troca'
+                    ? Math.max(0, Number(detailSale.total_amount) - tradeInValue)
+                    : undefined,
+                  incomingDevices: storedDevs.length > 0
+                    ? storedDevs.map((d: any) => ({ model: d.model || '', value: Number(d.purchase_price) || 0 }))
+                    : undefined,
+                  saleDateISO: detailSale.created_at || new Date().toISOString(),
+                };
+                return (
+                  <div className="p-4 border-t border-neutral-100">
+                    <PostSaleLogistics sale={detailMsg} defaultAddress={detailSale.seller_address || ''} />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Action buttons */}

@@ -126,6 +126,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
     recipient: sale.customerName || '',
     pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
     chargeMode: inferChargeMode(sale.paymentMethod, sale),
+    // Troca: padrão é buscar em outra data (mais comum que buscar no mesmo dia)
+    deferCollection: sale.saleType === 'troca',
   }));
 
   const generatedClient     = useMemo(() => buildClientMessage(sale, delivery), [sale, delivery]);
@@ -399,6 +401,40 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
             </div>
           </div>
 
+          {/* ── Override do valor final (para incluir taxas do cartão) ── */}
+          {delivery.chargeMode !== 'pago' && (
+            <div className="sm:col-span-2">
+              <label className={labelCls}>
+                <CreditCard size={11} className="inline mr-1" />
+                Valor final a cobrar
+                <span className="text-neutral-400 normal-case font-normal ml-1">
+                  (ajuste se houver taxas de cartão/parcelamento)
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  inputMode="decimal"
+                  className={inputCls}
+                  placeholder={`Padrão: ${brl(sale.cashReceived != null && sale.saleType === 'troca' ? sale.cashReceived : sale.saleType === 'prazo' && sale.entradaAmount ? sale.entradaAmount : sale.totalAmount)}`}
+                  value={delivery.chargeAmountOverride ? String(delivery.chargeAmountOverride) : ''}
+                  onChange={(e) => {
+                    const v = Number(String(e.target.value).replace(/\./g, '').replace(',', '.')) || 0;
+                    set('chargeAmountOverride')(v > 0 ? v : undefined);
+                  }}
+                />
+                {delivery.chargeAmountOverride && delivery.chargeAmountOverride > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => set('chargeAmountOverride')(undefined)}
+                    className="text-xs text-neutral-400 hover:text-red-500 whitespace-nowrap"
+                  >
+                    ✕ limpar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ── Pagamento dividido (ex.: parte cartão + parte PIX) ── */}
           {(() => {
             const splitMap: Record<'cartao' | 'pix' | 'dinheiro', number> = { cartao: 0, pix: 0, dinheiro: 0 };
@@ -433,10 +469,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
                   ))}
                 </div>
                 {hasSplit && (
-                  <p className={`text-[11px] mt-1 font-bold ${diff === 0 ? 'text-green-600' : 'text-orange-500'}`}>
-                    {diff === 0
-                      ? `✓ Total dividido: ${brl(splitTotal)} — confere com o valor a cobrar`
-                      : `Total dividido: ${brl(splitTotal)} · ${diff > 0 ? 'acima' : 'falta'} ${brl(Math.abs(diff))} do valor a cobrar (${brl(due)})`}
+                  <p className="text-[11px] mt-1 font-bold text-neutral-500">
+                    Total: {brl(splitTotal)}
                   </p>
                 )}
               </div>

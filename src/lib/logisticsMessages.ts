@@ -52,6 +52,8 @@ export interface DeliveryInfo {
   freightValue: string;
   instructions: string;
   chargeMode: 'pago' | 'aguardar_pix' | 'maquininha' | 'dinheiro';
+  // Override do valor a cobrar (ex.: após aplicar taxas do cartão)
+  chargeAmountOverride?: number;
   // Pagamento dividido na entrega (ex.: parte no cartão + parte no PIX).
   // Quando preenchido, tem prioridade sobre chargeMode nas mensagens.
   chargeBreakdown?: { method: 'pix' | 'cartao' | 'dinheiro'; amount: number }[];
@@ -76,6 +78,7 @@ export const emptyDelivery = (): DeliveryInfo => {
     freightValue: '',
     instructions: '',
     chargeMode: 'pago',
+    chargeAmountOverride: undefined,
     chargeBreakdown: [],
     deferCollection: false,
     collectionDate: tomorrow.toISOString().split('T')[0],
@@ -182,6 +185,27 @@ function chargeLineMotoboy(d: DeliveryInfo, amount: number): string[] {
 
 const SEP = '━━━━━━━━━━━━━━━━━━';
 
+// Valor final que o cliente paga (override > split total > base)
+function clientChargeAmount(s: SaleMsgData, d: DeliveryInfo): number {
+  if (d.chargeAmountOverride && d.chargeAmountOverride > 0) return d.chargeAmountOverride;
+  const splitTotal = splitEntries(d).reduce((a, b) => a + Number(b.amount), 0);
+  if (splitTotal > 0) return splitTotal;
+  if (s.saleType === 'troca') return s.cashReceived ?? 0;
+  if (s.saleType === 'prazo') return s.entradaAmount ?? s.totalAmount;
+  return s.totalAmount;
+}
+
+// Como o cliente paga — uma frase curta (PIX, cartão, dinheiro)
+function chargeMethodClient(d: DeliveryInfo): string {
+  if (splitEntries(d).length > 0) return ''; // split: só mostra o total
+  switch (d.chargeMode) {
+    case 'aguardar_pix': return ' via PIX';
+    case 'maquininha':   return ' no cartão';
+    case 'dinheiro':     return ' em dinheiro';
+    default:             return '';
+  }
+}
+
 // Helpers da mensagem do cliente (curta, sem dados internos)
 const oneLineAddr = (a: string) => (a || '').trim().replace(/\s*\n\s*/g, ', ');
 const specsLine = (name?: string, cap?: string, color?: string) =>
@@ -229,31 +253,31 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
   if (cw) L.push(cw);
   (s.items || []).forEach((it) => L.push(`➕ ${specsLine(it.name, it.capacity, it.color)}`));
 
-  // Pagamento por tipo (sem expor custo nem "crédito")
+  // Pagamento por tipo — mostra valor final e forma de pagamento, sem expor custo interno
   L.push('');
+  const cAmount = clientChargeAmount(s, d);
+  const cHow = chargeMethodClient(d);
   if (s.saleType === 'troca') {
     const devs = s.incomingDevices?.length
       ? s.incomingDevices
       : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
     if (devs.length) L.push(`🔄 Você entrega: ${devs.map((x) => x.model).join(' + ')}`);
-    if (s.cashReceived != null && s.cashReceived > 0) {
-      L.push(`💵 Você paga: ${brl(s.cashReceived)}`);
-      if (sp) L.push(`   ${sp}`);
+    if (cAmount > 0) {
+      L.push(`💵 Você paga: ${brl(cAmount)}${cHow}`);
     } else {
       L.push('✅ Troca direta — sem diferença a pagar!');
     }
   } else if (s.saleType === 'prazo') {
-    L.push(`💰 Total: ${brl(s.totalAmount)}`);
     if (s.entradaAmount && s.entradaAmount > 0) {
-      L.push(`💵 Entrada: ${brl(s.entradaAmount)}${sp ? `  ·  ${sp}` : ''}`);
+      L.push(`💵 Entrada: ${brl(cAmount)}${cHow}`);
+    } else {
+      L.push(`💰 Total: ${brl(cAmount)}${cHow}`);
     }
     if (s.installments && s.installments > 1 && s.installmentValue) {
       L.push(`📅 + ${s.installments}x de ${brl(s.installmentValue)} no PIX`);
     }
   } else {
-    L.push(`💰 Total: ${brl(s.totalAmount)}`);
-    if (sp) L.push(`💳 Na entrega: ${sp}`);
-    else if (s.paymentMethod) L.push(`💳 ${s.paymentMethod}`);
+    L.push(`💰 Total: ${brl(cAmount)}${cHow}`);
   }
 
   // Entrega (compacto)
@@ -278,119 +302,106 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
   return L.join('\n');
 }
 
+// Cobrança compacta em uma linha (para motoboy)
+function chargeCompact(d: DeliveryInfo, amount: number): string[] {
+  const split = splitEntries(d);
+  if (split.length > 0) {
+    const parts = split.map((b) => {
+      const how = b.method === 'cartao' ? '💳 cartão' : b.method === 'pix' ? '📲 PIX' : '💵 dinheiro';
+      return `${brl(b.amount)} ${how}`;
+    });
+    const total = split.reduce((a, b) => a + Number(b.amount), 0);
+    const lines = [`💰 ${parts.join(' + ')} = ${brl(total)}`];
+    if (split.some((b) => b.method === 'pix')) lines.push('⚠️ Confirmar PIX antes de entregar');
+    return lines;
+  }
+  switch (d.chargeMode) {
+    case 'aguardar_pix': return [`💰 ${brl(amount)} via PIX`, '⚠️ Confirmar PIX antes de entregar'];
+    case 'maquininha':   return [`💰 ${brl(amount)} na maquininha`];
+    case 'dinheiro':     return [`💰 ${brl(amount)} em dinheiro`];
+    default:             return ['✅ Já pago'];
+  }
+}
+
 // ─── Mensagem para o MOTOBOY ────────────────────────────────────────────────
 export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
-  const lines: string[] = [];
+  const L: string[] = [];
 
-  const typeLabel =
-    s.saleType === 'troca'  ? (d.deferCollection ? 'TROCA — ENTREGA' : 'TROCA — 3 PASSOS')  :
-    s.saleType === 'compra' ? 'COMPRA — COLETA'    :
-    s.saleType === 'prazo'  ? 'ENTREGA A PRAZO'    : 'ENTREGA';
+  const tipo =
+    s.saleType === 'troca'  ? 'TROCA' :
+    s.saleType === 'compra' ? 'COMPRA' :
+    s.saleType === 'prazo'  ? 'PRAZO' : 'ENTREGA';
 
-  lines.push(`🏍️ CORRIDA EASY IMPORTS — ${typeLabel}`);
-  lines.push(`📅 ${dateBR(s.saleDateISO)}${s.saleNumber ? ` · ${s.saleNumber}` : ''}`);
-  lines.push('');
+  L.push(`🏍️ ${tipo} · Easy Imports · ${dateBR(s.saleDateISO)}${s.saleNumber ? ` · ${s.saleNumber}` : ''}`);
+  L.push('');
 
-  // ─── COMPRA (loja compra do cliente — fluxo invertido) ───────────────────
-  if (s.saleType === 'compra') {
-    lines.push('📍 PASSO 1 — COLETA (na casa do cliente)');
-    lines.push(d.deliveryAddress.trim() || '⚠️ DEFINIR ENDEREÇO DO CLIENTE');
-    lines.push(`👤 Retirar com ${d.recipient.trim() || s.customerName || 'cliente'}`);
-    if (d.deliveryTime.trim()) lines.push(`⏰ ${d.deliveryTime.trim()}`);
-    lines.push('');
-    const prod = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
-    lines.push(`📱 Aparelho a recolher: ${prod}`);
-    lines.push('📸 Fotografar o aparelho antes de retirar');
-    lines.push('');
-    lines.push(SEP);
-    lines.push('');
-    lines.push('📍 PASSO 2 — ENTREGA NA LOJA');
-    lines.push(d.pickupLocation.trim() || '⚠️ DEFINIR ENDEREÇO DA LOJA');
-    if (d.pickupContact.trim()) lines.push(`👤 Entregar para ${d.pickupContact.trim()}`);
-    lines.push('');
-    lines.push(SEP);
-    lines.push('');
-    lines.push('⚠️ IMPORTANTE');
-    chargeLineMotoboy(d, s.totalAmount).forEach(l => lines.push(l));
-    if (d.instructions.trim()) lines.push(`📌 ${d.instructions.trim()}`);
-    lines.push('✅ Avisar a loja após finalizar');
-    lines.push('');
-    lines.push('🚀 Easy Imports agradece! Boa corrida! 🏍️');
-    return lines.join('\n');
-  }
-
-  // ─── VENDA / TROCA / PRAZO ───────────────────────────────────────────────
-
-  // PASSO 1: Coleta na loja
-  lines.push('📍 PASSO 1 — COLETA NA LOJA');
-  lines.push(d.pickupLocation.trim() || '⚠️ DEFINIR LOCAL DE COLETA');
-  if (d.pickupContact.trim()) lines.push(`👤 Retirar com ${d.pickupContact.trim()}`);
-  if (d.pickupTime.trim())    lines.push(`⏰ Coletar ${d.pickupTime.trim()}`);
-  lines.push('');
-
-  // Produtos a transportar
-  const mainProd = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
-  lines.push(`📦 Levar: ${mainProd}`);
-  (s.items || []).forEach(it => {
-    const p = [it.name, it.capacity, it.color].filter(Boolean).join(' ');
-    if (p) lines.push(`📦 Levar: ${p}`);
-  });
-
-  lines.push('');
-  lines.push(SEP);
-  lines.push('');
-
-  // PASSO 2: Entrega no cliente
-  lines.push('📍 PASSO 2 — ENTREGA NO CLIENTE');
-  lines.push(d.deliveryAddress.trim() || '⚠️ DEFINIR ENDEREÇO DE ENTREGA');
-  lines.push(`👤 Entregar em mãos para ${d.recipient.trim() || s.customerName || 'cliente'}`);
-  if (d.deliveryTime.trim()) lines.push(`🕒 Previsão: ${d.deliveryTime.trim()}`);
-
-  // Cobrança na entrega
-  const chargeAmount =
+  const baseCharge =
     s.saleType === 'troca' && s.cashReceived != null ? s.cashReceived :
     s.saleType === 'prazo' && s.entradaAmount ? s.entradaAmount :
     s.totalAmount;
-  lines.push('');
-  chargeLineMotoboy(d, chargeAmount).forEach(l => lines.push(l));
+  const chargeAmount = d.chargeAmountOverride && d.chargeAmountOverride > 0
+    ? d.chargeAmountOverride : baseCharge;
 
-  // PASSO 3: Buscar aparelho do cliente (somente se for no mesmo dia)
+  // ─── COMPRA (fluxo invertido: vai ao cliente, traz aparelho, paga) ───────
+  if (s.saleType === 'compra') {
+    const prod = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
+    const dest = d.deliveryAddress.trim() || '⚠️ ENDEREÇO DO CLIENTE';
+    const loja = d.pickupLocation.trim() || '⚠️ ENDEREÇO DA LOJA';
+    const quem = d.recipient.trim() || s.customerName || 'cliente';
+    L.push(`📍 COLETA: ${dest}`);
+    L.push(`${quem}${d.deliveryTime.trim() ? ` · ${d.deliveryTime.trim()}` : ''}`);
+    L.push(`📱 ${prod}`);
+    L.push('📸 Foto antes de retirar');
+    L.push('');
+    L.push(`📍 ENTREGAR EM: ${loja}`);
+    if (d.pickupContact.trim()) L.push(d.pickupContact.trim());
+    L.push('');
+    chargeCompact(d, chargeAmount).forEach(l => L.push(l));
+    if (d.instructions.trim()) L.push(`📌 ${d.instructions.trim()}`);
+    L.push('📲 Avisar ao finalizar');
+    return L.join('\n');
+  }
+
+  // ─── VENDA / TROCA / PRAZO ───────────────────────────────────────────────
+  const mainProd = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
+  const extraProds = (s.items || []).map(it => [it.name, it.capacity, it.color].filter(Boolean).join(' ')).filter(Boolean);
+  const allProds = [mainProd, ...extraProds].join(' + ');
+
+  const coleta = d.pickupLocation.trim() || '⚠️ ENDEREÇO DE COLETA';
+  const coletaInfo = [d.pickupContact.trim(), d.pickupTime.trim()].filter(Boolean).join(' · ');
+  L.push(`📦 COLETA: ${coleta}`);
+  if (coletaInfo) L.push(coletaInfo);
+  L.push(`Levar: ${allProds}`);
+  L.push('');
+
+  const entrega = d.deliveryAddress.trim() || '⚠️ ENDEREÇO DE ENTREGA';
+  const recipient = d.recipient.trim() || s.customerName || 'cliente';
+  const eta = d.deliveryTime.trim();
+  L.push(`🚚 ENTREGA: ${entrega}`);
+  L.push(`${recipient}${eta ? ` · ${eta}` : ''}`);
+  chargeCompact(d, chargeAmount).forEach(l => L.push(l));
+
+  // Busca no mesmo dia (troca)
   if (s.saleType === 'troca' && !d.deferCollection) {
     const devs = s.incomingDevices?.length
-      ? s.incomingDevices
-      : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
-
-    lines.push('');
-    lines.push(SEP);
-    lines.push('');
-
-    lines.push('🔄 PASSO 3 — BUSCAR APARELHO DO CLIENTE');
-    if (devs.length > 0) {
-      devs.forEach(dev => {
-        lines.push(`📱 ${dev.model}`);
-      });
-    } else {
-      lines.push('📱 Aparelho do cliente (confirmar modelo na entrega)');
-    }
-    lines.push('');
-    lines.push('⚠️ NÃO SAIR SEM O APARELHO DO CLIENTE!');
-    lines.push('📸 Fotografar antes de guardar (frente e verso)');
-    lines.push('🔒 Bem embalado — trazer direto para a loja');
+      ? s.incomingDevices.map(x => x.model)
+      : s.incomingName ? [s.incomingName] : ['aparelho do cliente'];
+    L.push('');
+    L.push(`🔄 BUSCAR: ${devs.join(' + ')}`);
+    L.push('📸 Foto antes de guardar');
   }
 
-  lines.push('');
-  lines.push(SEP);
-  lines.push('');
-  lines.push('✅ CHECKLIST');
-  lines.push('📸 Foto do produto nas mãos do cliente');
-  if (s.saleType === 'troca' && !d.deferCollection) {
-    lines.push('📱 Confirmar que trouxe o aparelho do cliente');
+  L.push('');
+  if (d.instructions.trim()) L.push(`📌 ${d.instructions.trim()}`);
+  if (s.saleType === 'troca' && d.deferCollection) {
+    const devs = s.incomingDevices?.length
+      ? s.incomingDevices.map((x) => x.model)
+      : s.incomingName ? [s.incomingName] : [];
+    const quando = d.collectionDate ? dateBR(d.collectionDate) : 'a combinar';
+    L.push(`📌 Busca do ${devs[0] || 'aparelho'}: ${quando} — outra corrida`);
   }
-  if (d.instructions.trim()) lines.push(`📌 ${d.instructions.trim()}`);
-  lines.push('📲 Avisar a loja após finalizar');
-  lines.push('');
-  lines.push('🚀 Easy Imports agradece! Boa corrida! 🏍️');
-  return lines.join('\n');
+  L.push('📲 Avisar ao finalizar');
+  return L.join('\n');
 }
 
 // ─── Mensagem de BUSCA (corrida separada — dia agendado) ─────────────────────

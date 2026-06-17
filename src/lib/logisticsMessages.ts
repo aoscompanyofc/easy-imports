@@ -197,9 +197,9 @@ function clientChargeAmount(s: SaleMsgData, d: DeliveryInfo): number {
   return s.totalAmount;
 }
 
-// Como o cliente paga — uma frase curta (PIX, cartão, dinheiro)
+// Como o cliente paga — uma frase curta (PIX, cartão, dinheiro) ou linhas de split
 function chargeMethodClient(d: DeliveryInfo): string {
-  if (splitEntries(d).length > 0) return ''; // split: só mostra o total
+  if (splitEntries(d).length > 0) return ''; // split: tratado separadamente com splitLinesClient
   switch (d.chargeMode) {
     case 'aguardar_pix': return ' via PIX';
     case 'maquininha':   return ' no cartão';
@@ -259,27 +259,38 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
   L.push('');
   const cAmount = clientChargeAmount(s, d);
   const cHow = chargeMethodClient(d);
+  const splitList = splitLinesClient(d); // linhas de split (ex: 💳 R$ 5.000 no cartão)
+
+  const pushPayment = (label: string) => {
+    if (splitList.length > 0) {
+      L.push(label);
+      splitList.forEach(l => L.push(l));
+    } else {
+      L.push(`${label}${cHow}`);
+    }
+  };
+
   if (s.saleType === 'troca') {
     const devs = s.incomingDevices?.length
       ? s.incomingDevices
       : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
     if (devs.length) L.push(`🔄 Você entrega: ${devs.map((x) => x.model).join(' + ')}`);
     if (cAmount > 0) {
-      L.push(`💵 Você paga: ${brl(cAmount)}${cHow}`);
+      pushPayment(`💵 Você paga: ${brl(cAmount)}`);
     } else {
       L.push('✅ Troca direta — sem diferença a pagar!');
     }
   } else if (s.saleType === 'prazo') {
     if (s.entradaAmount && s.entradaAmount > 0) {
-      L.push(`💵 Entrada: ${brl(cAmount)}${cHow}`);
+      pushPayment(`💵 Entrada: ${brl(cAmount)}`);
     } else {
-      L.push(`💰 Total: ${brl(cAmount)}${cHow}`);
+      pushPayment(`💰 Total: ${brl(cAmount)}`);
     }
     if (s.installments && s.installments > 1 && s.installmentValue) {
       L.push(`📅 + ${s.installments}x de ${brl(s.installmentValue)} no PIX`);
     }
   } else {
-    L.push(`💰 Total: ${brl(cAmount)}${cHow}`);
+    pushPayment(`💰 Total: ${brl(cAmount)}`);
   }
 
   // Entrega (compacto)

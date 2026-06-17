@@ -47,7 +47,6 @@ const PAGE_LABELS: Record<PageKey, string> = {
   mensagens: 'Mensagens Prontas',
   calculadora: 'Calculadora de Taxas',
   configuracoes: 'Configurações',
-  'liquid-glass': 'Liquid Glass',
 };
 
 // Pages that vendedores can be granted access to (admins always have all)

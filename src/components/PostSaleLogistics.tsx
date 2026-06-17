@@ -193,7 +193,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
                 }
               </div>
               <p className={`text-[10px] font-black ${delivery.deferCollection ? 'text-blue-700' : 'text-primary-700'}`}>
-                3. Recolhe
+                3. Busca
               </p>
               <p className={`text-[10px] ${delivery.deferCollection ? 'text-blue-500' : 'text-primary-600'}`}>
                 {delivery.deferCollection ? 'Outra data' : 'Mesma corrida'}
@@ -205,7 +205,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
           {collectDevices.length > 0 && (
             <div className="mt-3 space-y-1">
               <p className="text-[11px] font-black text-neutral-500 uppercase tracking-wide flex items-center gap-1">
-                <AlertTriangle size={11} className="text-amber-500" /> Motoboy deve recolher:
+                <AlertTriangle size={11} className="text-amber-500" /> Motoboy deve buscar:
               </p>
               {collectDevices.map((dev, i) => (
                 <div key={i} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -232,7 +232,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
           {/* Toggle: recolha mesma corrida x outra data */}
           <div className="mt-3 pt-3 border-t border-primary/20">
             <p className="text-[11px] font-black text-neutral-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-              <Calendar size={11} /> Quando recolher o aparelho?
+              <Calendar size={11} /> Quando buscar o aparelho?
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -263,24 +263,35 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
 
             {/* Data e horário da recolha */}
             {delivery.deferCollection && (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div>
-                  <label className={labelCls}>Data da recolha</label>
-                  <input
-                    type="date"
-                    className={inputCls}
-                    value={delivery.collectionDate}
-                    onChange={(e) => set('collectionDate')(e.target.value)}
-                  />
+              <div className="mt-2 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>Data da busca</label>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={delivery.collectionDate}
+                      onChange={(e) => set('collectionDate')(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Horário estimado</label>
+                    <input
+                      type="text"
+                      className={inputCls}
+                      value={delivery.collectionTime}
+                      placeholder="Ex: entre 10h e 11h"
+                      onChange={(e) => set('collectionTime')(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Horário estimado</label>
+                  <label className={labelCls}><Store size={11} className="inline mr-1" />Entregar em (destino após buscar) *</label>
                   <input
-                    type="text"
-                    className={inputCls}
-                    value={delivery.collectionTime}
-                    placeholder="Ex: entre 10h e 11h"
-                    onChange={(e) => set('collectionTime')(e.target.value)}
+                    className={delivery.collectionDropoffLocation.trim() ? inputCls : inputCls.replace('border-neutral-200', 'border-red-300 bg-red-50/50')}
+                    value={delivery.collectionDropoffLocation}
+                    placeholder="Obrigatório — endereço da loja ou outro destino"
+                    onChange={(e) => set('collectionDropoffLocation')(e.target.value)}
                   />
                 </div>
               </div>
@@ -388,6 +399,50 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
             </div>
           </div>
 
+          {/* ── Pagamento dividido (ex.: parte cartão + parte PIX) ── */}
+          {(() => {
+            const splitMap: Record<'cartao' | 'pix' | 'dinheiro', number> = { cartao: 0, pix: 0, dinheiro: 0 };
+            (delivery.chargeBreakdown || []).forEach((b) => { splitMap[b.method] = b.amount; });
+            const setSplit = (method: 'cartao' | 'pix' | 'dinheiro') => (raw: string) => {
+              const amount = Number(String(raw).replace(/\./g, '').replace(',', '.')) || 0;
+              const others = (delivery.chargeBreakdown || []).filter((b) => b.method !== method);
+              set('chargeBreakdown')(amount > 0 ? [...others, { method, amount }] : others);
+            };
+            const splitTotal = (delivery.chargeBreakdown || []).reduce((a, b) => a + Number(b.amount), 0);
+            const due = (sale.cashReceived != null ? sale.cashReceived : sale.totalAmount) || 0;
+            const hasSplit = splitTotal > 0;
+            const diff = +(splitTotal - due).toFixed(2);
+            return (
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Pagamento dividido na entrega <span className="text-neutral-400 normal-case font-normal">(opcional — preenche se for parte cartão, parte PIX…)</span></label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['cartao', 'pix', 'dinheiro'] as const).map((m) => (
+                    <div key={m}>
+                      <span className="text-[10px] font-bold text-neutral-400 flex items-center gap-1 mb-0.5">
+                        {m === 'cartao' ? <CreditCard size={11} /> : m === 'pix' ? <Smartphone size={11} /> : <DollarSign size={11} />}
+                        {m === 'cartao' ? 'Cartão' : m === 'pix' ? 'PIX' : 'Dinheiro'}
+                      </span>
+                      <input
+                        inputMode="decimal"
+                        className={inputCls}
+                        placeholder="0,00"
+                        value={splitMap[m] ? String(splitMap[m]) : ''}
+                        onChange={(e) => setSplit(m)(e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {hasSplit && (
+                  <p className={`text-[11px] mt-1 font-bold ${diff === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                    {diff === 0
+                      ? `✓ Total dividido: ${brl(splitTotal)} — confere com o valor a cobrar`
+                      : `Total dividido: ${brl(splitTotal)} · ${diff > 0 ? 'acima' : 'falta'} ${brl(Math.abs(diff))} do valor a cobrar (${brl(due)})`}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="sm:col-span-2">
             <label className={labelCls}>Observações / instruções</label>
             <textarea className={inputCls + ' resize-none'} rows={2} value={delivery.instructions}
@@ -419,10 +474,10 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         waLabel="Abrir no WhatsApp"
       />
 
-      {/* Mensagem de Recolha — só aparece quando recolha está adiada */}
+      {/* Corrida de Busca — só aparece quando busca está adiada */}
       {sale.saleType === 'troca' && delivery.deferCollection && (
         <MessageCard
-          title="Corrida de Recolha (dia seguinte)"
+          title="Corrida de Busca (data agendada)"
           icon={<CalendarClock size={15} />}
           accent="bg-blue-600 text-white"
           value={collectionMsg}

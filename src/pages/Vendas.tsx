@@ -231,6 +231,11 @@ export const Vendas: React.FC = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [expandedPrazoSale, setExpandedPrazoSale] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  // Cost / sale-price inline edit in detail modal
+  const [detailCostEditMode, setDetailCostEditMode] = useState(false);
+  const [detailEditSaleVal, setDetailEditSaleVal] = useState('');
+  const [detailEditCostVal, setDetailEditCostVal] = useState('');
+  const [savingDetailCostEdit, setSavingDetailCostEdit] = useState(false);
 
   const setEF = (field: string) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -1294,6 +1299,39 @@ export const Vendas: React.FC = () => {
       toast.error('Erro ao marcar parcela: ' + error.message);
     } finally {
       setMarkingPaid(null);
+    }
+  };
+
+  const handleSaveDetailCostEdit = async () => {
+    if (!detailSale) return;
+    setSavingDetailCostEdit(true);
+    try {
+      const newSale = parseFloat(detailEditSaleVal.replace(/\./g, '').replace(',', '.')) || Number(detailSale.total_amount);
+      const newCost = parseFloat(detailEditCostVal.replace(/\./g, '').replace(',', '.')) || 0;
+      const outItems: any[] = (() => { try { return JSON.parse(detailSale.outgoing_items_json || '[]'); } catch { return []; } })();
+      if (outItems.length > 0) {
+        const oldTotal = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+        if (oldTotal > 0 && outItems.length > 1) {
+          const ratio = newCost / oldTotal;
+          outItems.forEach((it: any) => { it.cost = Math.round(Number(it.cost || 0) * ratio * 100) / 100; });
+        } else {
+          outItems[0].cost = newCost;
+        }
+      } else {
+        outItems.push({ product_id: '', name: detailSale.product_name || '', cost: newCost, price: newSale });
+      }
+      await dataService.updateSale(detailSale.id, {
+        total_amount: newSale,
+        outgoing_items_json: JSON.stringify(outItems),
+      });
+      setDetailSale((prev: any) => prev ? { ...prev, total_amount: newSale, outgoing_items_json: JSON.stringify(outItems) } : prev);
+      setDetailCostEditMode(false);
+      toast.success('Valores corrigidos!');
+      fetchData();
+    } catch (e: any) {
+      toast.error('Erro ao salvar: ' + e.message);
+    } finally {
+      setSavingDetailCostEdit(false);
     }
   };
 
@@ -4499,7 +4537,7 @@ export const Vendas: React.FC = () => {
       </Modal>
 
       {/* ─── DETAIL / PDF MODAL ─── */}
-      <Modal isOpen={!!detailSale} onClose={() => { setDetailSale(null); setShowDetailMsgs(false); }} title={`Operação ${detailSale?.sale_number || ''}`} maxWidth="lg">
+      <Modal isOpen={!!detailSale} onClose={() => { setDetailSale(null); setShowDetailMsgs(false); setDetailCostEditMode(false); }} title={`Operação ${detailSale?.sale_number || ''}`} maxWidth="lg">
         {detailSale && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -4643,30 +4681,103 @@ export const Vendas: React.FC = () => {
               }
 
               // Venda / Compra
-              const dprofit = dcost !== null ? Number(detailSale.total_amount) - dcost : null;
-              const dmargin = dprofit !== null && Number(detailSale.total_amount) > 0
-                ? Math.round((dprofit / Number(detailSale.total_amount)) * 100)
+              const activeSaleAmt = Number(detailSale.total_amount);
+              const activeDcost = dcost;
+              const dprofit = activeDcost !== null ? activeSaleAmt - activeDcost : null;
+              const dmargin = dprofit !== null && activeSaleAmt > 0
+                ? Math.round((dprofit / activeSaleAmt) * 100)
                 : null;
-              if (dcost === null) return null;
-              return (
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-center">
-                    <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Venda</p>
-                    <p className="text-sm font-black text-neutral-900 mt-0.5">{formatCurrency(Number(detailSale.total_amount))}</p>
+              if (activeDcost === null && !detailCostEditMode) return (
+                <button
+                  onClick={() => { setDetailCostEditMode(true); setDetailEditSaleVal(String(activeSaleAmt)); setDetailEditCostVal(''); }}
+                  className="w-full text-xs text-neutral-400 hover:text-neutral-600 py-2 border border-dashed border-neutral-300 rounded-xl transition-colors"
+                >
+                  + Adicionar custo e calcular lucro
+                </button>
+              );
+              if (detailCostEditMode) return (
+                <div className="space-y-3 p-4 bg-neutral-50 border-2 border-primary/40 rounded-2xl">
+                  <p className="text-xs font-black text-neutral-700 uppercase tracking-wide">Corrigir valores</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Preço de venda (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={detailEditSaleVal}
+                        onChange={e => setDetailEditSaleVal(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                        placeholder="Ex: 3200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Custo (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={detailEditCostVal}
+                        onChange={e => setDetailEditCostVal(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                        placeholder="Ex: 2900"
+                      />
+                    </div>
                   </div>
-                  <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
-                    <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
-                    <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(dcost)}</p>
-                  </div>
-                  {dprofit !== null && (
-                    <div className={cn('border rounded-xl p-3 text-center', dprofit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100')}>
-                      <p className={cn('text-[10px] font-black uppercase tracking-wide', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>Lucro</p>
-                      <p className={cn('text-sm font-black mt-0.5', dprofit >= 0 ? 'text-green-600' : 'text-red-600')}>{formatCurrency(dprofit)}</p>
-                      {dmargin !== null && (
-                        <p className={cn('text-[10px] font-bold', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>{dmargin}%</p>
-                      )}
+                  {detailEditSaleVal && detailEditCostVal && (
+                    <div className={cn('flex items-center justify-between px-3 py-2 rounded-xl text-sm font-black',
+                      Number(detailEditSaleVal) - Number(detailEditCostVal) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    )}>
+                      <span>Lucro previsto</span>
+                      <span>{formatCurrency(Number(detailEditSaleVal) - Number(detailEditCostVal))}</span>
                     </div>
                   )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveDetailCostEdit}
+                      disabled={savingDetailCostEdit || !detailEditSaleVal}
+                      className="flex-1 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-700 disabled:opacity-40 transition-colors"
+                    >
+                      {savingDetailCostEdit ? 'Salvando…' : 'Salvar'}
+                    </button>
+                    <button
+                      onClick={() => setDetailCostEditMode(false)}
+                      className="px-4 py-2 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-600 hover:bg-neutral-100 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              );
+              return (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wide">Venda</p>
+                      <p className="text-sm font-black text-neutral-900 mt-0.5">{formatCurrency(activeSaleAmt)}</p>
+                    </div>
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Custo</p>
+                      <p className="text-sm font-black text-red-600 mt-0.5">{formatCurrency(activeDcost!)}</p>
+                    </div>
+                    {dprofit !== null && (
+                      <div className={cn('border rounded-xl p-3 text-center', dprofit >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100')}>
+                        <p className={cn('text-[10px] font-black uppercase tracking-wide', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>Lucro</p>
+                        <p className={cn('text-sm font-black mt-0.5', dprofit >= 0 ? 'text-green-600' : 'text-red-600')}>{formatCurrency(dprofit)}</p>
+                        {dmargin !== null && (
+                          <p className={cn('text-[10px] font-bold', dprofit >= 0 ? 'text-green-500' : 'text-red-400')}>{dmargin}%</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDetailEditSaleVal(String(activeSaleAmt));
+                      setDetailEditCostVal(String(activeDcost ?? ''));
+                      setDetailCostEditMode(true);
+                    }}
+                    className="w-full text-[11px] text-neutral-400 hover:text-neutral-600 py-1.5 hover:bg-neutral-50 rounded-lg transition-colors text-center"
+                  >
+                    ✏️ Corrigir valores
+                  </button>
                 </div>
               );
             })()}

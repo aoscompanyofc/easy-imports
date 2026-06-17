@@ -426,7 +426,9 @@ export const Dashboard: React.FC = () => {
           if (total > 0) return total;
         }
       } catch {}
-      return costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      // UUID-keyed custo (gravado na correção manual) tem prioridade sobre número de venda
+      // (imune a número duplicado que somava custos de vendas diferentes)
+      return costMap[`uuid:${s.id?.slice(0, 8)}`] ?? costMap[s.sale_number] ?? 0;
     };
 
     // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período

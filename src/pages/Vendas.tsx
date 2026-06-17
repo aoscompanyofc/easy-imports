@@ -16,6 +16,7 @@ import { PostSaleLogistics } from '../components/PostSaleLogistics';
 import type { SaleMsgData } from '../lib/logisticsMessages';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
+import { supabase } from '../lib/supabase';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
 import { isConnected as gcIsConnected, createCalendarEvent } from '../lib/googleCalendar';
 import { sendWppNotification, buildSaleNotificationText } from '../lib/whatsappNotify';
@@ -1418,6 +1419,15 @@ export const Vendas: React.FC = () => {
     if (!newSale || newSale <= 0) { toast.error('Informe o valor que o cliente pagou.'); return; }
     setSavingDetailCostEdit(true);
     try {
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      const saleId = detailSale.id as string;
+      const idPrefix = saleId.slice(0, 8);
+      const txDate = (detailSale.created_at || new Date().toISOString()).slice(0, 10);
+
+      // Camada 1: atualiza total_amount na tabela de vendas (sempre funciona)
+      await dataService.updateSale(saleId, { total_amount: newSale });
+
+      // Camada 2: tenta salvar custo em outgoing_items_json (se coluna existir)
       const outItems: any[] = (() => { try { return JSON.parse(detailSale.outgoing_items_json || '[]'); } catch { return []; } })();
       if (outItems.length > 0) {
         const oldTotal = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
@@ -1431,13 +1441,26 @@ export const Vendas: React.FC = () => {
         outItems.push({ product_id: '', name: detailSale.product_name || '', cost: newCost, price: newSale });
       }
       const newJson = JSON.stringify(outItems);
-      // Save total_amount always, outgoing_items_json as best-effort
-      await dataService.updateSale(detailSale.id, { total_amount: newSale });
-      try {
-        await dataService.updateSale(detailSale.id, { outgoing_items_json: newJson });
-      } catch { /* column may not exist yet, total_amount already saved */ }
+      try { await dataService.updateSale(saleId, { outgoing_items_json: newJson }); } catch { /* coluna pode não existir */ }
+
+      // Camada 3 (garantida): grava transação UUID-chaveada para custo
+      // UUID-key não colide com outros #V0007 duplicados — é imune ao bug de numeração
+      if (newCost > 0 && uid) {
+        await supabase.from('transactions').delete()
+          .eq('description', `Custo Mercadoria #${idPrefix}`)
+          .eq('user_id', uid);
+        await supabase.from('transactions').insert([{
+          description: `Custo Mercadoria #${idPrefix}`,
+          amount: newCost,
+          type: 'expense',
+          category: 'stock',
+          date: txDate,
+          user_id: uid,
+        }]);
+      }
+
       setDetailSale((prev: any) => prev ? { ...prev, total_amount: newSale, outgoing_items_json: newJson } : prev);
-      toast.success('Valores salvos!');
+      toast.success('Valores salvos com sucesso!');
       fetchData();
     } catch (e: any) {
       toast.error('Erro ao salvar: ' + e.message);
@@ -1728,7 +1751,7 @@ export const Vendas: React.FC = () => {
                           return t > 0 ? t : null;
                         } catch { return null; }
                       })();
-                      const saleCost = saleCostFromJson ?? costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
+                      const saleCost = saleCostFromJson ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? costBySale[sale.sale_number] ?? null;
                       const saleProfit = type === 'prazo' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
                       // Para trocas: lucro potencial do aparelho recebido
                       const tradeDevs: any[] = type === 'troca' ? (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })() : [];
@@ -4584,7 +4607,7 @@ export const Vendas: React.FC = () => {
                   return total > 0 ? total : null;
                 } catch { return null; }
               })();
-              const dcost = dcostFromJson ?? costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
+              const dcost = dcostFromJson ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? costBySale[detailSale.sale_number] ?? null;
 
               if (dtype === 'troca') {
                 const tradeInValue = Number(detailSale.incoming_purchase_price || 0);

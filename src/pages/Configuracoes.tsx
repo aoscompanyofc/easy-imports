@@ -16,6 +16,7 @@ import { Modal } from '../components/ui/Modal';
 import { useAuthStore } from '../stores/authStore';
 import { useProfileStore } from '../stores/profileStore';
 import { SignaturePad } from '../components/ui/SignaturePad';
+import { SignatureTypedCreator } from '../components/ui/SignatureTypedCreator';
 import { usePermissionsStore, ALL_PAGES, DEFAULT_VENDEDOR_PAGES, PageKey } from '../stores/permissionsStore';
 import { dataService } from '../lib/dataService';
 import * as wppNotify from '../lib/whatsappNotify';
@@ -135,6 +136,7 @@ export const Configuracoes: React.FC = () => {
   const [profileTelefone, setProfileTelefone] = useState(telefone);
   const [profileCnpj, setProfileCnpj] = useState(cnpj);
   const [profileStoreAddress, setProfileStoreAddress] = useState(storeAddress);
+  const [sigMode, setSigMode] = useState<'draw' | 'typed'>('draw');
 
   // Sync local state when store changes externally
   useEffect(() => { setProfileName(name); }, [name]);
@@ -532,13 +534,51 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
             {/* Signature section */}
             <div className="pt-2">
               <p className="text-sm font-bold text-neutral-700 mb-1">Sua Assinatura</p>
-              <p className="text-xs text-neutral-400 mb-3">Desenhe sua assinatura abaixo. Ela será inserida automaticamente em todos os documentos PDF gerados.</p>
-              <SignaturePad
-                value={signature}
-                onChange={(sig) => { setSignature(sig); }}
-                height={130}
-                placeholder="Desenhe sua assinatura aqui"
-              />
+              <p className="text-xs text-neutral-400 mb-3">
+                Escolha entre desenhar à mão ou gerar com uma fonte elegante. Ela aparece automaticamente em todos os PDFs.
+              </p>
+
+              {/* Mode tabs */}
+              <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl mb-4 w-fit">
+                {(['draw', 'typed'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setSigMode(mode)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all ${
+                      sigMode === mode
+                        ? 'bg-white text-neutral-900 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  >
+                    {mode === 'draw' ? 'Desenhar' : 'Tipográfica'}
+                  </button>
+                ))}
+              </div>
+
+              {sigMode === 'draw' ? (
+                <SignaturePad
+                  value={signature}
+                  onChange={(sig) => { setSignature(sig); }}
+                  height={130}
+                  placeholder="Desenhe sua assinatura aqui"
+                />
+              ) : (
+                <SignatureTypedCreator
+                  defaultText={profileName || name || 'Easy Imports'}
+                  onGenerate={(base64) => {
+                    setSignature(base64);
+                    toast.success('Assinatura gerada! Clique em Salvar Alterações para confirmar.');
+                  }}
+                />
+              )}
+
+              {/* Preview of current saved signature */}
+              {signature && sigMode === 'typed' && (
+                <div className="mt-3 p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
+                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-2">Prévia atual</p>
+                  <img src={signature} alt="assinatura atual" className="max-h-14 max-w-[200px]" />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end">

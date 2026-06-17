@@ -185,8 +185,6 @@ function chargeLineMotoboy(d: DeliveryInfo, amount: number): string[] {
   }
 }
 
-const SEP = '━━━━━━━━━━━━━━━━━━';
-
 // Valor final que o cliente paga (override > split total > base)
 function clientChargeAmount(s: SaleMsgData, d: DeliveryInfo): number {
   if (d.chargeAmountOverride && d.chargeAmountOverride > 0) return d.chargeAmountOverride;
@@ -315,28 +313,43 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
   return L.join('\n');
 }
 
-// Cobrança compacta em uma linha (para motoboy)
-function chargeCompact(d: DeliveryInfo, amount: number): string[] {
+// Monta o nome do aparelho sem repetir capacidade/cor que já estão no nome.
+// Ex.: nome "iPad 256GB Prata" + cap "256GB" + cor "Prata" → "iPad 256GB Prata"
+function deviceLabel(name?: string, cap?: string, color?: string): string {
+  let label = (name || '').trim();
+  const append = (part?: string) => {
+    const p = (part || '').trim();
+    if (!p) return;
+    const re = new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (!re.test(label)) label = `${label} ${p}`.trim();
+  };
+  append(cap);
+  append(color);
+  return label.trim();
+}
+
+// Bloco de cobrança para o motoboy — sempre com cabeçalho "COBRAR" e uma linha por forma
+function chargeBlock(d: DeliveryInfo, amount: number): string[] {
   const split = splitEntries(d);
   if (split.length > 0) {
-    const parts = split.map((b) => {
-      const how = b.method === 'cartao' ? '💳 cartão' : b.method === 'pix' ? '📲 PIX' : '💵 dinheiro';
-      return `${brl(b.amount)} ${how}`;
-    });
+    const lines = ['💰 COBRAR'];
+    split.forEach((b) => lines.push(`${methodIcon(b.method)} ${brl(b.amount)} no ${methodWord(b.method)}`));
     const total = split.reduce((a, b) => a + Number(b.amount), 0);
-    const lines = [`💰 ${parts.join(' + ')} = ${brl(total)}`];
+    lines.push(`➡️ Total: ${brl(total)}`);
     if (split.some((b) => b.method === 'pix')) lines.push('⚠️ Confirmar PIX antes de entregar');
     return lines;
   }
   switch (d.chargeMode) {
-    case 'aguardar_pix': return [`💰 ${brl(amount)} via PIX`, '⚠️ Confirmar PIX antes de entregar'];
-    case 'maquininha':   return [`💰 ${brl(amount)} na maquininha`];
-    case 'dinheiro':     return [`💰 ${brl(amount)} em dinheiro`];
-    default:             return ['✅ Já pago'];
+    case 'aguardar_pix': return ['💰 COBRAR', `📲 ${brl(amount)} via PIX`, '⚠️ Confirmar PIX antes de entregar'];
+    case 'maquininha':   return ['💰 COBRAR', `💳 ${brl(amount)} na maquininha`];
+    case 'dinheiro':     return ['💰 COBRAR', `💵 ${brl(amount)} em dinheiro`];
+    default:             return ['✅ Já pago — só entregar'];
   }
 }
 
 // ─── Mensagem para o MOTOBOY ────────────────────────────────────────────────
+// Formato em blocos rotulados (COLETA / ENTREGA / COBRAR), uma informação por
+// linha, com linha em branco entre os blocos. Fácil de ler na pressa.
 export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   const L: string[] = [];
 
@@ -345,7 +358,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     s.saleType === 'compra' ? 'COMPRA' :
     s.saleType === 'prazo'  ? 'PRAZO' : 'ENTREGA';
 
-  L.push(`🏍️ ${tipo} · Easy Imports · ${dateBR(s.saleDateISO)}${s.saleNumber ? ` · ${s.saleNumber}` : ''}`);
+  L.push(`🏍️ ${tipo}${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
   L.push('');
 
   const baseCharge =
@@ -357,63 +370,78 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
   // ─── COMPRA (fluxo invertido: vai ao cliente, traz aparelho, paga) ───────
   if (s.saleType === 'compra') {
-    const prod = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
-    const dest = d.deliveryAddress.trim() || '⚠️ ENDEREÇO DO CLIENTE';
-    const loja = d.pickupLocation.trim() || '⚠️ ENDEREÇO DA LOJA';
+    const prod = deviceLabel(s.productName, s.capacity, s.color);
+    const dest = d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE';
+    const loja = d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DA LOJA';
     const quem = d.recipient.trim() || s.customerName || 'cliente';
-    L.push(`📍 COLETA: ${dest}`);
-    L.push(`${quem}${d.deliveryTime.trim() ? ` · ${d.deliveryTime.trim()}` : ''}`);
+
+    L.push('📦 COLETA (com o cliente)');
+    L.push(`📍 ${dest}`);
+    L.push(`👤 ${quem}`);
+    if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
     L.push(`📱 ${prod}`);
     L.push('📸 Foto antes de retirar');
     L.push('');
-    L.push(`📍 ENTREGAR EM: ${loja}`);
-    if (d.pickupContact.trim()) L.push(d.pickupContact.trim());
+    L.push('🏪 ENTREGAR NA LOJA');
+    L.push(`📍 ${loja}`);
+    if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
     L.push('');
-    chargeCompact(d, chargeAmount).forEach(l => L.push(l));
-    if (d.instructions.trim()) L.push(`📌 ${d.instructions.trim()}`);
-    L.push('📲 Avisar ao finalizar');
+    chargeBlock(d, chargeAmount).forEach((l) => L.push(l));
+    if (d.instructions.trim()) { L.push(''); L.push(`📌 ${d.instructions.trim()}`); }
+    L.push('');
+    L.push('📲 Avisar quando finalizar');
     return L.join('\n');
   }
 
   // ─── VENDA / TROCA / PRAZO ───────────────────────────────────────────────
-  const mainProd = [s.productName, s.capacity, s.color].filter(Boolean).join(' ');
-  const extraProds = (s.items || []).map(it => [it.name, it.capacity, it.color].filter(Boolean).join(' ')).filter(Boolean);
+  const mainProd = deviceLabel(s.productName, s.capacity, s.color);
+  const extraProds = (s.items || [])
+    .map((it) => deviceLabel(it.name, it.capacity, it.color))
+    .filter(Boolean);
   const allProds = [mainProd, ...extraProds].join(' + ');
 
-  const coleta = d.pickupLocation.trim() || '⚠️ ENDEREÇO DE COLETA';
-  const coletaInfo = [d.pickupContact.trim(), d.pickupTime.trim()].filter(Boolean).join(' · ');
-  L.push(`📦 COLETA: ${coleta}`);
-  if (coletaInfo) L.push(coletaInfo);
-  L.push(`Levar: ${allProds}`);
+  // COLETA
+  L.push('📦 COLETA');
+  L.push(`📍 ${d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE COLETA'}`);
+  if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
+  if (d.pickupTime.trim())    L.push(`🕒 ${d.pickupTime.trim()}`);
+  L.push(`📱 ${allProds}`);
   L.push('');
 
-  const entrega = d.deliveryAddress.trim() || '⚠️ ENDEREÇO DE ENTREGA';
-  const recipient = d.recipient.trim() || s.customerName || 'cliente';
-  const eta = d.deliveryTime.trim();
-  L.push(`🚚 ENTREGA: ${entrega}`);
-  L.push(`${recipient}${eta ? ` · ${eta}` : ''}`);
-  chargeCompact(d, chargeAmount).forEach(l => L.push(l));
+  // ENTREGA
+  L.push('🚚 ENTREGA');
+  L.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DE ENTREGA'}`);
+  L.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
+  if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
+  L.push('');
+
+  // COBRAR
+  chargeBlock(d, chargeAmount).forEach((l) => L.push(l));
 
   // Busca no mesmo dia (troca)
   if (s.saleType === 'troca' && !d.deferCollection) {
     const devs = s.incomingDevices?.length
-      ? s.incomingDevices.map(x => x.model)
+      ? s.incomingDevices.map((x) => x.model)
       : s.incomingName ? [s.incomingName] : ['aparelho do cliente'];
     L.push('');
-    L.push(`🔄 BUSCAR: ${devs.join(' + ')}`);
+    L.push('🔄 BUSCAR COM O CLIENTE');
+    L.push(`📱 ${devs.join(' + ')}`);
     L.push('📸 Foto antes de guardar');
   }
 
-  L.push('');
-  if (d.instructions.trim()) L.push(`📌 ${d.instructions.trim()}`);
+  // Busca agendada (troca, outra corrida)
   if (s.saleType === 'troca' && d.deferCollection) {
     const devs = s.incomingDevices?.length
       ? s.incomingDevices.map((x) => x.model)
       : s.incomingName ? [s.incomingName] : [];
     const quando = d.collectionDate ? dateBR(d.collectionDate) : 'a combinar';
-    L.push(`📌 Busca do ${devs[0] || 'aparelho'}: ${quando} — outra corrida`);
+    L.push('');
+    L.push(`📌 Busca do ${devs[0] || 'aparelho'}: ${quando} (outra corrida)`);
   }
-  L.push('📲 Avisar ao finalizar');
+
+  if (d.instructions.trim()) { L.push(''); L.push(`📌 ${d.instructions.trim()}`); }
+  L.push('');
+  L.push('📲 Avisar quando finalizar');
   return L.join('\n');
 }
 
@@ -424,41 +452,28 @@ export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string 
     : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
 
   const lines: string[] = [];
-  lines.push('🏍️ CORRIDA EASY IMPORTS — BUSCA DE APARELHO');
-  lines.push(`📅 ${d.collectionDate ? dateBR(d.collectionDate) : 'Data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime}` : ''}${s.saleNumber ? ` · ${s.saleNumber}` : ''}`);
+  const quando = `${d.collectionDate ? dateBR(d.collectionDate) : 'data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime.trim()}` : ''}`;
+  lines.push(`🏍️ BUSCA${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${quando}`);
   lines.push('');
 
-  // PASSO 1 — Buscar com o cliente
-  lines.push('📍 PASSO 1 — BUSCAR COM O CLIENTE');
-  lines.push(d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE');
+  // BUSCAR com o cliente
+  lines.push('📦 BUSCAR (com o cliente)');
+  lines.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE'}`);
   lines.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
-  if (d.collectionTime.trim()) lines.push(`⏰ ${d.collectionTime.trim()}`);
-  lines.push('');
-
-  // Aparelho (sem valor — motoboy não precisa saber)
+  if (d.collectionTime.trim()) lines.push(`🕒 ${d.collectionTime.trim()}`);
   if (devs.length > 0) {
-    devs.forEach(dev => lines.push(`📱 ${dev.model}`));
+    lines.push(`📱 ${devs.map((dev) => dev.model).join(' + ')}`);
   } else {
     lines.push('📱 Confirmar modelo com o cliente');
   }
-
-  lines.push('');
-  lines.push(SEP);
+  lines.push('📸 Foto antes de guardar');
   lines.push('');
 
-  // PASSO 2 — Entregar na loja / destino
-  lines.push('📍 PASSO 2 — ENTREGAR EM');
-  lines.push(d.collectionDropoffLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE DESTINO');
+  // ENTREGAR no destino
+  lines.push('🏪 ENTREGAR');
+  lines.push(`📍 ${d.collectionDropoffLocation.trim() || d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE DESTINO'}`);
   lines.push('');
-  lines.push(SEP);
-  lines.push('');
-
-  // Checklist
-  lines.push('✅ CHECKLIST');
-  lines.push('📸 Fotografar o aparelho (frente e verso) antes de guardar');
-  lines.push('📲 Avisar a loja após entregar');
-  lines.push('');
-  lines.push('🚀 Easy Imports agradece! Boa corrida! 🏍️');
+  lines.push('📲 Avisar quando finalizar');
   return lines.join('\n');
 }
 

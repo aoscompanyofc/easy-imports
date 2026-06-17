@@ -310,7 +310,9 @@ export const Vendas: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Sync edit fields whenever a different sale is opened in the detail modal
+  // Sync edit fields whenever a different sale is opened in the detail modal.
+  // Uses the same priority chain as the display: outgoing_items_json → uuid-tx → sale_number-tx
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!detailSale) return;
     setDetailCostEditMode(false);
@@ -322,8 +324,11 @@ export const Vendas: React.FC = () => {
         return items.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
       } catch { return 0; }
     })();
-    setDetailEditCostVal(costFromJson > 0 ? String(costFromJson) : '');
-  }, [detailSale?.id]);
+    const costFromUuid = costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? 0;
+    const costFromNum  = costBySale[detailSale.sale_number] ?? 0;
+    const resolved = costFromJson > 0 ? costFromJson : costFromUuid > 0 ? costFromUuid : costFromNum;
+    setDetailEditCostVal(resolved > 0 ? String(resolved) : '');
+  }, [detailSale?.id]); // só re-sincroniza ao trocar de venda, não ao usuário digitar
 
   // Map sale_number / ID-prefix → cost de transações auto-criadas (suporta formato antigo e novo)
   const costBySale = useMemo<Record<string, number>>(() => {

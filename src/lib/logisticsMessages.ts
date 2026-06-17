@@ -367,7 +367,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     lines.push('🔄 PASSO 3 — BUSCAR APARELHO DO CLIENTE');
     if (devs.length > 0) {
       devs.forEach(dev => {
-        lines.push(`📱 ${dev.model}${dev.value > 0 ? ` — avaliado em ${brl(dev.value)}` : ''}`);
+        lines.push(`📱 ${dev.model}`);
       });
     } else {
       lines.push('📱 Aparelho do cliente (confirmar modelo na entrega)');

@@ -39,6 +39,8 @@ export interface SaleMsgData {
   incomingDevices?: { model: string; value: number }[]; // todos os dispositivos de troca
   items?: SaleItemMsg[];
   saleDateISO?: string;
+  // Split de pagamento vindo da venda (pré-preenche o formulário de entrega)
+  saleChargeBreakdown?: { method: 'pix' | 'cartao' | 'dinheiro'; amount: number }[];
 }
 
 export interface DeliveryInfo {

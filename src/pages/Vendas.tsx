@@ -994,6 +994,21 @@ export const Vendas: React.FC = () => {
         incomingDevices: tradeInDevices.length > 0 ? tradeInDevices : undefined,
         items: msgItems,
         saleDateISO: new Date(form.sale_date).toISOString(),
+        saleChargeBreakdown: (() => {
+          if (!form.split_payment || !Number(form.payment2_amount)) return undefined;
+          const toMethod = (m: string): 'pix' | 'cartao' | 'dinheiro' => {
+            const l = (m || '').toLowerCase();
+            if (l.includes('pix')) return 'pix';
+            if (l.includes('cartão') || l.includes('cartao') || l.includes('crédito') || l.includes('débito')) return 'cartao';
+            return 'dinheiro';
+          };
+          const p2 = Number(form.payment2_amount);
+          const p1 = Math.max(0, totalAmount - p2);
+          const entries = [];
+          if (p1 > 0) entries.push({ method: toMethod(form.payment_method), amount: p1 });
+          if (p2 > 0) entries.push({ method: toMethod(form.payment2_method), amount: p2 });
+          return entries.length > 0 ? entries : undefined;
+        })(),
       };
 
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type, msg, address: resolvedCity || '' });

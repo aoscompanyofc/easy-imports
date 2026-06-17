@@ -126,6 +126,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
     recipient: sale.customerName || '',
     pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
     chargeMode: inferChargeMode(sale.paymentMethod, sale),
+    // Pre-preenche split de pagamento vindo da venda (ex.: PIX + cartão com taxa)
+    chargeBreakdown: sale.saleChargeBreakdown ?? [],
     // Troca: padrão é buscar em outra data (mais comum que buscar no mesmo dia)
     deferCollection: sale.saleType === 'troca',
   }));

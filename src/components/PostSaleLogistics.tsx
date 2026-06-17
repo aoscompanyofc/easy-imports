@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Copy, Check, Send, Truck, User, MapPin, Clock, RotateCcw, Package,
   RefreshCw, AlertTriangle, Store, CheckCircle2, CreditCard, DollarSign,
@@ -42,7 +42,29 @@ function ChargeModeIcon({ id, size = 14, className = '' }: { id: DeliveryInfo['c
 }
 
 const PICKUP_KEY = 'easy-imports-last-pickup';
+const LOGISTICS_KEY = (saleNumber: string) => `easy-imports-logistics-${saleNumber}`;
 const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+interface SavedLogistics {
+  delivery: DeliveryInfo;
+  clientMsg: string;
+  motoboyMsg: string;
+  collectionMsg: string;
+  savedAt: string;
+}
+
+function loadSavedLogistics(saleNumber: string): SavedLogistics | null {
+  if (!saleNumber) return null;
+  try {
+    const raw = localStorage.getItem(LOGISTICS_KEY(saleNumber));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveLogistics(saleNumber: string, data: SavedLogistics) {
+  if (!saleNumber) return;
+  try { localStorage.setItem(LOGISTICS_KEY(saleNumber), JSON.stringify(data)); } catch {}
+}
 
 const inputCls =
   'w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all';
@@ -71,9 +93,10 @@ const MessageCard: React.FC<{
   value: string;
   onChange: (v: string) => void;
   onRegenerate: () => void;
+  onAction?: () => void;
   waHref: string;
   waLabel: string;
-}> = ({ title, icon, accent, value, onChange, onRegenerate, waHref, waLabel }) => {
+}> = ({ title, icon, accent, value, onChange, onRegenerate, onAction, waHref, waLabel }) => {
   const [copied, setCopied] = useState(false);
   return (
     <div className="rounded-2xl border border-neutral-200 overflow-hidden">
@@ -99,8 +122,12 @@ const MessageCard: React.FC<{
           type="button"
           onClick={async () => {
             const ok = await copyText(value);
-            if (ok) { setCopied(true); toast.success('Mensagem copiada!'); setTimeout(() => setCopied(false), 1800); }
-            else toast.error('Não foi possível copiar');
+            if (ok) {
+              setCopied(true);
+              toast.success('Mensagem copiada!');
+              setTimeout(() => setCopied(false), 1800);
+              onAction?.();
+            } else toast.error('Não foi possível copiar');
           }}
           className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-neutral-800 transition-colors"
         >
@@ -110,6 +137,7 @@ const MessageCard: React.FC<{
           href={waHref}
           target="_blank"
           rel="noreferrer"
+          onClick={onAction}
           className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold text-sm py-2.5 rounded-xl hover:brightness-95 transition-all"
         >
           <Send size={16} /> {waLabel}
@@ -120,28 +148,33 @@ const MessageCard: React.FC<{
 };
 
 export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: string }> = ({ sale, defaultAddress }) => {
-  const [delivery, setDelivery] = useState<DeliveryInfo>(() => ({
-    ...emptyDelivery(),
-    deliveryAddress: defaultAddress || '',
-    recipient: sale.customerName || '',
-    pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
-    chargeMode: inferChargeMode(sale.paymentMethod, sale),
-    // Pre-preenche split de pagamento vindo da venda (ex.: PIX + cartão com taxa)
-    chargeBreakdown: sale.saleChargeBreakdown ?? [],
-    // Troca: padrão é buscar em outra data (mais comum que buscar no mesmo dia)
-    deferCollection: sale.saleType === 'troca',
-  }));
+  // Carrega estado salvo ou constrói o inicial
+  const [delivery, setDelivery] = useState<DeliveryInfo>(() => {
+    const saved = loadSavedLogistics(sale.saleNumber);
+    if (saved?.delivery) return saved.delivery;
+    return {
+      ...emptyDelivery(),
+      deliveryAddress: defaultAddress || '',
+      recipient: sale.customerName || '',
+      pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
+      chargeMode: inferChargeMode(sale.paymentMethod, sale),
+      chargeBreakdown: sale.saleChargeBreakdown ?? [],
+      deferCollection: sale.saleType === 'troca',
+    };
+  });
 
   const generatedClient     = useMemo(() => buildClientMessage(sale, delivery), [sale, delivery]);
   const generatedMotoboy    = useMemo(() => buildMotoboyMessage(sale, delivery), [sale, delivery]);
   const generatedCollection = useMemo(() => buildCollectionMessage(sale, delivery), [sale, delivery]);
 
-  const [clientMsg, setClientMsg]         = useState(generatedClient);
-  const [motoboyMsg, setMotoboyMsg]       = useState(generatedMotoboy);
-  const [collectionMsg, setCollectionMsg] = useState(generatedCollection);
-  const [clientEdited, setClientEdited]     = useState(false);
-  const [motoboyEdited, setMotoboyEdited]   = useState(false);
-  const [collectionEdited, setCollectionEdited] = useState(false);
+  const saved = useMemo(() => loadSavedLogistics(sale.saleNumber), [sale.saleNumber]);
+
+  const [clientMsg, setClientMsg]         = useState(() => saved?.clientMsg     || generatedClient);
+  const [motoboyMsg, setMotoboyMsg]       = useState(() => saved?.motoboyMsg    || generatedMotoboy);
+  const [collectionMsg, setCollectionMsg] = useState(() => saved?.collectionMsg || generatedCollection);
+  const [clientEdited, setClientEdited]     = useState(!!saved?.clientMsg);
+  const [motoboyEdited, setMotoboyEdited]   = useState(!!saved?.motoboyMsg);
+  const [collectionEdited, setCollectionEdited] = useState(!!saved?.collectionMsg);
 
   useEffect(() => { if (!clientEdited)     setClientMsg(generatedClient);         }, [generatedClient, clientEdited]);
   useEffect(() => { if (!motoboyEdited)    setMotoboyMsg(generatedMotoboy);       }, [generatedMotoboy, motoboyEdited]);
@@ -152,6 +185,27 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
   const persistPickup = () => {
     if (delivery.pickupLocation.trim()) localStorage.setItem(PICKUP_KEY, delivery.pickupLocation.trim());
   };
+
+  // Salva estado completo (delivery + mensagens finais)
+  const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = useCallback((d: DeliveryInfo, cm: string, mm: string, colm: string) => {
+    if (!sale.saleNumber) return;
+    if (saveRef.current) clearTimeout(saveRef.current);
+    saveRef.current = setTimeout(() => {
+      saveLogistics(sale.saleNumber, {
+        delivery: d,
+        clientMsg: cm,
+        motoboyMsg: mm,
+        collectionMsg: colm,
+        savedAt: new Date().toISOString(),
+      });
+    }, 600);
+  }, [sale.saleNumber]);
+
+  // Auto-salva sempre que delivery ou mensagens mudam
+  useEffect(() => {
+    persist(delivery, clientMsg, motoboyMsg, collectionMsg);
+  }, [delivery, clientMsg, motoboyMsg, collectionMsg, persist]);
 
   // Aparelhos a recolher (troca)
   const collectDevices =
@@ -496,6 +550,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         value={clientMsg}
         onChange={(v) => { setClientMsg(v); setClientEdited(true); }}
         onRegenerate={() => { setClientEdited(false); setClientMsg(generatedClient); }}
+        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
         waHref={waLink(sale.phone || '', clientMsg)}
         waLabel="Enviar ao cliente"
       />
@@ -506,6 +561,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         value={motoboyMsg}
         onChange={(v) => { setMotoboyMsg(v); setMotoboyEdited(true); }}
         onRegenerate={() => { setMotoboyEdited(false); setMotoboyMsg(generatedMotoboy); }}
+        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
         waHref={waLink('', motoboyMsg)}
         waLabel="Abrir no WhatsApp"
       />
@@ -519,6 +575,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
           value={collectionMsg}
           onChange={(v) => { setCollectionMsg(v); setCollectionEdited(true); }}
           onRegenerate={() => { setCollectionEdited(false); setCollectionMsg(generatedCollection); }}
+          onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
           waHref={waLink('', collectionMsg)}
           waLabel="Abrir no WhatsApp"
         />

@@ -51,6 +51,11 @@ interface SavedLogistics {
   clientMsg: string;
   motoboyMsg: string;
   collectionMsg: string;
+  // Marca se o texto foi editado manualmente. Sem isso, a mensagem é sempre
+  // regerada a partir dos campos (importante quando o formato muda no código).
+  clientEdited?: boolean;
+  motoboyEdited?: boolean;
+  collectionEdited?: boolean;
   savedAt: string;
 }
 
@@ -172,12 +177,12 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
 
   const saved = useMemo(() => loadSavedLogistics(sale.saleNumber), [sale.saleNumber]);
 
-  const [clientMsg, setClientMsg]         = useState(() => saved?.clientMsg     || generatedClient);
-  const [motoboyMsg, setMotoboyMsg]       = useState(() => saved?.motoboyMsg    || generatedMotoboy);
-  const [collectionMsg, setCollectionMsg] = useState(() => saved?.collectionMsg || generatedCollection);
-  const [clientEdited, setClientEdited]     = useState(!!saved?.clientMsg);
-  const [motoboyEdited, setMotoboyEdited]   = useState(!!saved?.motoboyMsg);
-  const [collectionEdited, setCollectionEdited] = useState(!!saved?.collectionMsg);
+  const [clientEdited, setClientEdited]     = useState(!!saved?.clientEdited);
+  const [motoboyEdited, setMotoboyEdited]   = useState(!!saved?.motoboyEdited);
+  const [collectionEdited, setCollectionEdited] = useState(!!saved?.collectionEdited);
+  const [clientMsg, setClientMsg]         = useState(() => saved?.clientEdited     ? saved.clientMsg     : generatedClient);
+  const [motoboyMsg, setMotoboyMsg]       = useState(() => saved?.motoboyEdited    ? saved.motoboyMsg    : generatedMotoboy);
+  const [collectionMsg, setCollectionMsg] = useState(() => saved?.collectionEdited ? saved.collectionMsg : generatedCollection);
 
   useEffect(() => { if (!clientEdited)     setClientMsg(generatedClient);         }, [generatedClient, clientEdited]);
   useEffect(() => { if (!motoboyEdited)    setMotoboyMsg(generatedMotoboy);       }, [generatedMotoboy, motoboyEdited]);
@@ -191,7 +196,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
 
   // Salva estado completo (delivery + mensagens finais)
   const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persist = useCallback((d: DeliveryInfo, cm: string, mm: string, colm: string) => {
+  const persist = useCallback((d: DeliveryInfo, cm: string, mm: string, colm: string,
+    ce: boolean, me: boolean, cole: boolean) => {
     if (!sale.saleNumber) return;
     if (saveRef.current) clearTimeout(saveRef.current);
     saveRef.current = setTimeout(() => {
@@ -200,6 +206,9 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         clientMsg: cm,
         motoboyMsg: mm,
         collectionMsg: colm,
+        clientEdited: ce,
+        motoboyEdited: me,
+        collectionEdited: cole,
         savedAt: new Date().toISOString(),
       });
     }, 600);
@@ -207,8 +216,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
 
   // Auto-salva sempre que delivery ou mensagens mudam
   useEffect(() => {
-    persist(delivery, clientMsg, motoboyMsg, collectionMsg);
-  }, [delivery, clientMsg, motoboyMsg, collectionMsg, persist]);
+    persist(delivery, clientMsg, motoboyMsg, collectionMsg, clientEdited, motoboyEdited, collectionEdited);
+  }, [delivery, clientMsg, motoboyMsg, collectionMsg, clientEdited, motoboyEdited, collectionEdited, persist]);
 
   // Aparelhos a recolher (troca)
   const collectDevices =
@@ -553,7 +562,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         value={clientMsg}
         onChange={(v) => { setClientMsg(v); setClientEdited(true); }}
         onRegenerate={() => { setClientEdited(false); setClientMsg(generatedClient); }}
-        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
+        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg, clientEdited, motoboyEdited, collectionEdited)}
         waHref={waLink(sale.phone || '', clientMsg)}
         waLabel="Enviar ao cliente"
       />
@@ -564,7 +573,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
         value={motoboyMsg}
         onChange={(v) => { setMotoboyMsg(v); setMotoboyEdited(true); }}
         onRegenerate={() => { setMotoboyEdited(false); setMotoboyMsg(generatedMotoboy); }}
-        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
+        onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg, clientEdited, motoboyEdited, collectionEdited)}
         waHref={waLink('', motoboyMsg)}
         waLabel="Abrir no WhatsApp"
       />
@@ -578,7 +587,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
           value={collectionMsg}
           onChange={(v) => { setCollectionMsg(v); setCollectionEdited(true); }}
           onRegenerate={() => { setCollectionEdited(false); setCollectionMsg(generatedCollection); }}
-          onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg)}
+          onAction={() => persist(delivery, clientMsg, motoboyMsg, collectionMsg, clientEdited, motoboyEdited, collectionEdited)}
           waHref={waLink('', collectionMsg)}
           waLabel="Abrir no WhatsApp"
         />

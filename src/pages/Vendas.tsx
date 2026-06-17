@@ -54,6 +54,7 @@ const emptyTradeInDevice = (): TradeInDevice => ({
 
 interface AdditionalOutgoingItem {
   id: string;
+  mode: 'stock' | 'manual';
   selectedProduct: string;
   name_override: string;
   imei_override: string;
@@ -66,6 +67,7 @@ interface AdditionalOutgoingItem {
 
 const emptyAdditionalItem = (): AdditionalOutgoingItem => ({
   id: safeUUID(),
+  mode: 'stock',
   selectedProduct: '',
   name_override: '',
   imei_override: '',
@@ -75,6 +77,9 @@ const emptyAdditionalItem = (): AdditionalOutgoingItem => ({
   price_override: '',
   cost_override: '',
 });
+
+const isAddlItemFilled = (i: AdditionalOutgoingItem) =>
+  i.mode === 'manual' ? !!i.name_override?.trim() : !!i.selectedProduct;
 
 const TYPE_COLORS: Record<string, string> = {
   compra: 'bg-neutral-100 text-neutral-600',
@@ -366,17 +371,16 @@ export const Vendas: React.FC = () => {
 
   // Totals for additional items (computed reactively for use in UI)
   const additionalItemsTotal = useMemo(() => {
-    return additionalItems.filter(i => i.selectedProduct).reduce((sum, item) => {
-      const prod = products.find((p: any) => p.id === item.selectedProduct);
-      const price = Number(item.price_override) || (prod?.sale_price ?? 0);
-      return sum + price;
+    return additionalItems.filter(isAddlItemFilled).reduce((sum, item) => {
+      const prod = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
+      return sum + (Number(item.price_override) || (prod?.sale_price ?? 0));
     }, 0);
   }, [additionalItems, products]);
 
   const additionalItemsCost = useMemo(() => {
-    return additionalItems.filter(i => i.selectedProduct).reduce((sum, item) => {
-      const prod = products.find((p: any) => p.id === item.selectedProduct);
-      return sum + (prod?.purchase_price ?? 0);
+    return additionalItems.filter(isAddlItemFilled).reduce((sum, item) => {
+      const prod = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
+      return sum + (item.mode === 'manual' ? Number(item.cost_override) || 0 : (prod?.purchase_price ?? 0));
     }, 0);
   }, [additionalItems, products]);
 
@@ -475,17 +479,17 @@ export const Vendas: React.FC = () => {
         price: isPrazo ? prazoProductPrice : unitPrice,
         cost: primaryProd?.purchase_price || Number(form.product_cost_manual) || 0,
       };
-      const additionalMapped = additionalItems.filter(i => i.selectedProduct).map(i => {
-        const prod = products.find((p: any) => p.id === i.selectedProduct);
+      const additionalMapped = additionalItems.filter(isAddlItemFilled).map(i => {
+        const prod = i.mode === 'stock' && i.selectedProduct ? products.find((p: any) => p.id === i.selectedProduct) : null;
         return {
-          product_id: i.selectedProduct,
+          product_id: i.selectedProduct || '',
           name: i.name_override || prod?.name || '',
           imei: i.imei_override || prod?.imei || '',
           capacity: i.capacity_override || prod?.product_capacity || '',
           color: i.color_override || prod?.product_color || '',
           condition: (prod?.product_condition || i.condition_override || 'Seminovo').replace(/ · Bateria:.*/, ''),
-          price: Number(i.price_override) || prod?.sale_price || 0,
-          cost: prod?.purchase_price || 0,
+          price: Number(i.price_override) || (prod?.sale_price ?? 0),
+          cost: i.mode === 'manual' ? Number(i.cost_override) || 0 : (prod?.purchase_price ?? 0),
         };
       });
       return JSON.stringify([primaryItem, ...additionalMapped]);
@@ -1750,6 +1754,7 @@ export const Vendas: React.FC = () => {
                                   setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
                                     ...emptyAdditionalItem(),
                                     id: safeUUID(),
+                                    mode: item.product_id ? 'stock' : 'manual',
                                     selectedProduct: item.product_id || '',
                                     name_override: item.name || '',
                                     imei_override: item.imei || '',
@@ -1757,6 +1762,7 @@ export const Vendas: React.FC = () => {
                                     color_override: item.color || '',
                                     condition_override: item.condition || 'Seminovo',
                                     price_override: String(item.price || ''),
+                                    cost_override: String(item.cost || ''),
                                   })));
                                 } else {
                                   setAdditionalItems([]);
@@ -2279,14 +2285,14 @@ export const Vendas: React.FC = () => {
             })()}
           </div>
 
-          {/* ─── Produtos Adicionais (multi-produto) ─── */}
-          {(form.selectedProduct || form.product_name_manual) && (
+          {/* ─── Produtos Adicionais (multi-produto) — apenas para vendas, não compras ─── */}
+          {form.sale_type !== 'compra' && (form.selectedProduct || form.product_name_manual) && (
             <div className="space-y-3">
               {additionalItems.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Produtos Adicionais</p>
                   {additionalItems.map((item, idx) => {
-                    const prod = products.find((p: any) => p.id === item.selectedProduct);
+                    const prod = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
                     return (
                       <div key={item.id} className="border border-neutral-200 rounded-xl p-4 space-y-3 bg-white">
                         <div className="flex items-center justify-between">
@@ -2299,35 +2305,75 @@ export const Vendas: React.FC = () => {
                             <Trash2 size={14} />
                           </button>
                         </div>
+                        {/* Mode toggle: estoque vs por demanda */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, mode: 'stock', selectedProduct: '', name_override: '' } : i))}
+                            className={[
+                              'py-2 rounded-lg text-xs font-bold border-2 transition-all',
+                              item.mode === 'stock'
+                                ? 'bg-neutral-900 border-neutral-900 text-white'
+                                : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400',
+                            ].join(' ')}
+                          >
+                            Do Estoque
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, mode: 'manual', selectedProduct: '' } : i))}
+                            className={[
+                              'py-2 rounded-lg text-xs font-bold border-2 transition-all',
+                              item.mode === 'manual'
+                                ? 'bg-primary border-primary text-neutral-900'
+                                : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary/40',
+                            ].join(' ')}
+                          >
+                            Por Demanda
+                          </button>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="sm:col-span-2">
-                            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Produto do Estoque</label>
-                            <select
-                              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-                              value={item.selectedProduct}
-                              onChange={(e) => {
-                                const pid = e.target.value;
-                                const p = products.find((pr: any) => pr.id === pid);
-                                setAdditionalItems(prev => prev.map(i => i.id === item.id ? {
-                                  ...i,
-                                  selectedProduct: pid,
-                                  name_override: p?.name || i.name_override || '',
-                                  imei_override: p?.imei || i.imei_override || '',
-                                  capacity_override: p?.product_capacity || i.capacity_override || '',
-                                  color_override: p?.product_color || i.color_override || '',
-                                  condition_override: (p?.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
-                                  price_override: i.price_override || (p?.sale_price > 0 ? String(p.sale_price) : ''),
-                                } : i));
-                              }}
-                            >
-                              <option value="">Selecionar do estoque...</option>
-                              {products.map((p: any) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          {item.mode === 'stock' ? (
+                            <div className="sm:col-span-2">
+                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Produto do Estoque</label>
+                              <select
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                value={item.selectedProduct}
+                                onChange={(e) => {
+                                  const pid = e.target.value;
+                                  const p = products.find((pr: any) => pr.id === pid);
+                                  setAdditionalItems(prev => prev.map(i => i.id === item.id ? {
+                                    ...i,
+                                    selectedProduct: pid,
+                                    name_override: p?.name || i.name_override || '',
+                                    imei_override: p?.imei || i.imei_override || '',
+                                    capacity_override: p?.product_capacity || i.capacity_override || '',
+                                    color_override: p?.product_color || i.color_override || '',
+                                    condition_override: (p?.product_condition || 'Seminovo').replace(/ · Bateria:.*/, ''),
+                                    price_override: i.price_override || (p?.sale_price > 0 ? String(p.sale_price) : ''),
+                                  } : i));
+                                }}
+                              >
+                                <option value="">Selecionar do estoque...</option>
+                                {products.map((p: any) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : (
+                            <div className="sm:col-span-2">
+                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Modelo / Produto *</label>
+                              <input
+                                type="text"
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                value={item.name_override}
+                                placeholder="Ex: iPhone 13 Pro Max 128GB Prata"
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, name_override: e.target.value } : i))}
+                              />
+                            </div>
+                          )}
                           <div>
                             <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor de Venda (R$)</label>
                             <input
@@ -2338,17 +2384,42 @@ export const Vendas: React.FC = () => {
                               onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, price_override: e.target.value } : i))}
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-bold text-neutral-700 mb-1.5">IMEI / Nº de Série</label>
-                            <input
-                              type="text" inputMode="text"
-                              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-                              value={item.imei_override}
-                              placeholder={prod?.imei || 'IMEI ou Nº de Série'}
-                              onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
-                            />
-                          </div>
-                          {prod && (
+                          {item.mode === 'manual' ? (
+                            <div>
+                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Custo de Entrada (R$)</label>
+                              <input
+                                type="number" step="any" inputMode="decimal"
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/25"
+                                value={item.cost_override}
+                                placeholder="Quanto você pagou"
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, cost_override: e.target.value } : i))}
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">IMEI / Nº de Série</label>
+                              <input
+                                type="text" inputMode="text"
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                value={item.imei_override}
+                                placeholder={prod?.imei || 'IMEI ou Nº de Série'}
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
+                              />
+                            </div>
+                          )}
+                          {item.mode === 'manual' && (
+                            <div>
+                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">IMEI / Nº de Série</label>
+                              <input
+                                type="text" inputMode="text"
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                value={item.imei_override}
+                                placeholder="IMEI ou Nº de Série"
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
+                              />
+                            </div>
+                          )}
+                          {prod && item.mode === 'stock' && (
                             <div className="sm:col-span-2 bg-neutral-50 rounded-lg px-3 py-2 text-xs text-neutral-600 font-medium">
                               {prod.name}{prod.product_capacity ? ` · ${prod.product_capacity}` : ''}{prod.product_color ? ` · ${prod.product_color}` : ''}{prod.imei ? ` · IMEI: ${prod.imei}` : ''}
                             </div>
@@ -2722,7 +2793,7 @@ export const Vendas: React.FC = () => {
             </div>
 
             {/* Per-product prices (venda/troca) — only visible when there are additional products */}
-            {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+            {additionalItems.filter(isAddlItemFilled).length > 0 && (
               <div className="mt-2 p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-3">
                 <p className="text-xs font-black text-neutral-500 uppercase tracking-widest">Valor por Produto</p>
                 {/* Primary product */}
@@ -2751,16 +2822,17 @@ export const Vendas: React.FC = () => {
                   </div>
                 </div>
                 {/* Additional products */}
-                {additionalItems.filter(i => i.selectedProduct).map((item, idx) => {
-                  const addProd = products.find((p: any) => p.id === item.selectedProduct);
-                  const itemPrice = Number(item.price_override) || 0;
-                  const itemCost = addProd?.purchase_price || 0;
+                {additionalItems.filter(isAddlItemFilled).map((item, idx) => {
+                  const addProd = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
+                  const itemName = item.name_override || addProd?.name || 'Produto';
+                  const itemPrice = Number(item.price_override) || addProd?.sale_price || 0;
+                  const itemCost = item.mode === 'manual' ? Number(item.cost_override) || 0 : (addProd?.purchase_price || 0);
                   const itemProfit = itemPrice > 0 && itemCost > 0 ? itemPrice - itemCost : null;
                   return (
                     <div key={item.id} className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-neutral-700 truncate">
-                          Produto {idx + 2}: {addProd?.name || 'Produto'}
+                          Produto {idx + 2}: {itemName}
                         </p>
                         {itemCost > 0 && (
                           <p className="text-[10px] text-neutral-400">Custo: {formatCurrency(itemCost)}</p>
@@ -2862,7 +2934,7 @@ export const Vendas: React.FC = () => {
               const tradeResale = incomingDevices.reduce((s, d) => s + Number(d.sale_price || 0), 0);
               const tradeProfit = tradeResale - tradeCredit;
               const isTroca = form.sale_type === 'troca';
-              const addlFiltered = additionalItems.filter(i => i.selectedProduct);
+              const addlFiltered = additionalItems.filter(isAddlItemFilled);
               const totalSaleAllProds = salePrice + additionalItemsTotal;
               const totalCostAllProds = totalCost + additionalItemsCost;
               const hasCostAll = totalCostAllProds > 0;
@@ -2896,12 +2968,13 @@ export const Vendas: React.FC = () => {
                             </div>
                           </div>
                           {addlFiltered.map((item, idx) => {
-                            const addProd = products.find((p: any) => p.id === item.selectedProduct);
+                            const addProd = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
+                            const addName = item.name_override || addProd?.name || 'Produto';
                             const itemPrice = Number(item.price_override) || addProd?.sale_price || 0;
-                            const itemCost = addProd?.purchase_price || 0;
+                            const itemCost = item.mode === 'manual' ? Number(item.cost_override) || 0 : (addProd?.purchase_price || 0);
                             return (
                               <div key={item.id} className="flex justify-between text-sm">
-                                <span className="text-neutral-600">Produto {idx + 2}: {addProd?.name || 'Produto'}</span>
+                                <span className="text-neutral-600">Produto {idx + 2}: {addName}</span>
                                 <div className="text-right">
                                   <span className="font-bold text-neutral-900">{formatCurrency(itemPrice)}</span>
                                   {itemCost > 0 && itemPrice > 0 && (
@@ -3027,11 +3100,11 @@ export const Vendas: React.FC = () => {
               {/* Valor dos produtos — per-product pricing */}
               <div className="space-y-2">
                 <p className="text-sm font-bold text-neutral-700">
-                  {additionalItems.filter(i => i.selectedProduct).length > 0 ? 'Valor dos Produtos (R$) *' : 'Valor do Produto (R$) *'}
+                  {additionalItems.filter(isAddlItemFilled).length > 0 ? 'Valor dos Produtos (R$) *' : 'Valor do Produto (R$) *'}
                 </p>
                 {/* Primary product */}
                 <div className="bg-white border-2 border-primary/40 rounded-xl p-3 space-y-2">
-                  {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                  {additionalItems.filter(isAddlItemFilled).length > 0 && (
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-neutral-600 truncate">
                         Produto 1: {selectedProductData?.name || form.product_name_manual || '—'}
@@ -3053,7 +3126,7 @@ export const Vendas: React.FC = () => {
                       className="flex-1 bg-transparent text-sm font-bold outline-none focus:ring-0"
                       placeholder="Ex: 5000"
                     />
-                    {Number(form.sale_price_manual) > 0 && selectedProductData?.purchase_price > 0 && additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                    {Number(form.sale_price_manual) > 0 && selectedProductData?.purchase_price > 0 && additionalItems.filter(isAddlItemFilled).length > 0 && (
                       <span className={cn('text-xs font-black flex-shrink-0', (Number(form.sale_price_manual) - selectedProductData.purchase_price) >= 0 ? 'text-green-600' : 'text-red-500')}>
                         Lucro: {formatCurrency(Number(form.sale_price_manual) - selectedProductData.purchase_price)}
                       </span>
@@ -3061,16 +3134,17 @@ export const Vendas: React.FC = () => {
                   </div>
                 </div>
                 {/* Additional products */}
-                {additionalItems.filter(i => i.selectedProduct).map((item, idx) => {
-                  const addProd = products.find((p: any) => p.id === item.selectedProduct);
+                {additionalItems.filter(isAddlItemFilled).map((item, idx) => {
+                  const addProd = item.mode === 'stock' ? products.find((p: any) => p.id === item.selectedProduct) : null;
+                  const addName = item.name_override || addProd?.name || 'Produto';
                   const itemPrice = Number(item.price_override) || addProd?.sale_price || 0;
-                  const itemCost = addProd?.purchase_price || 0;
+                  const itemCost = item.mode === 'manual' ? Number(item.cost_override) || 0 : (addProd?.purchase_price || 0);
                   const itemProfit = itemPrice > 0 && itemCost > 0 ? itemPrice - itemCost : null;
                   return (
                     <div key={item.id} className="bg-white border-2 border-primary/40 rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold text-neutral-600 truncate">
-                          Produto {idx + 2}: {addProd?.name || 'Produto'}
+                          Produto {idx + 2}: {addName}
                         </p>
                         {itemCost > 0 && (
                           <span className="text-[10px] text-neutral-400 flex-shrink-0 ml-2">
@@ -3095,7 +3169,7 @@ export const Vendas: React.FC = () => {
                     </div>
                   );
                 })}
-                {additionalItems.filter(i => i.selectedProduct).length > 0 && (
+                {additionalItems.filter(isAddlItemFilled).length > 0 && (
                   <div className="flex justify-between text-sm font-bold px-1 pt-1">
                     <span className="text-neutral-700">Total dos produtos</span>
                     <span className="text-neutral-900">
@@ -3249,7 +3323,7 @@ export const Vendas: React.FC = () => {
 
                   {(() => {
                     const primaryPrice = Number(form.sale_price_manual) || 0;
-                    const addlFiltered = additionalItems.filter(i => i.selectedProduct);
+                    const addlFiltered = additionalItems.filter(isAddlItemFilled);
                     if (primaryPrice <= 0 && additionalItemsTotal <= 0) return null;
                     if (addlFiltered.length === 0) {
                       return primaryPrice > 0 ? (
@@ -3266,11 +3340,12 @@ export const Vendas: React.FC = () => {
                           <span className="font-bold">{formatCurrency(primaryPrice)}</span>
                         </div>
                         {addlFiltered.map((item, idx) => {
-                          const p = products.find((pr: any) => pr.id === item.selectedProduct);
+                          const p = item.mode === 'stock' ? products.find((pr: any) => pr.id === item.selectedProduct) : null;
+                          const pName = item.name_override || p?.name || 'Produto';
                           const price = Number(item.price_override) || p?.sale_price || 0;
                           return (
                             <div key={item.id} className="flex justify-between text-sm">
-                              <span className="text-neutral-500">Produto {idx + 2}: {p?.name || 'Produto'}</span>
+                              <span className="text-neutral-500">Produto {idx + 2}: {pName}</span>
                               <span className="font-bold">{formatCurrency(price)}</span>
                             </div>
                           );
@@ -3465,18 +3540,18 @@ export const Vendas: React.FC = () => {
                 cost: selectedProductData?.purchase_price || Number(form.product_cost_manual) || 0,
                 pdf_type: form.pdf_type,
               };
-              const addl = additionalItems.filter(i => i.selectedProduct).map(i => {
-                const p = products.find((pr: any) => pr.id === i.selectedProduct);
+              const addl = additionalItems.filter(isAddlItemFilled).map(i => {
+                const p = i.mode === 'stock' ? products.find((pr: any) => pr.id === i.selectedProduct) : null;
                 return {
-                  name: p?.name || '—',
-                  imei: i.imei_override || p?.imei || '—',
-                  capacity: i.capacity_override || p?.product_capacity || '—',
-                  color: i.color_override || p?.product_color || '—',
+                  name: i.name_override || p?.name || '—',
+                  imei: i.imei_override || p?.imei || '',
+                  capacity: i.capacity_override || p?.product_capacity || '',
+                  color: i.color_override || p?.product_color || '',
                   condition: (p?.product_condition || i.condition_override || 'Seminovo').replace(/ · Bateria:.*/, ''),
                   price: Number(i.price_override) || p?.sale_price || 0,
-                  cost: p?.purchase_price || 0,
+                  cost: i.mode === 'manual' ? Number(i.cost_override) || 0 : (p?.purchase_price || 0),
                   pdf_type: (() => {
-                    const cond = (p?.product_condition || '').toLowerCase();
+                    const cond = (p?.product_condition || i.condition_override || '').toLowerCase();
                     return (cond === 'novo' || cond.startsWith('novo ') || cond.startsWith('novo(')) ? 'novo' : 'seminovo';
                   })(),
                 };

@@ -305,7 +305,7 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
       : s.incomingName ? [s.incomingName] : [];
     const quando = `${d.collectionDate ? dateBR(d.collectionDate) : 'data a combinar'}${d.collectionTime ? ` (${d.collectionTime.toLowerCase()})` : ''}`;
     L.push('');
-    L.push(`📅 Seu ${devs.join(' e ') || 'aparelho'} será recolhido em ${quando} — sem pressa pra transferir os dados 😊`);
+    L.push(`📅 Nosso motoboy busca seu ${devs.join(' e ') || 'aparelho'} em ${quando} 😊`);
   }
 
   L.push('');
@@ -429,18 +429,9 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     L.push('📸 Foto antes de guardar');
   }
 
-  // Busca agendada (troca, outra corrida)
-  if (s.saleType === 'troca' && d.deferCollection) {
-    const devs = s.incomingDevices?.length
-      ? s.incomingDevices.map((x) => x.model)
-      : s.incomingName ? [s.incomingName] : [];
-    const quando = d.collectionDate ? dateBR(d.collectionDate) : 'a combinar';
-    L.push('');
-    L.push(`📌 Busca do ${devs[0] || 'aparelho'}: ${quando} (outra corrida)`);
-  }
-
   if (d.instructions.trim()) { L.push(''); L.push(`📌 ${d.instructions.trim()}`); }
   L.push('');
+  L.push('📸 Foto da entrega');
   L.push('📲 Avisar quando finalizar');
   return L.join('\n');
 }

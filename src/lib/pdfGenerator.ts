@@ -217,22 +217,30 @@ body {
 /* ASSINATURAS */
 .sig-area {
   margin-top: auto;
-  padding-top: 12px;
-  border-top: 2px solid #111;
   flex-shrink: 0;
 }
-.sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-.sig-role {
-  font-size: 7pt;
+.sig-area-hdr {
+  background: #111;
+  color: #F5C200;
+  font-size: 6.5pt;
   font-weight: 700;
-  color: #888;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  margin-bottom: 14px;
+}
+.sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; padding: 0 3px; }
+.sig-role {
+  font-size: 6.5pt;
+  font-weight: 700;
+  color: #555;
   text-transform: uppercase;
   letter-spacing: 0.9px;
-  margin-bottom: 30px;
+  margin-top: 5px;
 }
-.sig-line { border-bottom: 1px solid #111; margin-bottom: 5px; }
-.sig-sub { font-size: 7.5pt; color: #555; }
-.sig-img { max-height: 55px; max-width: 190px; display: block; margin: 0 auto 5px; }
+.sig-line { border-bottom: 1.5px solid #333; margin-bottom: 4px; }
+.sig-sub { font-size: 7.5pt; color: #666; margin-top: 2px; }
+.sig-img { max-height: 55px; max-width: 190px; display: block; margin: 0 0 6px; }
 
 /* FOOTER */
 .ftr {
@@ -319,9 +327,9 @@ function sigBlock(role: string, sub: string, img?: string) {
     : `<div style="height:55px;"></div>`;
   return `
     <div>
-      <div class="sig-role">${role}</div>
       ${imgTag}
       <div class="sig-line"></div>
+      <div class="sig-role">${role}</div>
       <div class="sig-sub">${sub}</div>
     </div>`;
 }
@@ -526,6 +534,7 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
 </div>
 
 <div class="sig-area">
+  <div class="sig-area-hdr">Assinaturas</div>
   <div class="sigs">
     ${sigBlock('Assinatura do Cliente', `Nome: ${fmt(sale.customer_name) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(sale.customer_cpf) || '___________________'}`, sale.signature_client)}
     ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
@@ -709,6 +718,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
 </div>
 
 <div class="sig-area">
+  <div class="sig-area-hdr">Assinaturas</div>
   <div class="sigs">
     ${sigBlock('Assinatura do Cliente', `Nome: ${fmt(clientName) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(clientCpf) || '___________________'}`, sale.signature_client)}
     ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
@@ -793,6 +803,7 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
 </div>
 
 <div class="sig-area">
+  <div class="sig-area-hdr">Assinaturas</div>
   <div class="sigs">
     ${sigBlock('Vendedor', `Nome: ${fmt(sale.seller_name) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(sale.seller_cpf) || '___________________'}`, sale.signature_client)}
     ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}
@@ -1020,6 +1031,7 @@ ${tradeInSection}
 </div>
 
 <div class="sig-area">
+  <div class="sig-area-hdr">Assinaturas</div>
   <div class="sigs">
     ${sigBlock('Assinatura do Comprador', `Nome: ${fmt(clientName) || '__________________________________'} &nbsp;&nbsp; CPF: ${fmt(clientCpf) || '___________________'}`, sale.signature_client)}
     ${sigBlock('Easy Imports — Responsável', `Data: ${date}`, sale.signature_admin)}

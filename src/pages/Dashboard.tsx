@@ -416,12 +416,25 @@ export const Dashboard: React.FC = () => {
       }
     }
 
+    // Helper: custo de uma venda — usa outgoing_items_json como fonte primária (imune a número duplicado
+    // e atualizado ao editar), fallback para costMap de transações (vendas antigas sem o campo).
+    const getSaleCost = (s: any): number => {
+      try {
+        const items = JSON.parse(s.outgoing_items_json || '[]');
+        if (items.length > 0) {
+          const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
+          if (total > 0) return total;
+        }
+      } catch {}
+      return costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+    };
+
     // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período
     let netProfit = 0;
     for (const s of filtered) {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
-      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      const cost = getSaleCost(s);
       const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
       const incoming = Number(s.incoming_purchase_price || 0);
       // Para troca: revenueMap tem só a parte em dinheiro; soma o aparelho entrante para obter a receita total
@@ -443,8 +456,6 @@ export const Dashboard: React.FC = () => {
       const saleNum = s.sale_number || '';
       const hasNewStyleCosts = instCostMap[saleNum] !== undefined;
       if (hasNewStyleCosts) {
-        // Novo estilo: custo proporcional já registrado como transação ao marcar pago
-        // Suma os custos de parcela deste período especificamente
         const instCostInPeriod = allTransactions
           .filter(t => t.type === 'expense' && t.category === 'stock'
             && t.description?.startsWith(`Custo Parcela ${saleNum}`)
@@ -452,31 +463,27 @@ export const Dashboard: React.FC = () => {
           .reduce((acc, t) => acc + Number(t.amount || 0), 0);
         netProfit += paidInPeriod - instCostInPeriod;
       } else {
-        // Estilo antigo: custo lump-sum registrado na criação — usa fórmula proporcional
         const totalAmt = Number(s.total_amount || 0);
-        const totalCost = costMap[saleNum] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        const totalCost = getSaleCost(s);
         netProfit += paidInPeriod - (totalAmt > 0 ? totalCost * (paidInPeriod / totalAmt) : 0);
       }
     }
 
     // Estoque no período: valor atual + custo dos itens vendidos DEPOIS do período
     const salesAfterPeriod = allSales.filter(s => s.created_at && new Date(s.created_at) >= end);
-    const costSoldAfterPeriod = salesAfterPeriod.reduce((acc, s) =>
-      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+    const costSoldAfterPeriod = salesAfterPeriod.reduce((acc, s) => acc + getSaleCost(s), 0);
     const stockSnapshot = stockValue + costSoldAfterPeriod;
 
-    // Estoque no período anterior: custo das vendas desde o início do período atual
-    // adicionado ao estoque atual = o que havia no início do período = fim do anterior
+    // Estoque no período anterior
     const salesAfterStart = allSales.filter(s => s.created_at && new Date(s.created_at) >= start);
-    const costSoldAfterStart = salesAfterStart.reduce((acc, s) =>
-      acc + (costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0), 0);
+    const costSoldAfterStart = salesAfterStart.reduce((acc, s) => acc + getSaleCost(s), 0);
     const prevStockSnapshot = period !== 'custom' ? stockValue + costSoldAfterStart : null;
 
     // Movimentação do estoque no período (saídas = vendas)
     const movByProduct: Record<string, { name: string; count: number; cost: number; revenue: number; lastDate: string }> = {};
     for (const s of filtered) {
       const name = s.product_name || 'Produto';
-      const cost = costMap[s.sale_number] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+      const cost = getSaleCost(s);
       const rev  = Number(s.total_amount || 0);
       const date = s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
       if (!movByProduct[name]) movByProduct[name] = { name, count: 0, cost: 0, revenue: 0, lastDate: date };

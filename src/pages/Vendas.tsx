@@ -1317,6 +1317,100 @@ export const Vendas: React.FC = () => {
     }
   };
 
+  const handleOpenEdit = (sale: any) => {
+    const sType = sale.sale_type || 'venda';
+    const tradeIn = sale.incoming_purchase_price || 0;
+    const existingInsts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
+    const salePriceManual = sType === 'troca'
+      ? String(Math.max(0, (sale.total_amount || 0) - tradeIn))
+      : String(sale.total_amount || '');
+    const payMethod = PAYMENT_METHODS.includes(sale.payment_method || '') ? (sale.payment_method || 'PIX') : 'PIX';
+    const storedOutgoing: any[] = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
+    const primaryProductId = storedOutgoing[0]?.product_id || '';
+    const primaryCost = storedOutgoing[0]?.cost ? String(storedOutgoing[0].cost) : '';
+    const storedDevices: any[] = (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })();
+    const sd0 = storedDevices[0];
+
+    setForm({
+      ...emptyForm(),
+      sale_type: sType,
+      selectedCustomer: sale.customer_id || '',
+      customer_phone: sale.customer_phone || sale.customers?.phone || '',
+      customer_cpf: sale.customer_cpf || '',
+      customer_city: sale.customer_city || sale.customers?.city || '',
+      seller_name: sale.customer_name || sale.seller_name || '',
+      seller_cpf: sale.seller_cpf || '',
+      seller_rg: sale.seller_rg || '',
+      seller_phone: sale.seller_phone || '',
+      seller_address: sale.seller_address || '',
+      seller_email: sale.seller_email || '',
+      selectedProduct: primaryProductId,
+      product_name_manual: sale.product_name || '',
+      product_capacity: sale.product_capacity || '',
+      product_color: sale.product_color || '',
+      product_condition: sale.product_condition || 'Seminovo',
+      product_imei: sale.product_imei || '',
+      product_accessories: sale.product_accessories || '',
+      product_cost_manual: primaryCost,
+      sale_price_manual: salePriceManual,
+      payment_method: payMethod,
+      installments: sale.installments || 1,
+      sale_date: sale.created_at
+        ? new Date(sale.created_at).toISOString().slice(0, 16)
+        : new Date().toISOString().slice(0, 16),
+      whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
+      pdf_type: sale.pdf_type?.startsWith('apple_warranty') ? 'apple_warranty' : (sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo')),
+      warranty_expiry: sale.pdf_type?.startsWith('apple_warranty:') ? sale.pdf_type.split(':')[1] || '' : '',
+      prazo_count: String(existingInsts.filter((i: any) => !i.is_entrada).length || 1),
+      prazo_value: (() => { const fi = existingInsts.find((i: any) => !i.is_entrada); return fi?.amount ? String(fi.amount) : ''; })(),
+      prazo_first_due: existingInsts.find((i: any) => !i.is_entrada)?.due || '',
+      prazo_has_entrada: existingInsts.some((i: any) => i.is_entrada),
+      prazo_entrada_value: (() => { const ei = existingInsts.find((i: any) => i.is_entrada); return ei?.amount ? String(ei.amount) : ''; })(),
+      prazo_entrada_due: existingInsts.find((i: any) => i.is_entrada)?.due || '',
+    });
+    setIncomingDevices(sale.incoming_name?.trim() ? [{
+      ...emptyTradeInDevice(),
+      category: sd0?.category || 'iPhone',
+      model: sale.incoming_name || '',
+      imei: sale.incoming_imei || '',
+      capacity: sale.incoming_capacity || '',
+      color: sale.incoming_color || '',
+      condition: sale.incoming_condition || 'Seminovo — Excelente',
+      battery_health: sale.incoming_battery_health || '',
+      purchase_price: tradeIn > 0 ? String(tradeIn) : '',
+      serial: sale.incoming_serial || '',
+      account_email: sale.incoming_email || '',
+      sale_price: sd0?.sale_price ? String(sd0.sale_price) : '',
+      warranty: sd0?.warranty || 'Sem garantia',
+      origin: sd0?.origin || '',
+    }] : [emptyTradeInDevice()]);
+    if (storedOutgoing.length > 1) {
+      setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
+        ...emptyAdditionalItem(),
+        id: safeUUID(),
+        mode: item.product_id ? 'stock' : 'manual',
+        selectedProduct: item.product_id || '',
+        name_override: item.name || '',
+        imei_override: item.imei || '',
+        capacity_override: item.capacity || '',
+        color_override: item.color || '',
+        condition_override: item.condition || 'Seminovo',
+        price_override: String(item.price || ''),
+        cost_override: String(item.cost || ''),
+      })));
+    } else {
+      setAdditionalItems([]);
+    }
+    setShowNewCustomer(false);
+    setNewCustomer(emptyCustomerForm());
+    setIsEditMode(true);
+    setEditSaleId(sale.id);
+    setEditSaleNumber(sale.sale_number || '');
+    setEditSaleRevision(sale.revision || 0);
+    setWizardStep(1);
+    setIsModalOpen(true);
+  };
+
   const handleSaveDetailCostEdit = async () => {
     if (!detailSale) return;
     const newSale = Number(detailEditSaleVal);
@@ -1764,94 +1858,7 @@ export const Vendas: React.FC = () => {
                               <Download size={16} />
                             </button>
                             <button
-                              onClick={() => {
-                                const sType = sale.sale_type || 'venda';
-                                const tradeIn = sale.incoming_purchase_price || 0;
-                                const existingInsts: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
-                                // sale_price_manual: para troca = caixa recebido (total − troca); prazo/venda = total_amount
-                                const salePriceManual = sType === 'troca'
-                                  ? String(Math.max(0, (sale.total_amount || 0) - tradeIn))
-                                  : String(sale.total_amount || '');
-                                const payMethod = PAYMENT_METHODS.includes(sale.payment_method || '') ? (sale.payment_method || 'PIX') : 'PIX';
-
-                                const primaryProductId = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]')[0]?.product_id || ''; } catch { return ''; } })();
-                                setForm({
-                                  ...emptyForm(),
-                                  sale_type: sType,
-                                  selectedCustomer: sale.customer_id || '',
-                                  customer_phone: sale.customer_phone || sale.customers?.phone || '',
-                                  customer_cpf: sale.customer_cpf || '',
-                                  customer_city: sale.customer_city || sale.customers?.city || '',
-                                  selectedProduct: primaryProductId,
-                                  product_name_manual: sale.product_name || '',
-                                  product_capacity: sale.product_capacity || '',
-                                  product_color: sale.product_color || '',
-                                  product_condition: sale.product_condition || 'Seminovo',
-                                  product_imei: sale.product_imei || '',
-                                  product_accessories: sale.product_accessories || '',
-                                  sale_price_manual: salePriceManual,
-                                  payment_method: payMethod,
-                                  installments: sale.installments || 1,
-                                  sale_date: sale.created_at
-                                    ? new Date(sale.created_at).toISOString().slice(0, 16)
-                                    : new Date().toISOString().slice(0, 16),
-                                  whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
-                                  pdf_type: sale.pdf_type?.startsWith('apple_warranty') ? 'apple_warranty' : (sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo')),
-                                  warranty_expiry: sale.pdf_type?.startsWith('apple_warranty:') ? sale.pdf_type.split(':')[1] || '' : '',
-                                  prazo_count: String(existingInsts.filter((i: any) => !i.is_entrada).length || 1),
-                                  prazo_value: (() => { const fi = existingInsts.find((i: any) => !i.is_entrada); return fi?.amount ? String(fi.amount) : ''; })(),
-                                  prazo_first_due: existingInsts.find((i: any) => !i.is_entrada)?.due || '',
-                                  prazo_has_entrada: existingInsts.some((i: any) => i.is_entrada),
-                                  prazo_entrada_value: (() => { const ei = existingInsts.find((i: any) => i.is_entrada); return ei?.amount ? String(ei.amount) : ''; })(),
-                                  prazo_entrada_due: existingInsts.find((i: any) => i.is_entrada)?.due || '',
-                                });
-                                // Pré-preenche aparelho entrante — restaura todos os campos do json salvo
-                                const storedDevices: any[] = (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })();
-                                const sd0 = storedDevices[0];
-                                setIncomingDevices(sale.incoming_name?.trim() ? [{
-                                  ...emptyTradeInDevice(),
-                                  category: sd0?.category || 'iPhone',
-                                  model: sale.incoming_name || '',
-                                  imei: sale.incoming_imei || '',
-                                  capacity: sale.incoming_capacity || '',
-                                  color: sale.incoming_color || '',
-                                  condition: sale.incoming_condition || 'Seminovo — Excelente',
-                                  battery_health: sale.incoming_battery_health || '',
-                                  purchase_price: tradeIn > 0 ? String(tradeIn) : '',
-                                  serial: sale.incoming_serial || '',
-                                  account_email: sale.incoming_email || '',
-                                  sale_price: sd0?.sale_price ? String(sd0.sale_price) : '',
-                                  warranty: sd0?.warranty || 'Sem garantia',
-                                  origin: sd0?.origin || '',
-                                }] : [emptyTradeInDevice()]);
-                                // Restore additional items from outgoing_items_json
-                                const storedOutgoing = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
-                                if (storedOutgoing.length > 1) {
-                                  setAdditionalItems(storedOutgoing.slice(1).map((item: any) => ({
-                                    ...emptyAdditionalItem(),
-                                    id: safeUUID(),
-                                    mode: item.product_id ? 'stock' : 'manual',
-                                    selectedProduct: item.product_id || '',
-                                    name_override: item.name || '',
-                                    imei_override: item.imei || '',
-                                    capacity_override: item.capacity || '',
-                                    color_override: item.color || '',
-                                    condition_override: item.condition || 'Seminovo',
-                                    price_override: String(item.price || ''),
-                                    cost_override: String(item.cost || ''),
-                                  })));
-                                } else {
-                                  setAdditionalItems([]);
-                                }
-                                setShowNewCustomer(false);
-                                setNewCustomer(emptyCustomerForm());
-                                setIsEditMode(true);
-                                setEditSaleId(sale.id);
-                                setEditSaleNumber(sale.sale_number || '');
-                                setEditSaleRevision(sale.revision || 0);
-                                setWizardStep(1);
-                                setIsModalOpen(true);
-                              }}
+                              onClick={() => handleOpenEdit(sale)}
                               className="p-2 text-neutral-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
                               title="Editar venda"
                             >
@@ -4943,6 +4950,15 @@ export const Vendas: React.FC = () => {
 
             {/* Action buttons */}
             <div className="pt-1 border-t border-neutral-100 space-y-2">
+              {/* Editar operação completa */}
+              <button
+                onClick={() => { setDetailSale(null); setShowDetailMsgs(false); handleOpenEdit(detailSale); }}
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white active:scale-[.98] text-neutral-900 font-black text-sm transition-all"
+              >
+                <Pencil size={16} />
+                Editar Operação Completa
+              </button>
+
               {/* Primary CTA */}
               <button
                 onClick={() => handleGeneratePDF(detailSale)}

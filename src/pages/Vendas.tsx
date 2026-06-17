@@ -145,9 +145,15 @@ export function getCompanyInfo(): CompanyInfo {
   };
 }
 
-function generateSaleNumber(existingCount: number, type: string) {
+function generateSaleNumber(sales: any[], type: string) {
   const prefix = type === 'troca' ? 'T' : type === 'prazo' ? 'P' : 'V';
-  return `#${prefix}${String(existingCount + 1).padStart(4, '0')}`;
+  const regex = new RegExp(`^#${prefix}(\\d+)$`);
+  let max = 0;
+  for (const s of sales) {
+    const m = (s.sale_number || '').match(regex);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `#${prefix}${String(max + 1).padStart(4, '0')}`;
 }
 
 const emptyForm = () => ({
@@ -520,7 +526,7 @@ export const Vendas: React.FC = () => {
       resolvedPaymentMethod = `${form.payment_method} (${formatCurrency(p1)}) + ${form.payment2_method}${instStr} (${formatCurrency(p2)})`;
     }
 
-    const saleNumber = generateSaleNumber(sales.length, form.sale_type);
+    const saleNumber = generateSaleNumber(sales, form.sale_type);
     // Open PDF window synchronously (before any await) to avoid popup blocker
     const printWin = !isEditMode ? window.open('', '_blank', 'width=920,height=1060') : null;
 
@@ -1565,7 +1571,15 @@ export const Vendas: React.FC = () => {
                       const baseNum = sale.sale_number || `#${sale.id?.slice(0, 6).toUpperCase()}`;
                       const num = sale.revision > 0 ? `${baseNum}.${sale.revision}` : baseNum;
                       const name = sale.customer_name || sale.customers?.name || '—';
-                      const saleCost = costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
+                      const saleCostFromJson = (() => {
+                        try {
+                          const items = JSON.parse(sale.outgoing_items_json || '[]');
+                          if (!items.length) return null;
+                          const t = items.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+                          return t > 0 ? t : null;
+                        } catch { return null; }
+                      })();
+                      const saleCost = saleCostFromJson ?? costBySale[sale.sale_number] ?? costBySale[`uuid:${sale.id?.slice(0, 8)}`] ?? null;
                       const saleProfit = type === 'prazo' ? null : (saleCost !== null ? Number(sale.total_amount) - saleCost : null);
                       // Para trocas: lucro potencial do aparelho recebido
                       const tradeDevs: any[] = type === 'troca' ? (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })() : [];
@@ -4499,7 +4513,16 @@ export const Vendas: React.FC = () => {
             {/* Custo + Lucro / Resumo da Troca */}
             {(() => {
               const dtype = detailSale.sale_type || (detailSale.incoming_name?.trim() ? 'troca' : 'venda');
-              const dcost = costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
+              // Prefer per-sale cost from outgoing_items_json (immune to duplicate sale numbers)
+              const dcostFromJson = (() => {
+                try {
+                  const items = JSON.parse(detailSale.outgoing_items_json || '[]');
+                  if (!items.length) return null;
+                  const total = items.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+                  return total > 0 ? total : null;
+                } catch { return null; }
+              })();
+              const dcost = dcostFromJson ?? costBySale[detailSale.sale_number] ?? costBySale[`uuid:${detailSale.id?.slice(0, 8)}`] ?? null;
 
               if (dtype === 'troca') {
                 const tradeInValue = Number(detailSale.incoming_purchase_price || 0);

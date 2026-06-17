@@ -8,12 +8,14 @@ interface ProfileStore {
   telefone: string;
   cnpj: string;
   signature: string;
+  storeAddress: string;  // endereço da loja — padrão do ponto de coleta do motoboy
   setName: (name: string) => void;
   setCargo: (cargo: string) => void;
   setAvatar: (avatar: string) => void;
   setTelefone: (telefone: string) => void;
   setCnpj: (cnpj: string) => void;
   setSignature: (sig: string) => void;
+  setStoreAddress: (addr: string) => void;
   /** Called after login: loads profile from Supabase and hydrates store + localStorage */
   hydrate: (userId: string, supabaseName: string) => Promise<void>;
   /** Called on logout: clears in-memory state */
@@ -49,6 +51,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   telefone: localStorage.getItem('user_telefone') || '',
   cnpj: localStorage.getItem('company_cnpj') || '',
   signature: localStorage.getItem('user_signature') || '',
+  storeAddress: localStorage.getItem('store_address') || '',
 
   setName: (name) => {
     localStorage.setItem('user_name', name);
@@ -80,6 +83,13 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ signature });
     getCurrentUid().then((uid) => { if (uid) syncToSupabase(uid, { signature }); }).catch(() => {});
   },
+  setStoreAddress: (storeAddress) => {
+    localStorage.setItem('store_address', storeAddress);
+    // Also update the motoboy pickup key so existing sessions pick it up
+    if (storeAddress) localStorage.setItem('easy-imports-last-pickup', storeAddress);
+    set({ storeAddress });
+    getCurrentUid().then((uid) => { if (uid) syncToSupabase(uid, { storeAddress }); }).catch(() => {});
+  },
 
   hydrate: async (userId: string, supabaseName: string) => {
     try {
@@ -94,6 +104,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         const telefone = data.telefone || '';
         const cnpj = data.cnpj || '';
         const signature = data.signature || '';
+        const storeAddress = data.storeAddress || data.store_address || '';
 
         localStorage.setItem('user_name', name);
         localStorage.setItem('user_cargo', cargo);
@@ -101,8 +112,12 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         localStorage.setItem('user_telefone', telefone);
         localStorage.setItem('company_cnpj', cnpj);
         localStorage.setItem('user_signature', signature);
+        if (storeAddress) {
+          localStorage.setItem('store_address', storeAddress);
+          localStorage.setItem('easy-imports-last-pickup', storeAddress);
+        }
 
-        set({ name, cargo, avatar, telefone, cnpj, signature });
+        set({ name, cargo, avatar, telefone, cnpj, signature, storeAddress });
       } else {
         // No remote profile yet — push local data to Supabase
         const name = localStorage.getItem('user_name') || supabaseName || '';
@@ -128,5 +143,5 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     }
   },
 
-  reset: () => set({ name: '', cargo: 'Administrador', avatar: '', telefone: '', cnpj: '', signature: '' }),
+  reset: () => set({ name: '', cargo: 'Administrador', avatar: '', telefone: '', cnpj: '', signature: '', storeAddress: '' }),
 }));

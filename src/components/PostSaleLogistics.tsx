@@ -9,6 +9,7 @@ import {
   SaleMsgData, DeliveryInfo, emptyDelivery, CHARGE_MODES,
   buildClientMessage, buildMotoboyMessage, buildCollectionMessage, waLink,
 } from '../lib/logisticsMessages';
+import { useProfileStore } from '../stores/profileStore';
 
 // Sugere a cobrança inicial a partir do tipo de venda e forma de pagamento
 function inferChargeMode(paymentMethod: string, sale: SaleMsgData): DeliveryInfo['chargeMode'] {
@@ -148,6 +149,7 @@ const MessageCard: React.FC<{
 };
 
 export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: string }> = ({ sale, defaultAddress }) => {
+  const { name: profileName, storeAddress } = useProfileStore();
   // Carrega estado salvo ou constrói o inicial
   const [delivery, setDelivery] = useState<DeliveryInfo>(() => {
     const saved = loadSavedLogistics(sale.saleNumber);
@@ -156,7 +158,8 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
       ...emptyDelivery(),
       deliveryAddress: defaultAddress || '',
       recipient: sale.customerName || '',
-      pickupLocation: localStorage.getItem(PICKUP_KEY) || '',
+      pickupLocation: storeAddress || localStorage.getItem(PICKUP_KEY) || '',
+      pickupContact: profileName || '',
       chargeMode: inferChargeMode(sale.paymentMethod, sale),
       chargeBreakdown: sale.saleChargeBreakdown ?? [],
       deferCollection: sale.saleType === 'troca',

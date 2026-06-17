@@ -109,7 +109,7 @@ function makeTempClient() {
 
 export const Configuracoes: React.FC = () => {
   const { user } = useAuthStore();
-  const { name, cargo, avatar, telefone, cnpj, signature, setName, setCargo, setAvatar, setTelefone, setCnpj, setSignature } = useProfileStore();
+  const { name, cargo, avatar, telefone, cnpj, signature, storeAddress, setName, setCargo, setAvatar, setTelefone, setCnpj, setSignature, setStoreAddress } = useProfileStore();
   const { isAdmin } = usePermissionsStore();
 
   const TABS = [
@@ -134,12 +134,14 @@ export const Configuracoes: React.FC = () => {
   const [profileCargo, setProfileCargo] = useState(cargo);
   const [profileTelefone, setProfileTelefone] = useState(telefone);
   const [profileCnpj, setProfileCnpj] = useState(cnpj);
+  const [profileStoreAddress, setProfileStoreAddress] = useState(storeAddress);
 
   // Sync local state when store changes externally
   useEffect(() => { setProfileName(name); }, [name]);
   useEffect(() => { setProfileCargo(cargo); }, [cargo]);
   useEffect(() => { setProfileTelefone(telefone); }, [telefone]);
   useEffect(() => { setProfileCnpj(cnpj); }, [cnpj]);
+  useEffect(() => { setProfileStoreAddress(storeAddress); }, [storeAddress]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -210,6 +212,7 @@ export const Configuracoes: React.FC = () => {
       setCargo(profileCargo.trim() || 'Administrador');
       setTelefone(profileTelefone.trim());
       setCnpj(profileCnpj.trim());
+      setStoreAddress(profileStoreAddress.trim());
       await new Promise((res) => setTimeout(res, 400));
       toast.success('Perfil salvo e sincronizado!');
     } catch (error: any) {
@@ -515,6 +518,15 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
                 onChange={(e) => setProfileCnpj(e.target.value)}
                 autoComplete="off"
               />
+              <div className="md:col-span-2">
+                <Input
+                  label="Endereço da Loja (ponto de coleta do motoboy)"
+                  placeholder="Rua, número, bairro — usado nas mensagens de logística"
+                  value={profileStoreAddress}
+                  onChange={(e) => setProfileStoreAddress(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
             </div>
 
             {/* Signature section */}

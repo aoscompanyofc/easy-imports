@@ -332,7 +332,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   // ─── Derived data filtered by period ─────────────────────────────────────
-  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, stockMovements, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
+  const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, stockMovements, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, getSaleCost, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
@@ -432,20 +432,14 @@ export const Dashboard: React.FC = () => {
     };
 
     // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período
+    // Receita = total_amount (imune a número duplicado e a transações ausentes/erradas)
     let netProfit = 0;
     for (const s of filtered) {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = getSaleCost(s);
-      const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
-      const incoming = Number(s.incoming_purchase_price || 0);
-      // Para troca: revenueMap tem só a parte em dinheiro; soma o aparelho entrante para obter a receita total
-      // Para venda: revenueMap já tem o valor líquido (descontada taxa de cartão)
-      const netRevenue = revenueMap[revKey] !== undefined
-        ? revenueMap[revKey] + incoming
-        : Number(s.total_amount || 0);
       const adj = s.sale_number ? (profitAdjMap[s.sale_number] || 0) : 0;
-      netProfit += netRevenue - cost - adj;
+      netProfit += Number(s.total_amount || 0) - cost - adj;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -517,6 +511,7 @@ export const Dashboard: React.FC = () => {
       instCostMap,
       revenueMap,
       profitAdjMap,
+      getSaleCost,
       chartData:         buildChartDataForRange(filtered, start, end),
       channelData:       buildChannelData(filtered),
       topProducts:       buildTopProducts(filtered),
@@ -567,17 +562,22 @@ export const Dashboard: React.FC = () => {
         }
       }
     }
+    const getPrevSaleCost = (s: any): number => {
+      try {
+        const items = JSON.parse(s.outgoing_items_json || '[]');
+        if (items.length > 0) {
+          const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
+          if (total > 0) return total;
+        }
+      } catch {}
+      return prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? prevCostMap[s.sale_number] ?? 0;
+    };
     let pProfit = 0;
     for (const s of prevSales) {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
-      const cost = prevCostMap[s.sale_number] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
-      const revKey = s.sale_number || `uuid:${s.id?.slice(0, 8)}`;
-      const incoming = Number(s.incoming_purchase_price || 0);
-      const netRevenue = prevRevenueMap[revKey] !== undefined
-        ? prevRevenueMap[revKey] + incoming
-        : Number(s.total_amount || 0);
-      pProfit += netRevenue - cost;
+      const cost = getPrevSaleCost(s);
+      pProfit += Number(s.total_amount || 0) - cost;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;
@@ -597,7 +597,7 @@ export const Dashboard: React.FC = () => {
         pProfit += paidInPrev - instCostInPrev;
       } else {
         const totalAmt = Number(s.total_amount || 0);
-        const totalCost = prevCostMap[saleNum] ?? prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+        const totalCost = getPrevSaleCost(s);
         pProfit += paidInPrev - (totalAmt > 0 ? totalCost * (paidInPrev / totalAmt) : 0);
       }
     }
@@ -1551,7 +1551,7 @@ export const Dashboard: React.FC = () => {
 
                 for (const sale of filteredSales) {
                   const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
-                  const cost = costMap[sale.sale_number] ?? costMap[`uuid:${sale.id?.slice(0, 8)}`] ?? 0;
+                  const cost = getSaleCost(sale);
                   const dateStr = sale.created_at ? new Date(sale.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
                   let val = 0;
                   if (drillDown === 'revenue') val = Number(sale.total_amount || 0);
@@ -1561,13 +1561,8 @@ export const Dashboard: React.FC = () => {
                     else val = Number(sale.total_amount || 0);
                   } else {
                     if (type === 'prazo' || type === 'compra') continue; // prazo added separately below
-                    const revKey = sale.sale_number || `uuid:${sale.id?.slice(0, 8)}`;
-                    const incoming = Number(sale.incoming_purchase_price || 0);
-                    const netRev = revenueMap[revKey] !== undefined
-                      ? revenueMap[revKey] + incoming
-                      : Number(sale.total_amount || 0);
                     const adj = sale.sale_number ? (profitAdjMap[sale.sale_number] || 0) : 0;
-                    val = netRev - cost - adj;
+                    val = Number(sale.total_amount || 0) - cost - adj;
                   }
                   rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr, saleObj: drillDown === 'profit' ? sale : null });
                 }
@@ -1580,7 +1575,7 @@ export const Dashboard: React.FC = () => {
                     try { insts = JSON.parse(s.installments_json || '[]'); } catch { continue; }
                     const saleNum = s.sale_number || '';
                     const totalAmt = Number(s.total_amount || 0);
-                    const totalCost = costMap[saleNum] ?? costMap[`uuid:${s.id?.slice(0, 8)}`] ?? 0;
+                    const totalCost = getSaleCost(s);
                     const hasNewStyle = instCostMap[saleNum] !== undefined;
                     for (let i = 0; i < insts.length; i++) {
                       const inst = insts[i];

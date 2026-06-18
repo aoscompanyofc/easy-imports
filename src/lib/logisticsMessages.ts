@@ -229,11 +229,11 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
   // ── COMPRA (a loja compra o aparelho do cliente) ──
   if (s.saleType === 'compra') {
-    L.push('🏪 Easy Imports');
+    L.push('🏪 *Easy Imports*');
     L.push('');
     L.push(`Olá ${nome}! Vamos comprar o seu aparelho:`);
-    L.push(`📱 ${specsLine(s.productName, s.capacity, s.color)}`);
-    L.push(`💰 Valor: ${brl(s.totalAmount)}`);
+    L.push(`📱 *${specsLine(s.productName, s.capacity, s.color)}*`);
+    L.push(`💰 *Valor: ${brl(s.totalAmount)}*`);
     if (d.deliveryAddress.trim()) L.push(`📍 Coleta: ${oneLineAddr(d.deliveryAddress)}`);
     if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
     L.push('');
@@ -241,14 +241,14 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
     return L.join('\n');
   }
 
-  L.push('🏪 Easy Imports — Pedido confirmado ✅');
+  L.push('🏪 *Easy Imports* — Pedido confirmado ✅');
   L.push('');
   L.push(`Olá ${nome}! Segue o resumo do seu pedido:`);
   L.push('');
 
   // Produto que o cliente recebe
-  L.push('📦 Você recebe:');
-  L.push(specsLine(s.productName, s.capacity, s.color));
+  L.push('📦 *Você recebe:*');
+  L.push(`*${specsLine(s.productName, s.capacity, s.color)}*`);
   const cw = [(s.condition || '').trim(), warrantyLine(s)].filter(Boolean).join(' · ');
   if (cw) L.push(cw);
   (s.items || []).forEach((it) => L.push(`➕ ${specsLine(it.name, it.capacity, it.color)}`));
@@ -272,29 +272,29 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
     const devs = s.incomingDevices?.length
       ? s.incomingDevices
       : s.incomingName ? [{ model: s.incomingName, value: s.incomingValue || 0 }] : [];
-    if (devs.length) L.push(`🔄 Você entrega: ${devs.map((x) => x.model).join(' + ')}`);
+    if (devs.length) L.push(`🔄 *Você entrega:* ${devs.map((x) => x.model).join(' + ')}`);
     if (cAmount > 0) {
-      pushPayment(`💵 Você paga: ${brl(cAmount)}`);
+      pushPayment(`💵 *Você paga: ${brl(cAmount)}*`);
     } else {
-      L.push('✅ Troca direta — sem diferença a pagar!');
+      L.push('✅ *Troca direta — sem diferença a pagar!*');
     }
   } else if (s.saleType === 'prazo') {
     if (s.entradaAmount && s.entradaAmount > 0) {
-      pushPayment(`💵 Entrada: ${brl(cAmount)}`);
+      pushPayment(`💵 *Entrada: ${brl(cAmount)}*`);
     } else {
-      pushPayment(`💰 Total: ${brl(cAmount)}`);
+      pushPayment(`💰 *Total: ${brl(cAmount)}*`);
     }
     if (s.installments && s.installments > 1 && s.installmentValue) {
-      L.push(`📅 + ${s.installments}x de ${brl(s.installmentValue)} no PIX`);
+      L.push(`📅 *+ ${s.installments}x de ${brl(s.installmentValue)} no PIX*`);
     }
   } else {
-    pushPayment(`💰 Total: ${brl(cAmount)}`);
+    pushPayment(`💰 *Total: ${brl(cAmount)}*`);
   }
 
   // Entrega (compacto)
   L.push('');
-  if (d.deliveryAddress.trim()) L.push(`📍 Entrega: ${oneLineAddr(d.deliveryAddress)}`);
-  const eta = [d.deliveryTime.trim() ? `🕒 ${d.deliveryTime.trim()}` : '', freightShort(d)]
+  if (d.deliveryAddress.trim()) L.push(`📍 *Entrega:* ${oneLineAddr(d.deliveryAddress)}`);
+  const eta = [d.deliveryTime.trim() ? `🕒 *${d.deliveryTime.trim()}*` : '', freightShort(d)]
     .filter(Boolean).join('  ·  ');
   if (eta) L.push(eta);
 
@@ -305,7 +305,7 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
       : s.incomingName ? [s.incomingName] : [];
     const quando = `${d.collectionDate ? dateBR(d.collectionDate) : 'data a combinar'}${d.collectionTime ? ` (${d.collectionTime.toLowerCase()})` : ''}`;
     L.push('');
-    L.push(`📅 Nosso motoboy busca seu ${devs.join(' e ') || 'aparelho'} em ${quando} 😊`);
+    L.push(`📅 Nosso motoboy busca seu *${devs.join(' e ') || 'aparelho'}* em *${quando}* 😊`);
   }
 
   L.push('');
@@ -332,18 +332,18 @@ function deviceLabel(name?: string, cap?: string, color?: string): string {
 function chargeBlock(d: DeliveryInfo, amount: number): string[] {
   const split = splitEntries(d);
   if (split.length > 0) {
-    const lines = ['💰 COBRAR'];
+    const lines = ['💰 *Pagamento:*'];
     split.forEach((b) => lines.push(`${methodIcon(b.method)} ${brl(b.amount)} no ${methodWord(b.method)}`));
     const total = split.reduce((a, b) => a + Number(b.amount), 0);
-    lines.push(`➡️ Total: ${brl(total)}`);
-    if (split.some((b) => b.method === 'pix')) lines.push('⚠️ Confirmar PIX antes de entregar');
+    lines.push(`➡️ *Total: ${brl(total)}*`);
+    if (split.some((b) => b.method === 'pix')) lines.push('⚠️ *Confirmar pagamentos antes de entregar.*');
     return lines;
   }
   switch (d.chargeMode) {
-    case 'aguardar_pix': return ['💰 COBRAR', `📲 ${brl(amount)} via PIX`, '⚠️ Confirmar PIX antes de entregar'];
-    case 'maquininha':   return ['💰 COBRAR', `💳 ${brl(amount)} na maquininha`];
-    case 'dinheiro':     return ['💰 COBRAR', `💵 ${brl(amount)} em dinheiro`];
-    default:             return ['✅ Já pago — só entregar'];
+    case 'aguardar_pix': return ['💰 *Pagamento:*', `📲 ${brl(amount)} via PIX`, '⚠️ *SÓ LIBERAR após confirmação do PIX com a loja*'];
+    case 'maquininha':   return ['💰 *Pagamento:*', `💳 ${brl(amount)} na maquininha`];
+    case 'dinheiro':     return ['💰 *Pagamento:*', `💵 ${brl(amount)} em dinheiro`];
+    default:             return ['✅ *Já pago — só entregar*'];
   }
 }
 
@@ -358,7 +358,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     s.saleType === 'compra' ? 'COMPRA' :
     s.saleType === 'prazo'  ? 'PRAZO' : 'ENTREGA';
 
-  L.push(`🏍️ ${tipo}${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
+  L.push(`🏍️ *${tipo}* · ${s.saleNumber ? `${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
   L.push('');
 
   const baseCharge =
@@ -375,19 +375,19 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     const loja = d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DA LOJA';
     const quem = d.recipient.trim() || s.customerName || 'cliente';
 
-    L.push('📦 COLETA (com o cliente)');
+    L.push('📦 *COLETA (com o cliente)*');
     L.push(`📍 ${dest}`);
     L.push(`👤 ${quem}`);
     if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
-    L.push(`📱 ${prod}`);
+    L.push(`📱 *${prod}*`);
     L.push('📸 Foto antes de retirar');
     L.push('');
-    L.push('🏪 ENTREGAR NA LOJA');
+    L.push('🏪 *ENTREGAR NA LOJA*');
     L.push(`📍 ${loja}`);
     if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
     L.push('');
     chargeBlock(d, chargeAmount).forEach((l) => L.push(l));
-    if (d.instructions.trim()) { L.push(''); L.push(`📌 ${d.instructions.trim()}`); }
+    if (d.instructions.trim()) { L.push(''); L.push(`📌 *${d.instructions.trim()}*`); }
     L.push('');
     L.push('📲 Avisar quando finalizar');
     return L.join('\n');
@@ -401,7 +401,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   const allProds = [mainProd, ...extraProds].join(' + ');
 
   // COLETA
-  L.push('📦 COLETA');
+  L.push('📦 *COLETA*');
   L.push(`📍 ${d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE COLETA'}`);
   if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
   if (d.pickupTime.trim())    L.push(`🕒 ${d.pickupTime.trim()}`);
@@ -409,7 +409,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   L.push('');
 
   // ENTREGA
-  L.push('🚚 ENTREGA');
+  L.push('🚚 *ENTREGA*');
   L.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DE ENTREGA'}`);
   L.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
   if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
@@ -424,12 +424,12 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
       ? s.incomingDevices.map((x) => x.model)
       : s.incomingName ? [s.incomingName] : ['aparelho do cliente'];
     L.push('');
-    L.push('🔄 BUSCAR COM O CLIENTE');
-    L.push(`📱 ${devs.join(' + ')}`);
+    L.push('🔄 *BUSCAR COM O CLIENTE*');
+    L.push(`📱 *${devs.join(' + ')}*`);
     L.push('📸 Foto antes de guardar');
   }
 
-  if (d.instructions.trim()) { L.push(''); L.push(`📌 ${d.instructions.trim()}`); }
+  if (d.instructions.trim()) { L.push(''); L.push(`📌 *${d.instructions.trim()}*`); }
   L.push('');
   L.push('📸 Foto da entrega');
   L.push('📲 Avisar quando finalizar');
@@ -444,16 +444,16 @@ export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string 
 
   const lines: string[] = [];
   const quando = `${d.collectionDate ? dateBR(d.collectionDate) : 'data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime.trim()}` : ''}`;
-  lines.push(`🏍️ BUSCA${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${quando}`);
+  lines.push(`🏍️ *BUSCA*${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${quando}`);
   lines.push('');
 
   // BUSCAR com o cliente
-  lines.push('📦 BUSCAR (com o cliente)');
+  lines.push('📦 *BUSCAR (com o cliente)*');
   lines.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE'}`);
   lines.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
   if (d.collectionTime.trim()) lines.push(`🕒 ${d.collectionTime.trim()}`);
   if (devs.length > 0) {
-    lines.push(`📱 ${devs.map((dev) => dev.model).join(' + ')}`);
+    lines.push(`📱 *${devs.map((dev) => dev.model).join(' + ')}*`);
   } else {
     lines.push('📱 Confirmar modelo com o cliente');
   }
@@ -461,7 +461,7 @@ export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string 
   lines.push('');
 
   // ENTREGAR no destino
-  lines.push('🏪 ENTREGAR');
+  lines.push('🏪 *ENTREGAR*');
   lines.push(`📍 ${d.collectionDropoffLocation.trim() || d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE DESTINO'}`);
   lines.push('');
   lines.push('📲 Avisar quando finalizar');

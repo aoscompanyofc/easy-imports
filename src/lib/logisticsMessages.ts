@@ -289,6 +289,13 @@ export function buildClientMessage(s: SaleMsgData, d: DeliveryInfo): string {
     }
   } else {
     pushPayment(`💰 *Total: ${brl(cAmount)}*`);
+    // Nota de taxas de cartão: quando o cobrado difere do valor base do produto
+    const hasCard = splitEntries(d).some(b => b.method === 'cartao') || d.chargeMode === 'maquininha';
+    const baseAmount = s.totalAmount;
+    if (hasCard && cAmount > 0 && baseAmount > 0 && Math.abs(cAmount - baseAmount) >= 1) {
+      L.push(`ℹ️ Valor do produto: ${brl(baseAmount)}`);
+      L.push(`   Diferença de ${brl(cAmount - baseAmount)} referente às taxas e juros da operadora do cartão.`);
+    }
   }
 
   // Entrega (compacto)
@@ -355,8 +362,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
   const tipo =
     s.saleType === 'troca'  ? 'TROCA' :
-    s.saleType === 'compra' ? 'COMPRA' :
-    s.saleType === 'prazo'  ? 'PRAZO' : 'ENTREGA';
+    s.saleType === 'compra' ? 'COMPRA' : 'ENTREGA';
 
   L.push(`🏍️ *${tipo}* · ${s.saleNumber ? `${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
   L.push('');
@@ -377,14 +383,14 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
     L.push('📦 *COLETA (com o cliente)*');
     L.push(`📍 ${dest}`);
-    L.push(`👤 ${quem}`);
-    if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
+    L.push(`👤 Retirar com: ${quem}`);
+    if (d.deliveryTime.trim()) L.push(`🕒 Horário: ${d.deliveryTime.trim()}`);
     L.push(`📱 *${prod}*`);
     L.push('📸 Foto antes de retirar');
     L.push('');
     L.push('🏪 *ENTREGAR NA LOJA*');
     L.push(`📍 ${loja}`);
-    if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
+    if (d.pickupContact.trim()) L.push(`👤 Entregar para: ${d.pickupContact.trim()}`);
     L.push('');
     chargeBlock(d, chargeAmount).forEach((l) => L.push(l));
     if (d.instructions.trim()) { L.push(''); L.push(`📌 *${d.instructions.trim()}*`); }
@@ -403,16 +409,16 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   // COLETA
   L.push('📦 *COLETA*');
   L.push(`📍 ${d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE COLETA'}`);
-  if (d.pickupContact.trim()) L.push(`👤 ${d.pickupContact.trim()}`);
-  if (d.pickupTime.trim())    L.push(`🕒 ${d.pickupTime.trim()}`);
+  if (d.pickupContact.trim()) L.push(`👤 Retirar com: ${d.pickupContact.trim()}`);
+  if (d.pickupTime.trim())    L.push(`🕒 Horário: ${d.pickupTime.trim()}`);
   L.push(`📱 ${allProds}`);
   L.push('');
 
   // ENTREGA
   L.push('🚚 *ENTREGA*');
   L.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DE ENTREGA'}`);
-  L.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
-  if (d.deliveryTime.trim()) L.push(`🕒 ${d.deliveryTime.trim()}`);
+  L.push(`👤 Entregar para: ${d.recipient.trim() || s.customerName || 'cliente'}`);
+  if (d.deliveryTime.trim()) L.push(`🕒 Horário: ${d.deliveryTime.trim()}`);
   L.push('');
 
   // COBRAR

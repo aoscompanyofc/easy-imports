@@ -2311,7 +2311,7 @@ export const Vendas: React.FC = () => {
                       onChange={(e) => {
                         const val = idMax
                           ? e.target.value.replace(/\D/g, '').slice(0, idMax)
-                          : e.target.value;
+                          : e.target.value.toUpperCase();
                         setForm((f) => ({ ...f, product_imei: val }));
                       }}
                       autoComplete="off"
@@ -2566,7 +2566,7 @@ export const Vendas: React.FC = () => {
                                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                                 value={item.imei_override}
                                 placeholder={prod?.imei || 'IMEI ou Nº de Série'}
-                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value.toUpperCase() } : i))}
                               />
                             </div>
                           )}
@@ -2578,7 +2578,7 @@ export const Vendas: React.FC = () => {
                                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
                                 value={item.imei_override}
                                 placeholder="IMEI ou Nº de Série"
-                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value } : i))}
+                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, imei_override: e.target.value.toUpperCase() } : i))}
                               />
                             </div>
                           )}
@@ -4196,7 +4196,7 @@ export const Vendas: React.FC = () => {
                         placeholder="IMEI (15 dígitos) ou Número de Série"
                         value={editForm.product_imei}
                         maxLength={isImei && isImeiLike ? 15 : undefined}
-                        onChange={(e) => setEditForm((f: any) => ({ ...f, product_imei: e.target.value }))}
+                        onChange={(e) => setEditForm((f: any) => ({ ...f, product_imei: e.target.value.toUpperCase() }))}
                         autoComplete="off"
                       />
                     </div>

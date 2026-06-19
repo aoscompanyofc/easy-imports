@@ -213,7 +213,7 @@ export const Dashboard: React.FC = () => {
 
   // Period filter state
   const today = new Date().toISOString().split('T')[0];
-  const [period, setPeriod]       = useState<Period>('this_month');
+  const [period, setPeriod]       = useState<Period>('today');
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo]     = useState(today);
   const [showCustom, setShowCustom] = useState(false);

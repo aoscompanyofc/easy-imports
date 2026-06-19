@@ -305,7 +305,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
           onChange={(e) => {
             const val = imeiConfig.maxLength
               ? e.target.value.replace(/\D/g, '').slice(0, imeiConfig.maxLength)
-              : e.target.value;
+              : e.target.value.toUpperCase();
             onChange({ ...value, imei: val });
           }}
           autoComplete="off"

@@ -938,14 +938,6 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
         </tr>` : ''}
       </tfoot>
     </table>
-    <div class="pix-box">
-      <span class="pix-icon">⚡</span>
-      <div class="pix-txt">
-        Chave PIX para pagamento: <strong>${company.cnpj || company.phone || 'Consulte a Easy Imports'}</strong>
-        &nbsp;·&nbsp; Favorecido: <strong>${company.name}</strong>
-        &nbsp;·&nbsp; Envie o comprovante via WhatsApp após cada pagamento.
-      </div>
-    </div>
   ` : `<div class="row">${field('Forma de Pagamento', sale.payment_method, 'f3')}${field('Valor Total', fmtMoney(totalContract), 'f2')}</div>`;
 
   // Trade-in block (optional)
@@ -1077,16 +1069,13 @@ ${tradeInSection}
       <strong>2. Atraso:</strong> Em caso de atraso superior a 5 dias, incidirão multa de 2% e juros de mora de 1% ao
       mês sobre o valor da parcela em aberto. Após 15 dias de inadimplência, a Easy Imports
       poderá retomar amigavelmente o produto descrito neste contrato.<br>
-      <strong>3. Propriedade:</strong> A propriedade do produto somente é transferida definitivamente ao comprador
-      após o pagamento integral de todas as parcelas. O produto não pode ser vendido, transferido
-      ou dado como garantia antes da quitação total.<br>
-      <strong>4. Garantia:</strong> ${forceApple
+      <strong>3. Garantia:</strong> ${forceApple
         ? `O aparelho possui Garantia Apple Remanescente válida até ${appleExpiryPrazo}. A Easy Imports transfere a garantia do fabricante ao comprador. Não coberta: quedas, danos por água, mau uso ou violação.`
         : forceNovo
           ? `Aparelho Novo coberto pela Garantia Oficial do Fabricante. A Easy Imports não fornece garantia adicional para aparelhos novos. Em caso de defeito acione a assistência técnica autorizada.`
           : `A Easy Imports concede garantia de 90 dias para defeitos técnicos de funcionamento a partir desta data (art. 26, CDC). Não coberta: quedas, danos por água, mau uso ou violação por terceiros.`
       }<br>
-      <strong>5. Foro:</strong> As partes elegem o foro da comarca de domicílio da vendedora para dirimir eventuais
+      <strong>4. Foro:</strong> As partes elegem o foro da comarca de domicílio da vendedora para dirimir eventuais
       controvérsias oriundas deste contrato, com renúncia a qualquer outro.
     </div>
   </div>

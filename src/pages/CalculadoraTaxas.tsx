@@ -1,9 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Calculator, Copy, Check, Download, Image as ImageIcon, CreditCard, Plus, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BRANDS, CardBrand, simulate, brl } from '../lib/cardRates';
 
-const DEFAULT_MSG = `Ta na mao! De quantas vezes fica bom pra vc? 😊\n\nAtenção somente a bandeira. Simulação só vale pra Visa e Master, beleza?`;
+const MSG_VISA_MASTER = `Pronto! De quantas vezes fica melhor para você? 😊\n\nAtenção: somente para bandeiras Visa e Master. A simulação é válida apenas para Visa e Master.`;
+const MSG_ELO_AMEX    = `Pronto! De quantas vezes fica melhor para você? 😊\n\nAtenção: somente para bandeiras Elo e Amex. A simulação é válida apenas para Elo e Amex.`;
+const brandMsg = (b: CardBrand) => b === 'visa_master' ? MSG_VISA_MASTER : MSG_ELO_AMEX;
 
 // ─── Geração da imagem (canvas) da simulação ────────────────────────────────
 function buildSimulationCanvas(valor: number, brand: CardBrand): HTMLCanvasElement {
@@ -151,12 +153,17 @@ function buildSimulationCanvas(valor: number, brand: CardBrand): HTMLCanvasEleme
 }
 
 export const CalculadoraTaxas: React.FC = () => {
-  const [valorStr, setValorStr] = useState('700');
+  const [valorStr, setValorStr] = useState('');
   const [brand, setBrand] = useState<CardBrand>('visa_master');
   const [copied, setCopied] = useState(false);
   const [msgCopied, setMsgCopied] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
-  const [msgText, setMsgText] = useState(DEFAULT_MSG);
+  const [msgText, setMsgText] = useState(() => brandMsg('visa_master'));
+  const [msgEditedByUser, setMsgEditedByUser] = useState(false);
+
+  useEffect(() => {
+    if (!msgEditedByUser) setMsgText(brandMsg(brand));
+  }, [brand, msgEditedByUser]);
   const [highlightMsg, setHighlightMsg] = useState(false);
   const msgRef = useRef<HTMLTextAreaElement>(null);
 
@@ -417,7 +424,7 @@ export const CalculadoraTaxas: React.FC = () => {
         <textarea
           ref={msgRef}
           value={msgText}
-          onChange={(e) => setMsgText(e.target.value)}
+          onChange={(e) => { setMsgText(e.target.value); setMsgEditedByUser(true); }}
           rows={4}
           className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none leading-relaxed"
         />

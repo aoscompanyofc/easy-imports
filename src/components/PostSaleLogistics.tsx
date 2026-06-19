@@ -163,7 +163,7 @@ export const PostSaleLogistics: React.FC<{ sale: SaleMsgData; defaultAddress?: s
       ...emptyDelivery(),
       deliveryAddress: defaultAddress || '',
       recipient: sale.customerName || '',
-      pickupLocation: storeAddress || localStorage.getItem(PICKUP_KEY) || '',
+      pickupLocation: storeAddress || '',
       pickupContact: profileName || '',
       chargeMode: inferChargeMode(sale.paymentMethod, sale),
       chargeBreakdown: sale.saleChargeBreakdown ?? [],

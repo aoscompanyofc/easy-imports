@@ -905,9 +905,9 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
 
   // Installment table rows
   const instRows = insts.map(inst => {
-    const dueFmt = inst.due.split('-').reverse().join('/');
+    const dueFmt = inst.due ? inst.due.split('-').reverse().join('/') : '—';
     const isPaid = !!inst.paid_at;
-    const paidFmt = isPaid ? inst.paid_at!.split('-').reverse().join('/') : '';
+    const paidFmt = isPaid && inst.paid_at ? inst.paid_at.slice(0, 10).split('-').reverse().join('/') : '';
     return `<tr>
       <td>${inst.n}</td>
       <td>${dueFmt}</td>

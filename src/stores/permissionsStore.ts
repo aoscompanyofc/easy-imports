@@ -70,5 +70,5 @@ export const usePermissionsStore = create<PermissionsStore>((set) => ({
     }
   },
 
-  reset: () => set({ role: null, allowedPages: [...ALL_PAGES], isAdmin: true, loaded: false }),
+  reset: () => set({ role: null, allowedPages: [], isAdmin: false, loaded: false }),
 }));

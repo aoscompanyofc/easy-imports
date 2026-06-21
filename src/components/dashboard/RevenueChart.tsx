@@ -39,7 +39,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
   title = 'Faturamento do Mês',
   subtitle = 'Vendas brutas por dia',
 }) => {
-  const maxVal = Math.max(...data.map(d => d.value), 1);
+  const maxVal = data.reduce((m, d) => Math.max(m, d.value), 1);
 
   const formatYAxis = (value: number) => {
     if (maxVal >= 100000) return `R$${(value / 1000).toFixed(0)}k`;

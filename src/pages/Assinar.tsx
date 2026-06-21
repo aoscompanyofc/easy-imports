@@ -89,7 +89,7 @@ export const Assinar: React.FC = () => {
     : 'Recibo de Venda';
 
   const installmentText = sale.installments > 1
-    ? `Cartão de Crédito — ${sale.installments}x de ${fmtVal(sale.total_amount / sale.installments)}`
+    ? `${sale.payment_method || 'Parcelado'} — ${sale.installments}x de ${fmtVal(Number(sale.total_amount) / sale.installments)}`
     : sale.payment_method;
 
   return (

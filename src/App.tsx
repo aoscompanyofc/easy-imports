@@ -31,7 +31,7 @@ function App() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [logout]);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -37,7 +37,7 @@ export const TopProducts: React.FC<TopProductsProps> = ({ products }) => {
             <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
               <div
                 className="bg-primary h-full rounded-full transition-all duration-500"
-                style={{ width: `${(product.salesCount / maxSales) * 100}%` }}
+                style={{ width: `${Math.min(100, (product.salesCount / maxSales) * 100)}%` }}
               />
             </div>
           </div>

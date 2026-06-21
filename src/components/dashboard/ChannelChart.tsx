@@ -56,7 +56,7 @@ export const ChannelChart: React.FC<ChannelChartProps> = ({ data, view = 'pie', 
                 </Pie>
                 <Tooltip
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [`${value} venda${value !== 1 ? 's' : ''} (${((value / total) * 100).toFixed(1)}%)`, '']}
+                  formatter={(value: number) => [`${value} venda${value !== 1 ? 's' : ''} (${(total > 0 ? (value / total) * 100 : 0).toFixed(1)}%)`, '']}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -69,7 +69,7 @@ export const ChannelChart: React.FC<ChannelChartProps> = ({ data, view = 'pie', 
                   <span className="text-xs font-semibold text-neutral-700 truncate">{item.name}</span>
                 </div>
                 <span className="text-xs text-neutral-400 flex-shrink-0">
-                  {item.value} ({((item.value / total) * 100).toFixed(0)}%)
+                  {item.value} ({(total > 0 ? (item.value / total) * 100 : 0).toFixed(0)}%)
                 </span>
               </div>
             ))}

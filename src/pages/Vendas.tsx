@@ -1553,6 +1553,7 @@ export const Vendas: React.FC = () => {
   const salesByMonth = useMemo(() => {
     const groups: Record<string, any[]> = {};
     filteredSales.forEach((s) => {
+      if (!s.created_at) return;
       const key = format(new Date(s.created_at), 'yyyy-MM');
       if (!groups[key]) groups[key] = [];
       groups[key].push(s);

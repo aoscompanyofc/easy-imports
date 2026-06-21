@@ -188,7 +188,8 @@ export const dataService = {
     const saleId = saleRow.id;
     const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {
-      await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
+      const { error: siErr } = await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
+      if (siErr && !isColErr(siErr)) throw siErr;
 
       // Receita criada primeiro — usa valor líquido quando há taxa descartada da maquininha
       await this.addTransaction({
@@ -386,7 +387,7 @@ export const dataService = {
     const { data, error } = await supabase
       .from('leads').update(updates).eq('id', id).select();
     if (error) throw error;
-    return data[0];
+    return data?.[0];
   },
   async deleteLead(id: string) {
     if (useMock) return mockDataService.deleteLead(id);

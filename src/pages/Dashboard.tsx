@@ -258,15 +258,20 @@ export const Dashboard: React.FC = () => {
     const saleNum = sale.sale_number || '';
     const txDate = sale.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     // Cria transação de ajuste com category='adjustment' para não interferir nos outros cálculos
-    await dataService.addTransaction({
-      description: `Ajuste Lucro ${saleNum} — ${sale.customer_name || sale.product_name || ''}`,
-      amount: Math.abs(diff),
-      type: diff > 0 ? 'expense' : 'income',
-      category: 'adjustment',
-      date: txDate,
-    });
-    setEditingProfitId(null);
-    fetchDashboardData();
+    try {
+      await dataService.addTransaction({
+        description: `Ajuste Lucro ${saleNum} — ${sale.customer_name || sale.product_name || ''}`,
+        amount: Math.abs(diff),
+        type: diff > 0 ? 'expense' : 'income',
+        category: 'adjustment',
+        date: txDate,
+      });
+      fetchDashboardData();
+    } catch (err: any) {
+      toast.error('Erro ao salvar ajuste: ' + err.message);
+    } finally {
+      setEditingProfitId(null);
+    }
   };
 
   const isLastDayOfMonth = (() => {
@@ -411,7 +416,7 @@ export const Dashboard: React.FC = () => {
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       for (const inst of insts) {
         if (!inst.paid_at) continue;
-        const pd = new Date(inst.paid_at + 'T12:00:00');
+        const pd = new Date(inst.paid_at.slice(0, 10) + 'T12:00:00');
         if (pd >= start && pd < end) cashReceived += Number(inst.amount || 0);
       }
     }
@@ -446,7 +451,7 @@ export const Dashboard: React.FC = () => {
       let insts: any[] = [];
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       const paidInPeriod = insts
-        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= start && pd < end; })
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at.slice(0, 10) + 'T12:00:00'); return pd >= start && pd < end; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPeriod <= 0) continue;
       const saleNum = s.sale_number || '';
@@ -592,7 +597,7 @@ export const Dashboard: React.FC = () => {
       let insts: any[] = [];
       try { insts = JSON.parse(s.installments_json || '[]'); } catch {}
       const paidInPrev = insts
-        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at + 'T12:00:00'); return pd >= prevStart && pd < prevEnd; })
+        .filter((i: any) => { if (!i.paid_at) return false; const pd = new Date(i.paid_at.slice(0, 10) + 'T12:00:00'); return pd >= prevStart && pd < prevEnd; })
         .reduce((s2: number, i: any) => s2 + Number(i.amount || 0), 0);
       if (paidInPrev <= 0) continue;
       const saleNum = s.sale_number || '';

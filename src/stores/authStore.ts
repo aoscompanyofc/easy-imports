@@ -56,7 +56,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         return;
       }
 
-      throw new Error('Email ou senha inválidos');
+      throw new Error(signInError?.message || 'Email ou senha inválidos');
     }
 
     // Modo mock (Supabase não configurado)
@@ -84,8 +84,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     if (error) throw new Error(error.message);
 
-    if (data.session) {
-      const user = makeUser(data.user!);
+    if (data.session && data.user) {
+      const user = makeUser(data.user);
       set({ isAuthenticated: true, user, isLoading: false });
       setStorage(STORAGE_KEY, { isAuthenticated: true, user });
       return { needsConfirmation: false };

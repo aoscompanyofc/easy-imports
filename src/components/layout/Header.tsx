@@ -57,7 +57,7 @@ const MONTHS: Record<string, number> = {
 };
 
 function norm(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 interface DateFilter { day?: number; month?: number; year?: number; }

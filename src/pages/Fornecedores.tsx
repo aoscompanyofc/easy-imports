@@ -92,6 +92,7 @@ export const Fornecedores: React.FC = () => {
           product_capacity: device.capacity,
           product_color: device.color,
           product_condition: device.condition + batteryNote,
+          entry_date: purchaseDate,
         });
       }
       const n = deviceList.length;

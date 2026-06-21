@@ -96,7 +96,7 @@ export function AddWidgetModal({ open, onClose }: Props) {
             <input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFromText(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !thinking) handleCreateFromText(); }}
               placeholder='Ex: "card de LTV" ou "produtos mais vendidos"'
               className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:border-primary"
             />

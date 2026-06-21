@@ -111,7 +111,7 @@ export const Financeiro: React.FC = () => {
   }, [transactions]);
 
   // Resumo global das vendas a prazo
-  const { prazoTotal, prazoReceived, praxoPending, prazoSalesCount } = useMemo(() => {
+  const { prazoTotal, prazoReceived, prazoPending, prazoSalesCount } = useMemo(() => {
     let total = 0, received = 0, pending = 0, count = 0;
     for (const sale of sales) {
       if (sale.sale_type !== 'prazo' || !sale.installments_json) continue;
@@ -124,7 +124,7 @@ export const Financeiro: React.FC = () => {
       pending += saleTotal - saleReceived;
       count++;
     }
-    return { prazoTotal: total, prazoReceived: received, praxoPending: pending, prazoSalesCount: count };
+    return { prazoTotal: total, prazoReceived: received, prazoPending: pending, prazoSalesCount: count };
   }, [sales]);
 
   // Extended monthly flow: past (real) + future (projected)
@@ -344,7 +344,9 @@ export const Financeiro: React.FC = () => {
   const isAutoTx = (t: any) =>
     /^(Receita|Custo|Venda) #/.test(t.description || '') ||
     t.description?.startsWith('Custo Mercadoria #') ||
-    t.description?.startsWith('Custo Parcela #');
+    t.description?.startsWith('Aparelho Recebido #') ||
+    t.description?.startsWith('Ajuste Lucro #') ||
+    t.description?.startsWith('Custo Parcela ');
 
   const columns = [
     { header: 'Descrição', accessor: (t: any) => (
@@ -488,7 +490,7 @@ export const Financeiro: React.FC = () => {
             </div>
             <div className="px-4 py-3 text-center">
               <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">A receber</p>
-              <p className="text-lg font-black text-primary-900">{formatCurrency(praxoPending)}</p>
+              <p className="text-lg font-black text-primary-900">{formatCurrency(prazoPending)}</p>
             </div>
           </div>
         </div>

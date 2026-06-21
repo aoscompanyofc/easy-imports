@@ -277,20 +277,19 @@ export const dataService = {
     const { data: saleRow } = await supabase
       .from('sales').select('sale_number').eq('id', id).single();
 
-    // Remove transações — formato novo (Receita/Custo/Aparelho Recebido/Custo Parcela #V0001 — ...)
+    // Remove transações — formato novo (todos os tipos vinculados ao número da venda)
     if (saleRow?.sale_number) {
+      const sn = saleRow.sale_number;
       await supabase.from('transactions').delete()
-        .like('description', `Receita ${saleRow.sale_number} —%`)
-        .eq('user_id', uid);
+        .like('description', `Receita ${sn} —%`).eq('user_id', uid);
       await supabase.from('transactions').delete()
-        .like('description', `Custo ${saleRow.sale_number} —%`)
-        .eq('user_id', uid);
+        .like('description', `Custo ${sn} —%`).eq('user_id', uid);
       await supabase.from('transactions').delete()
-        .like('description', `Custo Parcela ${saleRow.sale_number} —%`)
-        .eq('user_id', uid);
+        .like('description', `Custo Parcela ${sn} —%`).eq('user_id', uid);
       await supabase.from('transactions').delete()
-        .like('description', `Aparelho Recebido ${saleRow.sale_number} —%`)
-        .eq('user_id', uid);
+        .like('description', `Aparelho Recebido ${sn} —%`).eq('user_id', uid);
+      await supabase.from('transactions').delete()
+        .like('description', `Ajuste Lucro ${sn} —%`).eq('user_id', uid);
     }
 
     // Remove transações — formato antigo (Venda #xxxxxxxx / Custo Mercadoria #xxxxxxxx)

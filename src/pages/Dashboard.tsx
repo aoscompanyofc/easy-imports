@@ -540,6 +540,7 @@ export const Dashboard: React.FC = () => {
     const prevCostMap: Record<string, number> = {};
     const prevInstCostMap: Record<string, number> = {};
     const prevRevenueMap: Record<string, number> = {};
+    const prevProfitAdjMap: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.type === 'expense' && t.category === 'stock') {
         if (t.description?.startsWith('Custo Mercadoria #')) {
@@ -560,6 +561,12 @@ export const Dashboard: React.FC = () => {
           const uuidMatch = t.description.match(/^Receita ([a-f0-9]{8})/);
           if (uuidMatch) prevRevenueMap[`uuid:${uuidMatch[1]}`] = (prevRevenueMap[`uuid:${uuidMatch[1]}`] || 0) + Number(t.amount || 0);
         }
+      } else if (t.category === 'adjustment' && t.description?.startsWith('Ajuste Lucro ')) {
+        const match = t.description.match(/^Ajuste Lucro (#[A-Z0-9]+)/);
+        if (match) {
+          const adj = t.type === 'expense' ? Number(t.amount || 0) : -Number(t.amount || 0);
+          prevProfitAdjMap[match[1]] = (prevProfitAdjMap[match[1]] || 0) + adj;
+        }
       }
     }
     const getPrevSaleCost = (s: any): number => {
@@ -577,7 +584,8 @@ export const Dashboard: React.FC = () => {
       const t = s.sale_type || (s.incoming_name?.trim() ? 'troca' : 'venda');
       if (t === 'prazo' || t === 'compra') continue;
       const cost = getPrevSaleCost(s);
-      pProfit += Number(s.total_amount || 0) - cost;
+      const adj = s.sale_number ? (prevProfitAdjMap[s.sale_number] || 0) : 0;
+      pProfit += Number(s.total_amount || 0) - cost - adj;
     }
     for (const s of allSales) {
       if ((s.sale_type || '') !== 'prazo') continue;

@@ -1251,15 +1251,6 @@ export const Vendas: React.FC = () => {
         }
       }
 
-      // Cascade: remove related financial transactions
-      const saleNum = deleteSale.sale_number;
-      if (saleNum) {
-        const relatedTx = transactions.filter((t: any) =>
-          t.description?.includes(saleNum)
-        );
-        await Promise.all(relatedTx.map((t: any) => dataService.deleteTransaction(t.id).catch(() => {})));
-      }
-
       await dataService.deleteSale(deleteSale.id);
       toast.success('Operação cancelada e removida.');
       setDeleteSale(null);

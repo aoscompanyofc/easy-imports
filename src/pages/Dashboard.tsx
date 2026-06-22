@@ -221,6 +221,7 @@ export const Dashboard: React.FC = () => {
   // Raw data
   const [allSales, setAllSales]             = useState<any[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [allProducts, setAllProducts]       = useState<any[]>([]);
   const [stockValue, setStockValue]         = useState(0);
   const [isLoading, setIsLoading]           = useState(true);
 
@@ -321,6 +322,7 @@ export const Dashboard: React.FC = () => {
       ]);
       setAllSales(sales || []);
       setAllTransactions(transactions || []);
+      setAllProducts(products || []);
       const sv = (products || [])
         .filter((p: any) => p.stock_quantity > 0)
         .reduce((acc: number, p: any) =>
@@ -339,6 +341,9 @@ export const Dashboard: React.FC = () => {
   // ─── Derived data filtered by period ─────────────────────────────────────
   const { filteredSales, revenue, cash, salesCount, netProfit, stockAtPeriod, prevStockAtPeriod, stockMovements, prazoCount, prazoTotal, prazoReceived, costMap, instCostMap, revenueMap, profitAdjMap, getSaleCost, chartData, channelData, topProducts, saleTypeData, sourceData } = useMemo(() => {
     const [start, end] = getDateRange(period, customFrom, customTo);
+    // Índice de produtos por id para busca rápida no fallback de custo
+    const productById: Record<string, any> = {};
+    for (const p of allProducts) { if (p.id) productById[p.id] = p; }
     const filtered = allSales.filter(s => {
       if (!s.created_at) return false;
       const d = new Date(s.created_at);
@@ -422,13 +427,20 @@ export const Dashboard: React.FC = () => {
     }
 
     // Helper: custo de uma venda — usa outgoing_items_json como fonte primária (imune a número duplicado
-    // e atualizado ao editar), fallback para costMap de transações (vendas antigas sem o campo).
+    // e atualizado ao editar), fallback para costMap de transações (vendas antigas sem o campo),
+    // e por último o purchase_price atual do produto no estoque (para vendas antigas a prazo sem custo).
     const getSaleCost = (s: any): number => {
       try {
         const items = JSON.parse(s.outgoing_items_json || '[]');
         if (items.length > 0) {
           const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
           if (total > 0) return total;
+          // Fallback: custo = 0 no JSON, mas temos product_id — busca no catálogo atual
+          const fallbackTotal = items.reduce((sum: number, i: any) => {
+            const prod = i.product_id ? productById[i.product_id] : null;
+            return sum + Number(prod?.purchase_price || 0);
+          }, 0);
+          if (fallbackTotal > 0) return fallbackTotal;
         }
       } catch {}
       // UUID-keyed custo (gravado na correção manual) tem prioridade sobre número de venda
@@ -525,7 +537,7 @@ export const Dashboard: React.FC = () => {
       prevStockAtPeriod: prevStockSnapshot,
       stockMovements,
     };
-  }, [allSales, allTransactions, stockValue, period, customFrom, customTo]);
+  }, [allSales, allTransactions, allProducts, stockValue, period, customFrom, customTo]);
 
   const periodLabel = getPeriodLabel(period, customFrom, customTo);
 
@@ -574,12 +586,19 @@ export const Dashboard: React.FC = () => {
         }
       }
     }
+    const prevProductById: Record<string, any> = {};
+    for (const p of allProducts) { if (p.id) prevProductById[p.id] = p; }
     const getPrevSaleCost = (s: any): number => {
       try {
         const items = JSON.parse(s.outgoing_items_json || '[]');
         if (items.length > 0) {
           const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
           if (total > 0) return total;
+          const fallbackTotal = items.reduce((sum: number, i: any) => {
+            const prod = i.product_id ? prevProductById[i.product_id] : null;
+            return sum + Number(prod?.purchase_price || 0);
+          }, 0);
+          if (fallbackTotal > 0) return fallbackTotal;
         }
       } catch {}
       return prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? prevCostMap[s.sale_number] ?? 0;
@@ -615,7 +634,7 @@ export const Dashboard: React.FC = () => {
       }
     }
     return { prevRevenue: pRev, prevProfit: pProfit };
-  }, [allSales, allTransactions, period, customFrom, customTo]);
+  }, [allSales, allTransactions, allProducts, period, customFrom, customTo]);
 
   // Receita Prevista GLOBAL — todas as vendas a prazo com parcelas ainda em aberto
   // Independe do período selecionado: uma venda de maio aparece em junho enquanto houver parcelas pendentes

@@ -363,6 +363,7 @@ export const Vendas: React.FC = () => {
 
   const selectedProductData = products.find((p) => p.id === form.selectedProduct);
   const selectedCustomerData = customers.find((c) => c.id === form.selectedCustomer);
+  const isPrazo = form.sale_type === 'prazo';
 
   // Auto-fill WhatsApp from new customer phone as user types
   useEffect(() => {
@@ -386,6 +387,10 @@ export const Vendas: React.FC = () => {
       product_condition: rawCond,
       pdf_type: condIsNovo ? 'novo' : 'seminovo',
       sale_price_manual: f.sale_price_manual || (selectedProductData.sale_price > 0 ? String(selectedProductData.sale_price) : ''),
+      // Para prazo: custo de entrada pré-preenchido com purchase_price do estoque para garantir cálculo de lucro correto
+      product_cost_manual: f.sale_type === 'prazo' && selectedProductData.purchase_price > 0
+        ? String(selectedProductData.purchase_price)
+        : f.product_cost_manual,
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.selectedProduct]);
@@ -439,7 +444,7 @@ export const Vendas: React.FC = () => {
 
     const product = form.selectedProduct ? selectedProductData : null;
     const productName = product?.name || form.product_name_manual;
-    const isPrazo = form.sale_type === 'prazo';
+    // isPrazo is already defined at component scope; shadow here is intentional to keep local clarity
     const prazoCount = isPrazo ? Math.max(1, Number(form.prazo_count) || 1) : 0;
 
     // Para prazo: preço do produto vem de sale_price_manual (auto-preenchido do estoque ou manual)
@@ -478,6 +483,12 @@ export const Vendas: React.FC = () => {
       if (prazoHasEntrada && !prazoEntradaDue) { toast.error('Informe a data de vencimento da entrada.'); return; }
       if (prazoValue <= 0) { toast.error('Informe o valor da parcela ou o valor do produto.'); return; }
       if (!form.prazo_first_due) { toast.error('Informe a data do 1º vencimento.'); return; }
+      // Custo obrigatório para prazo: sem custo o lucro será calculado incorretamente (100% como lucro)
+      const prazoCost = Number(form.product_cost_manual) || (product?.purchase_price ?? 0);
+      if (prazoCost <= 0) {
+        toast.error('Informe o Custo de Entrada do produto. Sem isso, o lucro ficará errado no Dashboard.');
+        return;
+      }
     } else {
       if (unitPrice <= 0) { toast.error('Informe o valor da venda (campo Valor R$).'); return; }
     }
@@ -515,7 +526,9 @@ export const Vendas: React.FC = () => {
         color: form.product_color || primaryProd?.product_color || '',
         condition: form.product_condition || '',
         price: isPrazo ? prazoProductPrice : unitPrice,
-        cost: primaryProd?.purchase_price || Number(form.product_cost_manual) || 0,
+        cost: isPrazo
+          ? (Number(form.product_cost_manual) || primaryProd?.purchase_price || 0)
+          : (primaryProd?.purchase_price || Number(form.product_cost_manual) || 0),
       };
       const additionalMapped = additionalItems.filter(isAddlItemFilled).map(i => {
         const prod = i.mode === 'stock' && i.selectedProduct ? products.find((p: any) => p.id === i.selectedProduct) : null;
@@ -1289,7 +1302,15 @@ export const Vendas: React.FC = () => {
       if (existingLumpSumCost === 0) {
         // Novo estilo: calcula custo a partir de outgoing_items_json
         const outItems: any[] = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
-        const totalItemCost = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+        let totalItemCost = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
+        // Fallback: se outgoing_items_json não tem custo, tenta buscar da lista de produtos atual
+        if (totalItemCost === 0 && outItems.length > 0) {
+          const productId = outItems[0]?.product_id;
+          if (productId) {
+            const prod = products.find((p: any) => p.id === productId);
+            if ((prod?.purchase_price ?? 0) > 0) totalItemCost = prod.purchase_price;
+          }
+        }
         const totalAmt = Number(sale.total_amount || 0);
         if (totalItemCost > 0 && totalAmt > 0) {
           const proportionalCost = Math.round(totalItemCost * (inst.amount / totalAmt) * 100) / 100;
@@ -2184,16 +2205,25 @@ export const Vendas: React.FC = () => {
                 />
               </div>
 
-              {!form.selectedProduct && (
-                <div className="sm:col-span-2 border-2 border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
-                    <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Produto Sob Demanda</p>
-                    <span className="text-xs text-neutral-500 font-normal normal-case">— comprado e vendido direto</span>
-                  </div>
+              {(!form.selectedProduct || isPrazo) && (
+                <div className={cn("sm:col-span-2 border-2 rounded-2xl p-4 space-y-3", isPrazo && form.selectedProduct ? "border-amber-300 bg-amber-50" : "border-primary/30 bg-primary/5")}>
+                  {!form.selectedProduct && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full flex-shrink-0" />
+                      <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Produto Sob Demanda</p>
+                      <span className="text-xs text-neutral-500 font-normal normal-case">— comprado e vendido direto</span>
+                    </div>
+                  )}
+                  {isPrazo && form.selectedProduct && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-amber-400 rounded-full flex-shrink-0" />
+                      <p className="text-xs font-black text-neutral-800 uppercase tracking-widest">Custo do Produto</p>
+                      <span className="text-xs text-neutral-500 font-normal normal-case">— necessário para calcular lucro correto</span>
+                    </div>
+                  )}
 
                   <Input
-                    label="Custo de Entrada (R$)"
+                    label={isPrazo ? "Custo de Entrada (R$) *" : "Custo de Entrada (R$)"}
                     type="number"
                     step="any"
                     inputMode="decimal"

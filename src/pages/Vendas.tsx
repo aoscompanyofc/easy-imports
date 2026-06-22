@@ -1303,13 +1303,23 @@ export const Vendas: React.FC = () => {
         // Novo estilo: calcula custo a partir de outgoing_items_json
         const outItems: any[] = (() => { try { return JSON.parse(sale.outgoing_items_json || '[]'); } catch { return []; } })();
         let totalItemCost = outItems.reduce((s: number, i: any) => s + Number(i.cost || 0), 0);
-        // Fallback: se outgoing_items_json não tem custo, tenta buscar da lista de produtos atual
+        // Fallback 1: product_id no JSON mas custo = 0
         if (totalItemCost === 0 && outItems.length > 0) {
           const productId = outItems[0]?.product_id;
           if (productId) {
             const prod = products.find((p: any) => p.id === productId);
             if ((prod?.purchase_price ?? 0) > 0) totalItemCost = prod.purchase_price;
           }
+        }
+        // Fallback 2: outgoing_items_json vazio/nulo — busca por IMEI (único por aparelho)
+        if (totalItemCost === 0 && sale.product_imei) {
+          const byImei = products.find((p: any) => p.imei && p.imei === sale.product_imei);
+          if ((byImei?.purchase_price ?? 0) > 0) totalItemCost = byImei.purchase_price;
+        }
+        // Fallback 3: busca por nome do produto (último recurso)
+        if (totalItemCost === 0 && sale.product_name) {
+          const byName = products.find((p: any) => p.name === sale.product_name);
+          if ((byName?.purchase_price ?? 0) > 0) totalItemCost = byName.purchase_price;
         }
         const totalAmt = Number(sale.total_amount || 0);
         if (totalItemCost > 0 && totalAmt > 0) {

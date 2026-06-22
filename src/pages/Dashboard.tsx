@@ -426,26 +426,37 @@ export const Dashboard: React.FC = () => {
       }
     }
 
-    // Helper: custo de uma venda — usa outgoing_items_json como fonte primária (imune a número duplicado
-    // e atualizado ao editar), fallback para costMap de transações (vendas antigas sem o campo),
-    // e por último o purchase_price atual do produto no estoque (para vendas antigas a prazo sem custo).
+    // Helper: custo de uma venda — 5 camadas de fallback em ordem de confiabilidade:
+    // 1. outgoing_items_json.cost  2. productById (product_id)  3. costMap (transações)
+    // 4. produto por IMEI          5. produto por nome (último recurso)
     const getSaleCost = (s: any): number => {
       try {
         const items = JSON.parse(s.outgoing_items_json || '[]');
         if (items.length > 0) {
           const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
           if (total > 0) return total;
-          // Fallback: custo = 0 no JSON, mas temos product_id — busca no catálogo atual
-          const fallbackTotal = items.reduce((sum: number, i: any) => {
+          // Camada 2: custo = 0 no JSON, mas temos product_id — busca no catálogo atual
+          const byId = items.reduce((sum: number, i: any) => {
             const prod = i.product_id ? productById[i.product_id] : null;
             return sum + Number(prod?.purchase_price || 0);
           }, 0);
-          if (fallbackTotal > 0) return fallbackTotal;
+          if (byId > 0) return byId;
         }
       } catch {}
-      // UUID-keyed custo (gravado na correção manual) tem prioridade sobre número de venda
-      // (imune a número duplicado que somava custos de vendas diferentes)
-      return costMap[`uuid:${s.id?.slice(0, 8)}`] ?? costMap[s.sale_number] ?? 0;
+      // Camada 3: transação UUID-keyed (edição manual de custo) ou por número de venda
+      const fromTx = costMap[`uuid:${s.id?.slice(0, 8)}`] ?? costMap[s.sale_number] ?? 0;
+      if (fromTx > 0) return fromTx;
+      // Camada 4: IMEI — único por aparelho, muito confiável
+      if (s.product_imei) {
+        const byImei = allProducts.find((p: any) => p.imei && p.imei === s.product_imei);
+        if ((byImei?.purchase_price ?? 0) > 0) return byImei.purchase_price;
+      }
+      // Camada 5: nome do produto (último recurso — pode ter homônimos)
+      if (s.product_name) {
+        const byName = allProducts.find((p: any) => p.name === s.product_name);
+        if ((byName?.purchase_price ?? 0) > 0) return byName.purchase_price;
+      }
+      return 0;
     };
 
     // Lucro Realizado: vendas imediatas do período + parcelas de prazo pagas no período
@@ -594,14 +605,24 @@ export const Dashboard: React.FC = () => {
         if (items.length > 0) {
           const total = items.reduce((sum: number, i: any) => sum + Number(i.cost || 0), 0);
           if (total > 0) return total;
-          const fallbackTotal = items.reduce((sum: number, i: any) => {
+          const byId = items.reduce((sum: number, i: any) => {
             const prod = i.product_id ? prevProductById[i.product_id] : null;
             return sum + Number(prod?.purchase_price || 0);
           }, 0);
-          if (fallbackTotal > 0) return fallbackTotal;
+          if (byId > 0) return byId;
         }
       } catch {}
-      return prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? prevCostMap[s.sale_number] ?? 0;
+      const fromTx = prevCostMap[`uuid:${s.id?.slice(0, 8)}`] ?? prevCostMap[s.sale_number] ?? 0;
+      if (fromTx > 0) return fromTx;
+      if (s.product_imei) {
+        const byImei = allProducts.find((p: any) => p.imei && p.imei === s.product_imei);
+        if ((byImei?.purchase_price ?? 0) > 0) return byImei.purchase_price;
+      }
+      if (s.product_name) {
+        const byName = allProducts.find((p: any) => p.name === s.product_name);
+        if ((byName?.purchase_price ?? 0) > 0) return byName.purchase_price;
+      }
+      return 0;
     };
     let pProfit = 0;
     for (const s of prevSales) {

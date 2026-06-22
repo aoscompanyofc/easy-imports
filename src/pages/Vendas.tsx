@@ -802,8 +802,12 @@ export const Vendas: React.FC = () => {
         }
       }
 
-      // Venda a Prazo: decrementa estoque (custo é registrado proporcionalmente ao pagar cada parcela)
+      // Venda a Prazo: decrementa estoque E registra custo imediatamente
+      // (registrar o custo na criação é mais robusto que depender de outgoing_items_json,
+      //  que pode não existir no schema do banco. handleMarkPaid detecta o custo via costBySale
+      //  e usa a proporção correta ao invés de criar transações duplicadas.)
       if (isPrazo) {
+        const saleDate = new Date(form.sale_date).toISOString().slice(0, 10);
         if (product) {
           const newQty = Math.max(0, product.stock_quantity - form.quantity);
           await dataService.updateProduct(product.id, {
@@ -812,6 +816,17 @@ export const Vendas: React.FC = () => {
             stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
             imei: product.imei || '',
           });
+          // Custo registrado na criação da venda — imune a problemas de schema
+          const costValue = Number(form.product_cost_manual) || product.purchase_price || 0;
+          if (costValue > 0) {
+            await dataService.addTransaction({
+              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
+              amount: costValue * form.quantity,
+              type: 'expense',
+              category: 'stock',
+              date: saleDate,
+            });
+          }
         } else {
           const manualCost = Number(form.product_cost_manual);
           if (form.save_to_stock && productName) {
@@ -824,8 +839,18 @@ export const Vendas: React.FC = () => {
               entry_date: new Date(form.sale_date).toISOString().split('T')[0],
             });
           }
+          // Produto manual: custo também registrado imediatamente
+          if (manualCost > 0) {
+            await dataService.addTransaction({
+              description: `Custo ${saleNumber} — ${productName || 'Produto'}`,
+              amount: manualCost * form.quantity,
+              type: 'expense',
+              category: 'stock',
+              date: saleDate,
+            });
+          }
         }
-        // Handle additional items for prazo: only decrement stock (no cost transaction yet)
+        // Itens adicionais prazo: decrementa estoque e registra custo
         for (const addItem of additionalItems.filter(i => i.selectedProduct)) {
           const addProd = products.find((p: any) => p.id === addItem.selectedProduct);
           if (addProd) {
@@ -836,6 +861,15 @@ export const Vendas: React.FC = () => {
               stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
               imei: addProd.imei || '',
             });
+            if (addProd.purchase_price > 0) {
+              await dataService.addTransaction({
+                description: `Custo ${saleNumber} — ${addProd.name}`,
+                amount: addProd.purchase_price,
+                type: 'expense',
+                category: 'stock',
+                date: saleDate,
+              });
+            }
           }
         }
       }

@@ -19,6 +19,7 @@ export interface DeviceFormData {
   imei: string;
   purchase_price: string;
   sale_price?: string;
+  notes: string;
 }
 
 export function emptyDeviceForm(): DeviceFormData {
@@ -35,6 +36,7 @@ export function emptyDeviceForm(): DeviceFormData {
     imei: '',
     purchase_price: '',
     sale_price: '',
+    notes: '',
   };
 }
 
@@ -355,6 +357,21 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
           </div>
         </div>
       )}
+
+      {/* Accessories / Notes */}
+      <div>
+        <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+          Acessórios / Observações
+          <span className="ml-2 text-[11px] font-normal text-neutral-400">(aparece na mensagem de estoque)</span>
+        </label>
+        <textarea
+          className={`${S} resize-none`}
+          rows={3}
+          placeholder={"Ex:\nAcompanha caixa\nCabo + capa + película (brinde)\nNunca mexido"}
+          value={value.notes || ''}
+          onChange={(e) => onChange({ ...value, notes: e.target.value })}
+        />
+      </div>
 
       {/* Auto-generated name preview */}
       {deviceFormToProductName(value) && (

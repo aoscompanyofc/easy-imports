@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash } from 'lucide-react';
+import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
@@ -46,6 +46,139 @@ export const Estoque: React.FC = () => {
   const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo'];
   const [showFilters, setShowFilters] = useState(false);
 
+  const buildStockMessage = (prods: any[]): string => {
+    const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const fmtPrice = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const sep = '────────────────────';
+
+    const colorEmoji = (color: string): string => {
+      const c = color.toLowerCase();
+      if (['vermelho', 'red', 'product red', 'coral'].some(s => c.includes(s))) return '🔴';
+      if (['preto', 'black', 'meia-noite', 'midnight', 'space black', 'space gray', 'cinza espacial'].some(s => c.includes(s))) return '⚫';
+      if (['branco', 'white', 'estelar', 'starlight', 'silver', 'prata'].some(s => c.includes(s))) return '⚪';
+      if (['azul', 'blue'].some(s => c.includes(s))) return '🔵';
+      if (['roxo', 'purple', 'lilás', 'lilas', 'violeta'].some(s => c.includes(s))) return '🟣';
+      if (['dourado', 'gold', 'amarelo', 'yellow'].some(s => c.includes(s))) return '🟡';
+      if (['verde', 'green', 'menta', 'mint'].some(s => c.includes(s))) return '🟢';
+      if (['natural', 'desert', 'deserto', 'bege', 'sand'].some(s => c.includes(s))) return '🤎';
+      if (['rosa', 'pink'].some(s => c.includes(s))) return '🩷';
+      return '';
+    };
+
+    const conditionLabel = (cond: string): string => {
+      const base = cond.replace(/ · Bateria:.*/, '').trim().toLowerCase();
+      if (base === 'novo (lacrado)') return 'IMPECÁVEL';
+      if (base.includes('impecável')) return 'IMPECÁVEL';
+      if (base.includes('excelente')) return 'Excelente estado';
+      if (base.includes('ótimo')) return 'Ótimo estado';
+      if (base.includes('bom')) return 'Bom estado';
+      if (base.includes('regular')) return 'Regular';
+      if (base.includes('avaria')) return 'Com avarias';
+      return cond.replace(/ · Bateria:.*/, '').trim();
+    };
+
+    const warrantyLine = (w: string): string => {
+      if (!w || w === 'Sem garantia') return '';
+      if (w === '1 ano (Apple)' || w === 'Garantia de Fábrica' || w === '12 meses') return '🛡️ Garantia Apple — 1 ano';
+      if (w === 'AppleCare+') return '🛡️ AppleCare+';
+      if (w.startsWith('Garantia')) return `🛡️ ${w}`;
+      return `🛡️ Garantia: ${w}`;
+    };
+
+    const parseNotes = (notes: string): string[] =>
+      notes.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+        const lower = l.toLowerCase();
+        if (lower.includes('caixa')) return `📦 ${l}`;
+        if (['cabo', 'capa', 'película', 'carregador', 'fone', 'acessório', 'brinde'].some(k => lower.includes(k))) return `🎁 ${l}`;
+        if (['nunca mexido', 'zero uso', 'zerado', 'lacrado', 'nunca usado'].some(k => lower.includes(k))) return `✨ ${l}`;
+        if (lower.includes('raridade')) return `🔥 ${l}`;
+        if (lower.includes('ciclo')) return `🔋 ${l}`;
+        return `✨ ${l}`;
+      });
+
+    const extractModel = (p: any): string => {
+      let name = p.name || '';
+      const col = (p.product_color || '').trim();
+      const cap = (p.product_capacity || '').trim();
+      if (col && name.endsWith(` ${col}`)) name = name.slice(0, -(col.length + 1));
+      if (cap && name.endsWith(` ${cap}`)) name = name.slice(0, -(cap.length + 1));
+      return name.trim();
+    };
+
+    const buildProductEntry = (p: any): string => {
+      const lines: string[] = [];
+      const col = (p.product_color || '').trim();
+      const cap = (p.product_capacity || '').trim();
+      const emoji = col ? colorEmoji(col) : '';
+      const capCol = [cap, col ? `${emoji} ${col}`.trim() : ''].filter(Boolean).join(' – ');
+      if (capCol) lines.push(`💾 ${capCol}`);
+      const price = Number(p.sale_price);
+      if (price > 0) lines.push(`💰 ${fmtPrice(price)}`);
+      const battery = (p.product_condition || '').match(/Bateria: (.+)/)?.[1];
+      if (battery) lines.push(`🔋 Saúde da bateria: ${battery}`);
+      if (p.notes) lines.push(...parseNotes(p.notes));
+      const cond = conditionLabel(p.product_condition || '');
+      if (cond) lines.push(`✅ ${cond}`);
+      const wLine = warrantyLine(p.product_warranty || '');
+      if (wLine) lines.push(wLine);
+      return lines.join('\n');
+    };
+
+    const buildSection = (list: any[], header: string): string => {
+      if (list.length === 0) return '';
+      const modelMap = new Map<string, any[]>();
+      for (const p of list) {
+        const m = extractModel(p);
+        if (!modelMap.has(m)) modelMap.set(m, []);
+        modelMap.get(m)!.push(p);
+      }
+      const sortedModels = Array.from(modelMap.keys()).sort();
+      const parts: string[] = [header, ''];
+      for (const model of sortedModels) {
+        parts.push(sep);
+        parts.push('');
+        parts.push(`📱 ${model}`);
+        parts.push('');
+        const items = modelMap.get(model)!.sort((a, b) => {
+          const ca = parseInt(a.product_capacity || '0');
+          const cb = parseInt(b.product_capacity || '0');
+          return ca - cb;
+        });
+        for (const p of items) {
+          parts.push(buildProductEntry(p));
+          parts.push('');
+        }
+      }
+      return parts.join('\n');
+    };
+
+    const seminovos = prods.filter(p => !(p.product_condition || '').toLowerCase().startsWith('novo'));
+    const novos = prods.filter(p => (p.product_condition || '').toLowerCase().startsWith('novo'));
+
+    const header = [
+      '✅ LISTA ATUALIZADA – EASY IMPORTS',
+      '',
+      `📅 Atualizado em ${today}`,
+      '',
+      '📦 Retirada a combinar (avisar com antecedência)',
+      '💳 Cartão em até 18x',
+    ].join('\n');
+
+    const semiSection = buildSection(seminovos, '🍏 Seminovos – Qualidade Garantida');
+    const novoSection = buildSection(novos, '✨ Novos (Lacrados)');
+
+    const footer = [
+      sep,
+      '',
+      '📍 Disponibilidade sujeita a confirmação',
+      '📞 Chama antes para combinar a retirada!',
+      '',
+      '🔥 Já segue a Easyimports.bh no Instagram? Então ajuda a genteee',
+    ].join('\n');
+
+    return [header, semiSection, novoSection, footer].filter(Boolean).join('\n');
+  };
+
   const exportCSV = (list: any[]) => {
     const header = ['Nome','Categoria','Condição','IMEI','Custo','Preço Venda','Garantia','Entrada'];
     const rows = list.map(p => [
@@ -67,6 +200,9 @@ export const Estoque: React.FC = () => {
   const [editForm, setEditForm] = useState<DeviceFormData>(emptyDeviceForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [messageCopied, setMessageCopied] = useState(false);
   const autoFixedRef = useRef(false); // run dedup only once per session
 
   const fetchProducts = async (skipAutoFix = false) => {
@@ -148,6 +284,7 @@ export const Estoque: React.FC = () => {
         product_warranty: addForm.warranty || 'Sem garantia',
         product_origin: addForm.origin || '',
         entry_date: addForm.entry_date || new Date().toISOString().split('T')[0],
+        notes: addForm.notes || '',
       });
       toast.success('Aparelho adicionado ao estoque!');
       setIsAddModalOpen(false);
@@ -178,6 +315,7 @@ export const Estoque: React.FC = () => {
         product_warranty: editForm.warranty || 'Sem garantia',
         product_origin: editForm.origin || '',
         entry_date: editForm.entry_date || new Date().toISOString().split('T')[0],
+        notes: editForm.notes || '',
       });
       toast.success('Produto atualizado!');
       setIsEditModalOpen(false);
@@ -215,6 +353,7 @@ export const Estoque: React.FC = () => {
       imei: product.imei || '',
       purchase_price: String(product.purchase_price || ''),
       sale_price: String(product.sale_price || ''),
+      notes: product.notes || '',
     });
     setIsEditModalOpen(true);
   };
@@ -605,9 +744,14 @@ export const Estoque: React.FC = () => {
             <span className="text-neutral-400">{sold.length} vendido{sold.length !== 1 ? 's' : ''}</span>
           </p>
         </div>
-        <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setIsAddModalOpen(true); }}>
-          Adicionar Aparelho
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="secondary" leftIcon={<MessageSquare size={18} />} onClick={() => { setMessageCopied(false); setIsMessageModalOpen(true); }}>
+            Mensagem WhatsApp
+          </Button>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setIsAddModalOpen(true); }}>
+            Adicionar Aparelho
+          </Button>
+        </div>
       </div>
 
       {/* Summary stats */}
@@ -903,6 +1047,50 @@ export const Estoque: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* MODAL MENSAGEM WHATSAPP */}
+      <Modal isOpen={isMessageModalOpen} onClose={() => setIsMessageModalOpen(false)} title="Mensagem de Estoque — WhatsApp" maxWidth="lg">
+        {available.length === 0 ? (
+          <div className="py-12 text-center text-neutral-400">
+            <Package size={36} className="mx-auto mb-3 text-neutral-300" />
+            <p className="font-bold text-neutral-600">Estoque vazio</p>
+            <p className="text-sm mt-1">Adicione aparelhos para gerar a mensagem.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-neutral-500">
+                {available.length} aparelho{available.length !== 1 ? 's' : ''} disponíve{available.length !== 1 ? 'is' : 'l'} · Atualizado agora
+              </p>
+              <button
+                onClick={() => {
+                  const msg = buildStockMessage(available);
+                  navigator.clipboard.writeText(msg).then(() => {
+                    setMessageCopied(true);
+                    setTimeout(() => setMessageCopied(false), 3000);
+                  });
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                  messageCopied
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                }`}
+              >
+                {messageCopied ? <Check size={16} /> : <Copy size={16} />}
+                {messageCopied ? 'Copiado!' : 'Copiar mensagem'}
+              </button>
+            </div>
+            <textarea
+              readOnly
+              value={buildStockMessage(available)}
+              className="w-full h-[60vh] font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-2xl p-4 resize-none outline-none text-neutral-700 leading-relaxed"
+            />
+            <p className="text-[11px] text-neutral-400 text-center">
+              Adicione acessórios e observações em cada aparelho para aparecerem na mensagem.
+            </p>
+          </div>
+        )}
+      </Modal>
 
       {/* MODAL ADICIONAR */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Adicionar Aparelho ao Estoque" maxWidth="lg">

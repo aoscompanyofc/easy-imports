@@ -2,6 +2,22 @@
 // Chama Claude ou OpenAI para extrair produtos estruturados (modelo, capacidade, preço, etc.)
 // Filtra apenas: iPhone, iPad, Mac, Apple Watch, Garmin.
 
+function friendlyError(raw: string): string {
+  try {
+    const d = JSON.parse(raw);
+    const msg: string = d?.error?.message || d?.message || raw;
+    if (msg.includes('Incorrect API key') || msg.includes('invalid_api_key'))
+      return 'Chave de API inválida. Vá em Configurações → IA e configure uma chave válida do Claude ou ChatGPT.';
+    if (msg.includes('exceeded') || msg.includes('quota') || msg.includes('insufficient_quota'))
+      return 'Cota da API esgotada. Verifique seu saldo no painel do provedor de IA.';
+    if (msg.includes('model') && msg.includes('not found'))
+      return 'Modelo de IA não encontrado. Verifique o nome do modelo em Configurações → IA.';
+    return msg;
+  } catch {
+    return raw;
+  }
+}
+
 async function callAnthropic(apiKey: string, model: string, system: string, user: string) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -17,7 +33,7 @@ async function callAnthropic(apiKey: string, model: string, system: string, user
       messages: [{ role: 'user', content: user }],
     }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(friendlyError(await res.text()));
   const data: any = await res.json();
   return (data?.content?.[0]?.text || '').trim();
 }
@@ -39,7 +55,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
       ],
     }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(friendlyError(await res.text()));
   const data: any = await res.json();
   return (data?.choices?.[0]?.message?.content || '').trim();
 }

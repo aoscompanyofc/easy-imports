@@ -674,7 +674,15 @@ export const Fornecedores: React.FC = () => {
           {analyzerError && (
             <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
               <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium">{analyzerError}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-bold">Erro ao analisar</p>
+                <p className="text-sm">{analyzerError}</p>
+                {(analyzerError.includes('Configurações') || analyzerError.includes('API')) && (
+                  <a href="/configuracoes" className="text-xs font-bold underline text-red-600 hover:text-red-800">
+                    → Ir para Configurações → IA
+                  </a>
+                )}
+              </div>
             </div>
           )}
 

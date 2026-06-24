@@ -265,7 +265,7 @@ export const CalculadoraTaxas: React.FC = () => {
   };
 
   const quickValues = [500, 1000, 2000, 5000, 10000];
-  const increments  = [100, 500, 1000];
+  const increments  = [50, 100, 500, 1000];
 
   return (
     <div className="space-y-6 pb-10 max-w-3xl mx-auto">

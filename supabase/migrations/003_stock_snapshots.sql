@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.stock_snapshots (
 
 ALTER TABLE public.stock_snapshots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "stock_snapshots_all" ON public.stock_snapshots
+DROP POLICY IF EXISTS "stock_snapshots_all" ON public.stock_snapshots;
+CREATE POLICY "stock_snapshots_all" ON public.stock_snapshots
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());

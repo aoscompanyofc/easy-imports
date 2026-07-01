@@ -1,7 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import {
-  MessageSquare, Plus, Copy, Trash2, X, Check, Search, Tag,
+  MessageSquare, Plus, Copy, Trash2, X, Check, Search, Tag, GripVertical,
 } from 'lucide-react';
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, rectSortingStrategy, useSortable, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { safeUUID } from '../lib/storage';
@@ -153,6 +161,13 @@ function MessageCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const s = catStyle(template.category);
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: template.id });
+  const dragStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(template.message);
     setCopied(true);
@@ -161,10 +176,15 @@ function MessageCard({
   };
 
   return (
-    <div className={cn(
-      'flex flex-col bg-white rounded-2xl border-2 shadow-sm hover:shadow-md transition-shadow overflow-hidden',
-      s.border
-    )}>
+    <div
+      ref={setNodeRef}
+      style={dragStyle}
+      className={cn(
+        'flex flex-col bg-white rounded-2xl border-2 shadow-sm hover:shadow-md transition-shadow overflow-hidden',
+        s.border,
+        isDragging && 'z-50 shadow-xl'
+      )}
+    >
       {/* Category stripe */}
       <div className={cn('px-4 pt-4 pb-3', s.bg)}>
         <div className="flex items-start justify-between gap-2">
@@ -172,31 +192,43 @@ function MessageCard({
             <Tag size={9} />
             {template.category}
           </span>
-          {/* Delete */}
-          {confirmDelete ? (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => { onDelete(); setConfirmDelete(false); }}
-                className="text-[10px] font-black text-red-600 bg-red-100 hover:bg-red-200 px-2 py-1 rounded-lg transition-colors"
-              >
-                Confirmar
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="text-[10px] font-bold text-neutral-500 hover:text-neutral-700 px-2 py-1 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Drag handle */}
             <button
-              onClick={() => setConfirmDelete(true)}
-              className="p-1.5 text-neutral-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-              title="Excluir mensagem"
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="p-1.5 text-neutral-300 hover:text-neutral-600 hover:bg-white/60 rounded-lg transition-colors cursor-grab active:cursor-grabbing touch-none"
+              title="Arrastar para reordenar"
             >
-              <Trash2 size={13} />
+              <GripVertical size={13} />
             </button>
-          )}
+            {/* Delete */}
+            {confirmDelete ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { onDelete(); setConfirmDelete(false); }}
+                  className="text-[10px] font-black text-red-600 bg-red-100 hover:bg-red-200 px-2 py-1 rounded-lg transition-colors"
+                >
+                  Confirmar
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-[10px] font-bold text-neutral-500 hover:text-neutral-700 px-2 py-1 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="p-1.5 text-neutral-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                title="Excluir mensagem"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
         <h3 className={cn('font-black text-sm mt-2', s.text)}>{template.title}</h3>
       </div>
@@ -257,6 +289,19 @@ export const MensagensProntas: React.FC = () => {
 
   const handleDelete = (id: string) => {
     persist(templates.filter(t => t.id !== id));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = templates.findIndex(t => t.id === active.id);
+    const newIndex = templates.findIndex(t => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    persist(arrayMove(templates, oldIndex, newIndex));
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -392,15 +437,19 @@ export const MensagensProntas: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(t => (
-            <MessageCard
-              key={t.id}
-              template={t}
-              onDelete={() => handleDelete(t.id)}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map(t => t.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map(t => (
+                <MessageCard
+                  key={t.id}
+                  template={t}
+                  onDelete={() => handleDelete(t.id)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Modal — Nova Mensagem */}

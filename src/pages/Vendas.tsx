@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ShoppingCart, Plus, Search, Package, CheckCircle2,
   Trash2, X, FileText, ChevronDown, ChevronRight, Download,
@@ -203,6 +204,8 @@ const emptyForm = () => ({
 });
 
 export const Vendas: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { signature: adminSignature } = useProfileStore();
   const [sales, setSales] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -309,6 +312,22 @@ export const Vendas: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Vindo do Estoque via "Iniciar Venda" — abre o mesmo wizard de Nova Operação
+  // já com o produto selecionado, no Passo 1 (tipo de operação + cliente).
+  useEffect(() => {
+    const startProduct = (location.state as any)?.startSaleProduct;
+    if (startProduct && products.length > 0) {
+      setForm({ ...emptyForm(), selectedProduct: startProduct.id });
+      setIncomingDevices([emptyTradeInDevice()]);
+      setShowNewCustomer(false);
+      setNewCustomer(emptyCustomerForm());
+      setWizardStep(1);
+      setIsModalOpen(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, location.state]);
 
   // Sync edit fields whenever a different sale is opened in the detail modal.
   // Uses the same priority chain as the display: outgoing_items_json → uuid-tx → sale_number-tx

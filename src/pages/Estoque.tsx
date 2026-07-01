@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check, ShoppingCart } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
@@ -31,6 +32,7 @@ function deduplicateName(name: string, capacity: string, color: string): string 
 }
 
 export const Estoque: React.FC = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,11 +211,11 @@ export const Estoque: React.FC = () => {
     try {
       setIsLoading(true);
       const data = await dataService.getProducts();
-      // Sort: oldest entry_date first (ascending), then by created_at ascending as fallback
+      // Sort: newest entry_date first (descending), then by created_at descending as fallback
       const sorted = [...(data || [])].sort((a, b) => {
         const da = a.entry_date || a.created_at?.slice(0, 10) || '';
         const db = b.entry_date || b.created_at?.slice(0, 10) || '';
-        return da.localeCompare(db);
+        return db.localeCompare(da);
       });
       setProducts(sorted);
 
@@ -326,6 +328,10 @@ export const Estoque: React.FC = () => {
     } finally {
       setIsSavingEdit(false);
     }
+  };
+
+  const handleStartSale = (product: any) => {
+    navigate('/vendas', { state: { startSaleProduct: product } });
   };
 
   const handleOpenEdit = (product: any) => {
@@ -478,19 +484,27 @@ export const Estoque: React.FC = () => {
           </div>
 
           {/* Footer actions */}
-          <div className="sticky bottom-0 bg-white border-t border-neutral-100 px-5 py-4 flex gap-3">
+          <div className="sticky bottom-0 bg-white border-t border-neutral-100 px-5 py-4 flex flex-col gap-2">
             <button
-              onClick={() => { setDetailProduct(null); handleOpenEdit(p); }}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors"
+              onClick={() => { setDetailProduct(null); handleStartSale(p); }}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-primary hover:bg-primary/90 text-neutral-900 font-bold text-sm transition-colors"
             >
-              <Edit2 size={15} /> Editar
+              <ShoppingCart size={15} /> Iniciar Venda
             </button>
-            <button
-              onClick={() => { setDetailProduct(null); handleDelete(p.id); }}
-              className="w-12 flex items-center justify-center rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-            >
-              <Trash2 size={15} />
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDetailProduct(null); handleOpenEdit(p); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors"
+              >
+                <Edit2 size={15} /> Editar
+              </button>
+              <button
+                onClick={() => { setDetailProduct(null); handleDelete(p.id); }}
+                className="w-12 flex items-center justify-center rounded-2xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
           </div>
         </div>
       </div>,
@@ -605,6 +619,13 @@ export const Estoque: React.FC = () => {
         {!isSoldView && (
           <td className="pr-4 pl-2 py-3">
             <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={e => { e.stopPropagation(); handleStartSale(p); }}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Iniciar Venda"
+              >
+                <ShoppingCart size={13} />
+              </button>
               <button
                 onClick={e => { e.stopPropagation(); handleOpenEdit(p); }}
                 className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"

@@ -74,7 +74,9 @@ export const dataService = {
   async getProducts() {
     if (useMock) return mockDataService.getProducts();
     const { data, error } = await supabase
-      .from('products').select('*').order('created_at', { ascending: false });
+      .from('products').select('*')
+      .order('entry_date', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
@@ -114,6 +116,34 @@ export const dataService = {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
     return true;
+  },
+
+  // ─── Stock snapshots (variação diária do valor de estoque) ────────────
+  async getStockSnapshot(date: string): Promise<number | null> {
+    if (useMock) {
+      try { const v = localStorage.getItem(`stock_snapshot_${date}`); return v ? Number(v) : null; } catch { return null; }
+    }
+    try {
+      const { data, error } = await supabase
+        .from('stock_snapshots').select('value').eq('snapshot_date', date).maybeSingle();
+      if (error) throw error;
+      return data?.value ?? null;
+    } catch {
+      try { const v = localStorage.getItem(`stock_snapshot_${date}`); return v ? Number(v) : null; } catch { return null; }
+    }
+  },
+  async saveStockSnapshot(date: string, value: number) {
+    if (!useMock) {
+      try {
+        const uid = await getUid();
+        await supabase.from('stock_snapshots').upsert(
+          { user_id: uid, snapshot_date: date, value },
+          { onConflict: 'user_id,snapshot_date', ignoreDuplicates: true },
+        );
+        return;
+      } catch { /* cai no fallback abaixo */ }
+    }
+    try { localStorage.setItem(`stock_snapshot_${date}`, String(value)); } catch { /* ignore */ }
   },
 
   // ─── Sales ───────────────────────────────────────────────────────────

@@ -223,6 +223,7 @@ export const Dashboard: React.FC = () => {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [allProducts, setAllProducts]       = useState<any[]>([]);
   const [stockValue, setStockValue]         = useState(0);
+  const [stockValueStartOfDay, setStockValueStartOfDay] = useState(0);
   const [isLoading, setIsLoading]           = useState(true);
 
   // Meta mensal — auto-reset quando muda o mês
@@ -328,6 +329,17 @@ export const Dashboard: React.FC = () => {
         .reduce((acc: number, p: any) =>
           acc + Number(p.purchase_price || 0), 0);
       setStockValue(sv);
+
+      // Snapshot do valor de estoque no início do dia — usado para exibir a
+      // variação diária no Dashboard. Não afeta stockValue/stockAtPeriod.
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const existingSnapshot = await dataService.getStockSnapshot(todayStr);
+      if (existingSnapshot === null) {
+        setStockValueStartOfDay(sv);
+        dataService.saveStockSnapshot(todayStr, sv);
+      } else {
+        setStockValueStartOfDay(existingSnapshot);
+      }
     } catch (error: any) {
       console.error('Dashboard error:', error);
       toast.error('Erro ao carregar dados: ' + (error?.message || 'Tente recarregar a página'));
@@ -1303,6 +1315,8 @@ export const Dashboard: React.FC = () => {
               prazoCount: globalPrazoSales.length,
               stockValue: stockAtPeriod,
               stockUnits: 0,
+              stockValueNow: stockValue,
+              stockValueStartOfDay,
               meta,
               periodLabel,
               allSales,
@@ -1599,7 +1613,7 @@ export const Dashboard: React.FC = () => {
                 const [start, end] = getDateRange(period, customFrom, customTo);
 
                 // Build combined list: non-prazo sales in period + prazo installments paid in period
-                type DrillRow = { key: string; saleNum: string; customer: string; product: string; displayValue: number; dateStr: string; subLabel?: string; saleObj?: any };
+                type DrillRow = { key: string; saleNum: string; customer: string; product: string; displayValue: number; dateStr: string; sortTs: number; subLabel?: string; saleObj?: any };
                 const rows: DrillRow[] = [];
 
                 for (const sale of filteredSales) {
@@ -1617,7 +1631,7 @@ export const Dashboard: React.FC = () => {
                     const adj = sale.sale_number ? (profitAdjMap[sale.sale_number] || 0) : 0;
                     val = Number(sale.total_amount || 0) - cost - adj;
                   }
-                  rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr, saleObj: drillDown === 'profit' ? sale : null });
+                  rows.push({ key: sale.id, saleNum: sale.sale_number || '—', customer: sale.customer_name || 'Avulso', product: sale.product_name || '—', displayValue: val, dateStr, sortTs: sale.created_at ? new Date(sale.created_at).getTime() : 0, saleObj: drillDown === 'profit' ? sale : null });
                 }
 
                 // For profit drill-down: add prazo installments paid in period from ALL sales
@@ -1648,12 +1662,12 @@ export const Dashboard: React.FC = () => {
                       const regularInsts = insts.filter((x: any) => !x.is_entrada);
                       const label = inst.is_entrada ? 'Entrada' : `Parcela ${inst.n ?? (i + 1)}/${regularInsts.length}`;
                       const dateStr = new Date(inst.paid_at + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                      rows.push({ key: `${s.id}-${i}`, saleNum, customer: s.customer_name || 'Avulso', product: s.product_name || '—', displayValue: instProfit, dateStr, subLabel: label });
+                      rows.push({ key: `${s.id}-${i}`, saleNum, customer: s.customer_name || 'Avulso', product: s.product_name || '—', displayValue: instProfit, dateStr, sortTs: new Date(inst.paid_at + 'T12:00:00').getTime(), subLabel: label });
                     }
                   }
                 }
 
-                rows.sort((a, b) => b.displayValue - a.displayValue);
+                rows.sort((a, b) => drillDown === 'profit' ? b.sortTs - a.sortTs : b.displayValue - a.displayValue);
 
                 if (rows.length === 0) return (
                   <div className="flex items-center justify-center py-12 text-sm text-neutral-400">

@@ -29,6 +29,8 @@ export interface WidgetContext {
   prazoCount: number;
   stockValue: number;
   stockUnits: number;
+  stockValueNow: number;
+  stockValueStartOfDay: number;
   meta: number;
   periodLabel: string;
   allSales: any[];
@@ -169,12 +171,19 @@ export const WIDGETS: WidgetDef[] = [
     kind: 'kpi',
     defaultSize: 'sm',
     keywords: ['estoque', 'inventario', 'produtos'],
-    compute: (c) => ({
-      value: c.formatCurrency(c.stockValue),
-      sub: `Valor em estoque · ${c.periodLabel}`,
-      drill: 'stock',
-      tone: 'default',
-    }),
+    compute: (c) => {
+      const diff = c.stockValueNow - c.stockValueStartOfDay;
+      const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+      return {
+        value: c.formatCurrency(c.stockValue),
+        sub: c.stockValueStartOfDay > 0
+          ? `${sign}${c.formatCurrency(Math.abs(diff))} hoje`
+          : `Valor em estoque · ${c.periodLabel}`,
+        drill: 'stock',
+        tone: 'default',
+        trend: { cur: c.stockValueNow, prev: c.stockValueStartOfDay },
+      };
+    },
   },
 
   // ── Novos: inteligência por cálculo ──

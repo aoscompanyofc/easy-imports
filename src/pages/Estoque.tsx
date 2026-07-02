@@ -621,10 +621,10 @@ export const Estoque: React.FC = () => {
             <div className="flex items-center gap-1.5 justify-end">
               <button
                 onClick={e => { e.stopPropagation(); handleStartSale(p); }}
-                className="flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-neutral-900 text-[11px] font-black transition-colors flex-shrink-0"
+                className="flex items-center gap-1 pl-1.5 pr-2 py-1 rounded-full bg-primary hover:bg-primary/90 text-neutral-900 text-[10px] font-black transition-colors flex-shrink-0 leading-none"
                 title="Iniciar Venda"
               >
-                <ShoppingCart size={12} /> Vender
+                <ShoppingCart size={10} /> Vender
               </button>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button

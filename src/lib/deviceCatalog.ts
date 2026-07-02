@@ -76,6 +76,7 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
     brand: 'Apple', category: 'iPad',
     models: [
       // ── iPad Pro ──────────────────────────────────────────────────────────────
+      { name: 'iPad Pro 11" M5',  capacities: ['256GB', '512GB', '1TB', '2TB'],               colors: ['Preto Espacial', 'Prata'] },
       { name: 'iPad Pro 13" M4',  capacities: ['256GB', '512GB', '1TB', '2TB'],               colors: ['Preto Espacial', 'Prata'] },
       { name: 'iPad Pro 11" M4',  capacities: ['256GB', '512GB', '1TB', '2TB'],               colors: ['Preto Espacial', 'Prata'] },
       { name: 'iPad Pro 12.9" M2', capacities: ['128GB', '256GB', '512GB', '1TB', '2TB'],     colors: ['Cinza Espacial', 'Prata'] },

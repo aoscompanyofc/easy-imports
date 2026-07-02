@@ -618,29 +618,30 @@ export const Estoque: React.FC = () => {
         {/* Ações */}
         {!isSoldView && (
           <td className="pr-4 pl-2 py-3">
-            <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1.5 justify-end">
               <button
                 onClick={e => { e.stopPropagation(); handleStartSale(p); }}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-neutral-900 text-[11px] font-black transition-colors flex-shrink-0"
                 title="Iniciar Venda"
               >
-                <ShoppingCart size={13} />
+                <ShoppingCart size={12} /> Vender
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); handleOpenEdit(p); }}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Editar"
-              >
-                <Edit2 size={13} />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                title="Remover"
-              >
-                <Trash2 size={13} />
-              </button>
-              <ChevronRight size={13} className="text-neutral-300 ml-0.5" />
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={e => { e.stopPropagation(); handleOpenEdit(p); }}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Editar"
+                >
+                  <Edit2 size={13} />
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  title="Remover"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           </td>
         )}
@@ -1018,7 +1019,7 @@ export const Estoque: React.FC = () => {
                 <col className="w-32" />
                 <col className="w-16" />
                 <col className="w-24" />
-                <col className="w-20" />
+                <col className="w-32" />
               </colgroup>
               <TableHeader />
               <tbody>
@@ -1056,7 +1057,7 @@ export const Estoque: React.FC = () => {
                     <col className="w-32" />
                     <col className="w-16" />
                     <col className="w-24" />
-                    <col className="w-20" />
+                    <col className="w-32" />
                   </colgroup>
                   <TableHeader />
                   <tbody>

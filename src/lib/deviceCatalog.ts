@@ -47,27 +47,9 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iPhone 12 Pro', capacities: ['128GB', '256GB', '512GB'], colors: ['Prata', 'Grafite', 'Ouro', 'Azul Pacífico'] },
       { name: 'iPhone 12', capacities: ['64GB', '128GB', '256GB'], colors: ['Preto', 'Branco', 'Vermelho', 'Verde', 'Azul', 'Roxo'] },
       { name: 'iPhone 12 mini', capacities: ['64GB', '128GB', '256GB'], colors: ['Preto', 'Branco', 'Vermelho', 'Verde', 'Azul', 'Roxo'] },
-      // iPhone 11 (2019)
-      { name: 'iPhone 11 Pro Max', capacities: ['64GB', '256GB', '512GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro', 'Verde Meia-Noite'] },
-      { name: 'iPhone 11 Pro', capacities: ['64GB', '256GB', '512GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro', 'Verde Meia-Noite'] },
-      { name: 'iPhone 11', capacities: ['64GB', '128GB', '256GB'], colors: ['Preto', 'Branco', 'Vermelho', 'Roxo', 'Amarelo', 'Verde'] },
-      // iPhone XS / XR (2018)
-      { name: 'iPhone XS Max', capacities: ['64GB', '256GB', '512GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro'] },
-      { name: 'iPhone XS', capacities: ['64GB', '256GB', '512GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro'] },
-      { name: 'iPhone XR', capacities: ['64GB', '128GB', '256GB'], colors: ['Preto', 'Branco', 'Azul', 'Coral', 'Amarelo', 'Vermelho'] },
-      // iPhone X / 8 (2017)
-      { name: 'iPhone X', capacities: ['64GB', '256GB'], colors: ['Prata', 'Cinza Espacial'] },
-      { name: 'iPhone 8 Plus', capacities: ['64GB', '256GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro'] },
-      { name: 'iPhone 8', capacities: ['64GB', '256GB'], colors: ['Prata', 'Cinza Espacial', 'Ouro'] },
       // iPhone SE
       { name: 'iPhone SE (3ª geração)', capacities: ['64GB', '128GB', '256GB'], colors: ['Meia-Noite', 'Estelar', 'Vermelho'] },
       { name: 'iPhone SE (2ª geração)', capacities: ['64GB', '128GB', '256GB'], colors: ['Preto', 'Branco', 'Vermelho'] },
-      { name: 'iPhone SE (1ª geração)', capacities: ['16GB', '32GB', '64GB'], colors: ['Cinza Espacial', 'Prata', 'Ouro', 'Ouro Rosa'] },
-      // iPhone 7 / 6
-      { name: 'iPhone 7 Plus', capacities: ['32GB', '128GB', '256GB'], colors: ['Preto Mate', 'Preto Brilhante', 'Prata', 'Ouro', 'Ouro Rosa', 'Vermelho'] },
-      { name: 'iPhone 7', capacities: ['32GB', '128GB', '256GB'], colors: ['Preto Mate', 'Preto Brilhante', 'Prata', 'Ouro', 'Ouro Rosa', 'Vermelho'] },
-      { name: 'iPhone 6s Plus', capacities: ['16GB', '32GB', '64GB', '128GB'], colors: ['Cinza Espacial', 'Prata', 'Ouro', 'Ouro Rosa'] },
-      { name: 'iPhone 6s', capacities: ['16GB', '32GB', '64GB', '128GB'], colors: ['Cinza Espacial', 'Prata', 'Ouro', 'Ouro Rosa'] },
     ],
   },
 
@@ -85,12 +67,6 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iPad Pro 11" M1',  capacities: ['128GB', '256GB', '512GB', '1TB', '2TB'],      colors: ['Cinza Espacial', 'Prata'] },
       { name: 'iPad Pro 12.9" (4ª gen)', capacities: ['128GB', '256GB', '512GB', '1TB'],      colors: ['Cinza Espacial', 'Prata'] },
       { name: 'iPad Pro 11" (2ª gen)',   capacities: ['128GB', '256GB', '512GB', '1TB'],      colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'iPad Pro 12.9" (3ª gen)', capacities: ['64GB', '256GB', '512GB', '1TB'],       colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'iPad Pro 11" (1ª gen)',   capacities: ['64GB', '256GB', '512GB', '1TB'],       colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'iPad Pro 12.9" (2ª gen)', capacities: ['64GB', '256GB', '512GB'],              colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad Pro 10.5"',          capacities: ['64GB', '256GB', '512GB'],              colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad Pro 12.9" (1ª gen)', capacities: ['32GB', '128GB', '256GB'],              colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad Pro 9.7"',           capacities: ['32GB', '128GB', '256GB'],              colors: ['Cinza Espacial', 'Prata', 'Ouro', 'Ouro Rosa'] },
       // ── iPad Air ──────────────────────────────────────────────────────────────
       { name: 'iPad Air 13" M3',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Verde-Água', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air 11" M3',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Verde-Água', 'Roxo', 'Estelar', 'Cinza Espacial'] },
@@ -98,29 +74,14 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iPad Air 11" M2',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air M1 (5ª gen)', capacities: ['64GB', '256GB'],                          colors: ['Azul', 'Roxo', 'Rosa', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air (4ª gen)', capacities: ['64GB', '256GB'],                             colors: ['Azul Céu', 'Verde', 'Rosa', 'Ouro Rosa', 'Cinza Espacial'] },
-      { name: 'iPad Air (3ª gen)', capacities: ['64GB', '256GB'],                             colors: ['Ouro', 'Prata', 'Cinza Espacial'] },
-      { name: 'iPad Air 2',        capacities: ['16GB', '64GB', '128GB'],                     colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad Air (1ª geração)', capacities: ['16GB', '32GB', '64GB', '128GB'],         colors: ['Cinza Espacial', 'Prata'] },
       // ── iPad (linha básica) ───────────────────────────────────────────────────
       { name: 'iPad (11ª geração)', capacities: ['128GB', '256GB', '512GB'],                  colors: ['Azul', 'Rosa', 'Amarelo', 'Prata'] },
       { name: 'iPad (10ª geração)', capacities: ['64GB', '256GB'],                            colors: ['Azul', 'Rosa', 'Amarelo', 'Prata'] },
       { name: 'iPad (9ª geração)',  capacities: ['64GB', '256GB'],                            colors: ['Cinza Espacial', 'Prata'] },
       { name: 'iPad (8ª geração)',  capacities: ['32GB', '128GB'],                            colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad (7ª geração)',  capacities: ['32GB', '128GB'],                            colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad (6ª geração)',  capacities: ['32GB', '128GB'],                            colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad (5ª geração)',  capacities: ['32GB', '128GB'],                            colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad (4ª geração)',  capacities: ['16GB', '32GB', '64GB', '128GB'],            colors: ['Preto', 'Branco'] },
-      { name: 'iPad (3ª geração)',  capacities: ['16GB', '32GB', '64GB'],                     colors: ['Preto', 'Branco'] },
-      { name: 'iPad 2',             capacities: ['16GB', '32GB', '64GB'],                     colors: ['Preto', 'Branco'] },
-      { name: 'iPad (1ª geração)',  capacities: ['16GB', '32GB', '64GB'],                     colors: ['Preto'] },
       // ── iPad mini ─────────────────────────────────────────────────────────────
       { name: 'iPad mini 7',       capacities: ['128GB', '256GB', '512GB'],                   colors: ['Azul', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad mini 6',       capacities: ['64GB', '256GB'],                             colors: ['Roxo', 'Rosa', 'Estelar', 'Cinza Espacial'] },
-      { name: 'iPad mini 5',       capacities: ['64GB', '256GB'],                             colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad mini 4',       capacities: ['16GB', '32GB', '64GB', '128GB'],             colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad mini 3',       capacities: ['16GB', '64GB', '128GB'],                     colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad mini 2',       capacities: ['16GB', '32GB', '64GB', '128GB'],             colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'iPad mini (1ª geração)', capacities: ['16GB', '32GB', '64GB'],                 colors: ['Preto', 'Branco'] },
     ],
   },
 
@@ -158,17 +119,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'MacBook Pro 14" M1 Max', capacities: ['512GB', '1TB', '2TB'],        colors: ['Cinza Espacial', 'Prata'] },
       { name: 'MacBook Pro 14" M1 Pro', capacities: ['512GB', '1TB', '2TB'],        colors: ['Cinza Espacial', 'Prata'] },
       { name: 'MacBook Pro 13" M1',     capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Cinza Espacial', 'Prata'] },
-      // ── MacBook Pro Intel (2016–2020) ────────────────────────────────────────
-      { name: 'MacBook Pro 16" (Intel 2019)', capacities: ['512GB', '1TB', '2TB'],  colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 15" (Intel 2019)', capacities: ['256GB', '512GB'],       colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 15" (Intel 2018)', capacities: ['256GB', '512GB'],       colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 15" (Intel 2017)', capacities: ['256GB', '512GB'],       colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 15" (Intel 2016)', capacities: ['256GB', '512GB'],       colors: ['Cinza Espacial', 'Prata'] },
+      // ── MacBook Pro Intel (2020) ─────────────────────────────────────────────
       { name: 'MacBook Pro 13" (Intel 2020)', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 13" (Intel 2019)', capacities: ['128GB', '256GB', '512GB'],      colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 13" (Intel 2018)', capacities: ['256GB', '512GB'],               colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 13" (Intel 2017)', capacities: ['128GB', '256GB', '512GB'],      colors: ['Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Pro 13" (Intel 2016)', capacities: ['256GB', '512GB'],               colors: ['Cinza Espacial', 'Prata'] },
       // ── MacBook Air M5 (2026) ────────────────────────────────────────────────
       { name: 'MacBook Air 15" M5', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },
       { name: 'MacBook Air 13" M5', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Meia-Noite', 'Estelar', 'Azul Céu', 'Cinza'] },
@@ -185,22 +137,11 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'MacBook Air M1',     capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Ouro', 'Cinza Espacial', 'Prata'] },
       // ── MacBook Air Intel (2018–2020) ────────────────────────────────────────
       { name: 'MacBook Air (Intel 2020)', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Ouro', 'Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Air (Intel 2019)', capacities: ['128GB', '256GB', '512GB'],      colors: ['Ouro', 'Cinza Espacial', 'Prata'] },
-      { name: 'MacBook Air (Retina 2018)', capacities: ['128GB', '256GB', '512GB'],     colors: ['Ouro', 'Cinza Espacial', 'Prata'] },
-      // ── MacBook 12" (2015–2019, descontinuado) ───────────────────────────────
-      { name: 'MacBook 12" (2019)', capacities: ['256GB', '512GB'], colors: ['Ouro', 'Cinza Espacial', 'Prata', 'Ouro Rosa'] },
-      { name: 'MacBook 12" (2018)', capacities: ['256GB', '512GB'], colors: ['Ouro', 'Cinza Espacial', 'Prata', 'Ouro Rosa'] },
-      { name: 'MacBook 12" (2017)', capacities: ['256GB', '512GB'], colors: ['Ouro', 'Cinza Espacial', 'Prata', 'Ouro Rosa'] },
-      { name: 'MacBook 12" (2016)', capacities: ['256GB', '512GB'], colors: ['Ouro', 'Cinza Espacial', 'Prata', 'Ouro Rosa'] },
-      { name: 'MacBook 12" (2015)', capacities: ['256GB', '512GB'], colors: ['Ouro', 'Cinza Espacial', 'Prata'] },
       // ── iMac ─────────────────────────────────────────────────────────────────
       { name: 'iMac M4',   capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Azul', 'Verde', 'Rosa', 'Prata', 'Amarelo', 'Laranja', 'Roxo'] },
       { name: 'iMac M3',   capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Azul', 'Verde', 'Rosa', 'Prata', 'Amarelo', 'Laranja', 'Roxo'] },
       { name: 'iMac M1',   capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Azul', 'Verde', 'Rosa', 'Prata', 'Amarelo', 'Laranja', 'Roxo'] },
       { name: 'iMac 27" (Intel 2020)', capacities: ['256GB', '512GB', '1TB', '2TB', '4TB'], colors: ['Prata'] },
-      { name: 'iMac 27" (Intel 2019)', capacities: ['256GB', '512GB', '1TB', '2TB'],        colors: ['Prata'] },
-      { name: 'iMac 21.5" (Intel 2019)', capacities: ['256GB', '512GB', '1TB'],             colors: ['Prata'] },
-      { name: 'iMac Pro (Intel 2017)', capacities: ['1TB', '2TB', '4TB'],                   colors: ['Cinza Espacial'] },
       // ── Mac mini ─────────────────────────────────────────────────────────────
       { name: 'Mac mini M4 Pro', capacities: ['512GB', '1TB', '2TB'] },
       { name: 'Mac mini M4',     capacities: ['256GB', '512GB', '1TB', '2TB'] },
@@ -216,7 +157,6 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'Mac Studio M1 Ultra', capacities: ['1TB', '2TB', '4TB'] },
       // ── Mac Pro ──────────────────────────────────────────────────────────────
       { name: 'Mac Pro M2 Ultra',      capacities: ['1TB', '2TB', '4TB', '8TB'] },
-      { name: 'Mac Pro (Intel 2019)',   capacities: ['256GB', '512GB', '1TB', '2TB', '4TB'] },
     ],
   },
 
@@ -235,9 +175,6 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'Apple Watch Series 7',  capacities: ['41mm', '45mm'], colors: ['Meia-Noite', 'Estelar', 'Verde', 'Azul', 'Vermelho'] },
       { name: 'Apple Watch SE (1ª gen)', capacities: ['40mm', '44mm'], colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
       { name: 'Apple Watch Series 6',  capacities: ['40mm', '44mm'], colors: ['Azul', 'Vermelho', 'Grafite', 'Ouro', 'Prata'] },
-      { name: 'Apple Watch Series 5',  capacities: ['40mm', '44mm'], colors: ['Cinza Espacial', 'Prata', 'Ouro', 'Branco Cerâmica'] },
-      { name: 'Apple Watch Series 4',  capacities: ['40mm', '44mm'], colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
-      { name: 'Apple Watch Series 3',  capacities: ['38mm', '42mm'], colors: ['Cinza Espacial', 'Prata', 'Ouro'] },
     ],
   },
 
@@ -250,13 +187,11 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'AirPods 4 (ANC)', capacities: ['—'] },
       { name: 'AirPods 4', capacities: ['—'] },
       { name: 'AirPods 3', capacities: ['—'] },
-      { name: 'AirPods 2', capacities: ['—'] },
       { name: 'AirPods Max (USB-C)', capacities: ['—'], colors: ['Azul Meia-Noite', 'Luz das Estrelas', 'Laranja', 'Roxo', 'Rosa'] },
       { name: 'AirPods Max (Lightning)', capacities: ['—'], colors: ['Cinza Espacial', 'Prata', 'Azul Céu', 'Verde', 'Rosa'] },
       { name: 'Beats Studio Pro', capacities: ['—'] },
       { name: 'Beats Fit Pro', capacities: ['—'] },
       { name: 'Beats Studio Buds+', capacities: ['—'] },
-      { name: 'Beats Powerbeats Pro', capacities: ['—'] },
     ],
   },
 

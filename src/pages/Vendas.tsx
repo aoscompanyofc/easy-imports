@@ -657,6 +657,8 @@ export const Vendas: React.FC = () => {
           incoming_purchase_price: Number(primaryDevice.purchase_price) || 0,
           installments_json: editInstJson,
           outgoing_items_json: outgoingItemsJson,
+          seller_id: form.rep_id || null,
+          seller_display_name: sellers.find((s) => s.id === form.rep_id)?.name || '',
         });
         await dataService.tryUpdateSaleRevision(editSaleId, editSaleRevision + 1);
         toast.success(`Venda atualizada! PDF versão ${editSaleNumber}.${editSaleRevision + 1}`);
@@ -1425,6 +1427,7 @@ export const Vendas: React.FC = () => {
       seller_phone: sale.seller_phone || '',
       seller_address: sale.seller_address || '',
       seller_email: sale.seller_email || '',
+      rep_id: sale.seller_id || '',
       selectedProduct: primaryProductId,
       product_name_manual: sale.product_name || '',
       product_capacity: sale.product_capacity || '',
@@ -1872,9 +1875,9 @@ export const Vendas: React.FC = () => {
                           </div>
 
                           {/* Rep seller badge */}
-                          {sale.rep_seller_name && (
+                          {sale.seller_display_name && (
                             <span className="hidden md:block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary-900 flex-shrink-0 max-w-[100px] truncate">
-                              {sale.rep_seller_name}
+                              {sale.seller_display_name}
                             </span>
                           )}
 
@@ -4898,7 +4901,7 @@ export const Vendas: React.FC = () => {
                 ['Cor', detailSale.product_color],
                 ['Estado', detailSale.product_condition],
                 ['Acessórios', detailSale.product_accessories],
-                ['Responsável', detailSale.rep_seller_name],
+                ['Responsável', detailSale.seller_display_name],
                 ['Vendedor/Cliente', detailSale.customer_name || detailSale.seller_name],
                 ['CPF', detailSale.seller_cpf || detailSale.customer_cpf],
                 ['RG', detailSale.seller_rg],

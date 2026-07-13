@@ -216,6 +216,17 @@ export const dataService = {
 
     const saleRow = await tryInsert('sales', [p1, p2, p3, p4, p5, p5b, p6, p7]);
     const saleId = saleRow.id;
+
+    // Vendedor/comissão: se o insert caiu num nível de fallback que descarta seller_id
+    // (porque outra coluna qualquer estava ausente), tenta gravar o vendedor à parte —
+    // assim a atribuição não se perde por causa de um problema em outro campo.
+    if (rep_seller_id && saleRow.seller_id !== rep_seller_id) {
+      const { error: sellerErr } = await supabase.from('sales')
+        .update({ seller_id: rep_seller_id, seller_display_name: rep_seller_name })
+        .eq('id', saleId);
+      if (!sellerErr) { saleRow.seller_id = rep_seller_id; saleRow.seller_display_name = rep_seller_name; }
+    }
+
     const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {
       const { error: siErr } = await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
@@ -254,6 +265,16 @@ export const dataService = {
     if (useMock) throw new Error('Mock não suporta updateSale');
     const uid = await getUid();
 
+    // Vendedor/comissão: tentativa dedicada, isolada do resto do payload — assim uma coluna
+    // qualquer ausente no restante da venda nunca derruba junto a atribuição do vendedor
+    // (que nos níveis de fallback abaixo só sobrevive até o nível 3).
+    const patchSeller = async () => {
+      if (!('seller_id' in updates)) return;
+      const sellerPayload = { seller_id: updates.seller_id, seller_display_name: updates.seller_display_name };
+      const { error } = await supabase.from('sales').update(sellerPayload).eq('id', id).eq('user_id', uid);
+      if (error && !isColErr(error)) throw error;
+    };
+
     // Nível 1: schema completo
     const { error: e1 } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
     if (!e1) return true;
@@ -287,6 +308,7 @@ export const dataService = {
     for (const k of ['sale_type','customer_name','product_name','total_amount','payment_method','created_at','signature_client']) {
       if (updates[k] !== undefined) minimal[k] = updates[k];
     }
+    await patchSeller();
     if (Object.keys(minimal).length === 0) return true;
     const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);
     if (e4) throw e4;

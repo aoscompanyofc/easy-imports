@@ -1855,6 +1855,11 @@ export const Vendas: React.FC = () => {
                       const tradeDevs: any[] = type === 'troca' ? (() => { try { return JSON.parse(sale.incoming_devices_json || '[]'); } catch { return []; } })() : [];
                       const tradeResale = type === 'troca' ? Number(tradeDevs[0]?.sale_price || 0) : 0;
                       const tradePotential = tradeResale > 0 ? tradeResale - Number(sale.incoming_purchase_price || 0) : null;
+                      // Lucro total da troca = venda (que já soma o valor do aparelho recebido como
+                      // parte do faturamento) + potencial de revenda desse aparelho. Mostrar só a
+                      // "parte 1" isolada faz uma troca normal parecer prejuízo, já que o valor do
+                      // aparelho recebido some do faturamento mas o custo do aparelho vendido não.
+                      const totalProfit = saleProfit !== null && tradePotential !== null ? saleProfit + tradePotential : saleProfit;
                       const prazoInsts: any[] = type === 'prazo' && sale.installments_json
                         ? (() => { try { return JSON.parse(sale.installments_json); } catch { return []; } })()
                         : [];
@@ -1962,11 +1967,13 @@ export const Vendas: React.FC = () => {
                             <p className="font-black text-neutral-900 text-sm leading-tight">
                               {formatCurrency(Number(sale.total_amount))}
                             </p>
-                            {saleProfit !== null && (
-                              <p className={cn('text-[10px] font-bold leading-tight', saleProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
-                                {saleProfit >= 0 ? '+' : ''}{formatCurrency(saleProfit)}
+                            {totalProfit !== null && (
+                              <p className={cn('text-[10px] font-bold leading-tight', totalProfit >= 0 ? 'text-green-600' : 'text-red-500')}>
+                                {totalProfit >= 0 ? '+' : ''}{formatCurrency(totalProfit)}
                                 {tradePotential !== null && (
-                                  <span className="text-neutral-400"> + {formatCurrency(tradePotential)}</span>
+                                  <span className="text-neutral-400 font-normal">
+                                    {' '}(venda {saleProfit! >= 0 ? '+' : ''}{formatCurrency(saleProfit!)} · troca {tradePotential >= 0 ? '+' : ''}{formatCurrency(tradePotential)})
+                                  </span>
                                 )}
                               </p>
                             )}

@@ -159,7 +159,7 @@ export const dataService = {
     const uid = await getUid();
     const {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
-      sale_number, sale_type, installments, pdf_type,
+      sale_number: requestedSaleNumber, sale_type, installments, pdf_type,
       seller_name, seller_cpf, seller_rg, seller_phone, seller_address, seller_email,
       customer_phone, customer_cpf, customer_city,
       product_capacity, product_color, product_condition, product_imei, product_accessories,
@@ -169,6 +169,28 @@ export const dataService = {
       rep_seller_id, rep_seller_name, incoming_devices_json, installments_json,
       outgoing_items_json,
     } = sale;
+
+    // Garante número único mesmo com duas vendas criadas quase ao mesmo tempo (ex: dois
+    // vendedores simultâneos): o número pedido vem calculado a partir da lista carregada
+    // na tela, que pode estar desatualizada. Reconsulta o banco (fonte da verdade) e ajusta
+    // se já existir — evita duas vendas com o mesmo #V000X, que faz o custo de uma "vazar"
+    // para a outra no cálculo de lucro (ambas compartilham a mesma chave de busca).
+    let sale_number = requestedSaleNumber;
+    const numMatch = String(requestedSaleNumber || '').match(/^(#?[A-Za-z]+)(\d+)$/);
+    if (numMatch) {
+      const [, prefix, digits] = numMatch;
+      const { data: existingRows } = await supabase
+        .from('sales').select('sale_number').eq('user_id', uid).ilike('sale_number', `${prefix}%`);
+      const used = new Set((existingRows || []).map((r: any) => r.sale_number));
+      if (used.has(sale_number)) {
+        let n = parseInt(digits, 10);
+        do {
+          n += 1;
+          sale_number = `${prefix}${String(n).padStart(digits.length, '0')}`;
+        } while (used.has(sale_number));
+      }
+    }
+
     const sign_token = safeUUID();
     const inst = installments || 1;
     const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid };

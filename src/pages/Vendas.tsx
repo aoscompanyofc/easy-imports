@@ -1400,6 +1400,20 @@ export const Vendas: React.FC = () => {
     }
   };
 
+  // Troca rápida do vendedor responsável, sem passar pelo assistente de edição inteiro.
+  const handleQuickChangeSeller = async (saleId: string, newSellerId: string) => {
+    const newSeller = sellers.find((s) => s.id === newSellerId);
+    const patch = { seller_id: newSellerId || null, seller_display_name: newSeller?.name || '' };
+    try {
+      await dataService.updateSale(saleId, patch);
+      setSales((prev) => prev.map((s) => (s.id === saleId ? { ...s, ...patch } : s)));
+      setDetailSale((prev: any) => (prev && prev.id === saleId ? { ...prev, ...patch } : prev));
+      toast.success('Vendedor atualizado!');
+    } catch (error: any) {
+      toast.error('Erro ao atualizar vendedor: ' + error.message);
+    }
+  };
+
   const handleOpenEdit = (sale: any) => {
     const sType = sale.sale_type || 'venda';
     const tradeIn = sale.incoming_purchase_price || 0;
@@ -1874,12 +1888,22 @@ export const Vendas: React.FC = () => {
                             </p>
                           </div>
 
-                          {/* Rep seller badge */}
-                          {sale.seller_display_name && (
-                            <span className="hidden md:block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary-900 flex-shrink-0 max-w-[100px] truncate">
-                              {sale.seller_display_name}
-                            </span>
-                          )}
+                          {/* Vendedor — edição rápida direto na lista */}
+                          <select
+                            value={sale.seller_id || ''}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => { e.stopPropagation(); handleQuickChangeSeller(sale.id, e.target.value); }}
+                            title="Vendedor responsável"
+                            className={cn(
+                              'hidden md:block px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 max-w-[110px] outline-none cursor-pointer border-0 transition-colors',
+                              sale.seller_display_name ? 'bg-primary/10 text-primary-900' : 'bg-neutral-100 text-neutral-400'
+                            )}
+                          >
+                            <option value="">Sem vendedor</option>
+                            {sellers.map((s: any) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
 
                           {/* Payment */}
                           <span className="hidden sm:block text-xs text-neutral-500 flex-shrink-0">
@@ -4889,6 +4913,21 @@ export const Vendas: React.FC = () => {
               );
             })()}
 
+            {/* Vendedor Responsável — edição rápida, sem precisar do assistente */}
+            <div className="bg-neutral-50 rounded-xl p-3 flex items-center justify-between gap-3">
+              <p className="text-[10px] text-neutral-400 uppercase tracking-wide font-bold">Vendedor Responsável</p>
+              <select
+                value={detailSale.seller_id || ''}
+                onChange={(e) => handleQuickChangeSeller(detailSale.id, e.target.value)}
+                className="text-sm font-semibold text-neutral-900 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary cursor-pointer max-w-[60%]"
+              >
+                <option value="">Sem atribuição</option>
+                {sellers.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
                 ['Número', detailSale.sale_number],
@@ -4901,7 +4940,6 @@ export const Vendas: React.FC = () => {
                 ['Cor', detailSale.product_color],
                 ['Estado', detailSale.product_condition],
                 ['Acessórios', detailSale.product_accessories],
-                ['Responsável', detailSale.seller_display_name],
                 ['Vendedor/Cliente', detailSale.customer_name || detailSale.seller_name],
                 ['CPF', detailSale.seller_cpf || detailSale.customer_cpf],
                 ['RG', detailSale.seller_rg],

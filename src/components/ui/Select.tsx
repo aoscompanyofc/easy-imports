@@ -69,12 +69,12 @@ export const Select: React.FC<SelectProps> = ({
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronDown
             size={18}
-            className={cn('text-neutral-400 transition-transform duration-200', isOpen && 'rotate-180')}
+            className={cn('text-neutral-400 transition-transform duration-180', isOpen && 'rotate-180')}
           />
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-neutral-200 rounded-lg shadow-lg z-50 animate-in fade-in zoom-in-95 duration-180 overflow-hidden">
             {options.length > 5 && (
               <div className="p-2 border-b border-neutral-100">
                 <div className="relative">

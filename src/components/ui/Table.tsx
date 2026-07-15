@@ -46,7 +46,7 @@ export function Table<T extends { id: string | number }>({
   }
 
   return (
-    <div className="w-full overflow-x-auto bg-white border border-neutral-200 rounded-xl shadow-card overflow-hidden">
+    <div className="w-full overflow-x-auto bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -54,7 +54,7 @@ export function Table<T extends { id: string | number }>({
               <th
                 key={index}
                 className={cn(
-                  'px-6 py-4 text-xs font-bold text-neutral-500 uppercase tracking-wider',
+                  'px-6 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider',
                   column.className
                 )}
               >

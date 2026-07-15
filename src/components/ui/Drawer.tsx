@@ -47,19 +47,19 @@ export const Drawer: React.FC<DrawerProps> = ({
   return (
     <div className="fixed inset-0 z-[100]">
       <div 
-        className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[2px] animate-in fade-in duration-300"
+        className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[2px] animate-in fade-in duration-320"
         onClick={onClose}
       />
       <div 
         className={cn(
-          'absolute bg-white shadow-2xl flex flex-col animate-in duration-300',
+          'absolute bg-white shadow-2xl flex flex-col animate-in duration-320',
           placements[side],
           sizes[size],
           side !== 'bottom' && 'h-full'
         )}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <h3 className="text-lg font-bold text-neutral-900">{title}</h3>
+          <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
           <button
             onClick={onClose}
             className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-all"

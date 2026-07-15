@@ -33,7 +33,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <AlertCircle size={32} />
         </div>
         
-        <h3 className="text-xl font-bold text-neutral-900 mb-2">{title}</h3>
+        <h3 className="text-xl font-semibold text-neutral-900 mb-2">{title}</h3>
         <p className="text-sm text-neutral-500 mb-8 leading-relaxed">
           {message}
         </p>

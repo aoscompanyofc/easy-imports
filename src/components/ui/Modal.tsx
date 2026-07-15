@@ -67,7 +67,7 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {title && (
           <div className="flex items-center justify-between px-5 py-4 sm:px-6 border-b border-neutral-100 flex-shrink-0">
-            <h3 className="text-base sm:text-lg font-bold text-neutral-900">{title}</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-neutral-900">{title}</h3>
             <button
               onClick={onClose}
               className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-all"

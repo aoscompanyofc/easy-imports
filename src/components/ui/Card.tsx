@@ -27,14 +27,14 @@ export const Card: React.FC<CardProps> = ({
 
   const variants = {
     default: 'bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-shadow',
-    bordered: 'bg-white border-2 border-neutral-200',
+    bordered: 'bg-white border border-neutral-200',
     elevated: 'bg-white border border-neutral-200 shadow-md hover:shadow-lg',
   };
 
   return (
     <div
       className={cn(
-        'rounded-2xl overflow-hidden transition-all duration-200',
+        'rounded-2xl overflow-hidden transition-all duration-240',
         variants[variant],
         paddings[padding],
         className

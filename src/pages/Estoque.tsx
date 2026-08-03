@@ -116,8 +116,10 @@ export const Estoque: React.FC = () => {
       if (capCol) lines.push(`💾 ${capCol}`);
       const price = Number(p.sale_price);
       if (price > 0) lines.push(`💰 ${fmtPrice(price)}`);
-      const battery = (p.product_condition || '').match(/Bateria: (.+)/)?.[1];
+      const battery = (p.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
       if (battery) lines.push(`🔋 Saúde da bateria: ${battery}`);
+      const cycles = (p.product_condition || '').match(/Ciclos: (\d+)/)?.[1];
+      if (cycles) lines.push(`🔋 ${cycles} ciclos de carga`);
       if (p.notes) lines.push(...parseNotes(p.notes));
       const cond = conditionLabel(p.product_condition || '');
       if (cond) lines.push(`✅ ${cond}`);
@@ -271,7 +273,8 @@ export const Estoque: React.FC = () => {
     if (!name && !addForm.model) { toast.error('Selecione ou informe o modelo.'); return; }
     try {
       setIsSavingAdd(true);
-      const batteryNote = addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '';
+      const batteryNote = (addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '')
+        + (addForm.battery_cycles ? ` · Ciclos: ${addForm.battery_cycles}` : '');
       await dataService.addProduct({
         name: name || addForm.model,
         category: addForm.category,
@@ -304,7 +307,8 @@ export const Estoque: React.FC = () => {
     if (!editingId) return;
     try {
       setIsSavingEdit(true);
-      const batteryNote = editForm.battery_health ? ` · Bateria: ${editForm.battery_health}` : '';
+      const batteryNote = (editForm.battery_health ? ` · Bateria: ${editForm.battery_health}` : '')
+        + (editForm.battery_cycles ? ` · Ciclos: ${editForm.battery_cycles}` : '');
       await dataService.updateProduct(editingId, {
         name: deviceFormToProductName(editForm) || editForm.model,
         category: editForm.category,
@@ -352,7 +356,8 @@ export const Estoque: React.FC = () => {
       capacity: cap,
       color: col,
       condition: (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, ''),
-      battery_health: (product.product_condition || '').match(/Bateria: (.+)/)?.[1] || '',
+      battery_health: (product.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim() || '',
+      battery_cycles: (product.product_condition || '').match(/Ciclos: (\d+)/)?.[1] || '',
       warranty: product.product_warranty || 'Sem garantia',
       origin: product.product_origin || '',
       entry_date: product.entry_date || new Date().toISOString().split('T')[0],
@@ -412,7 +417,8 @@ export const Estoque: React.FC = () => {
     const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
     const isStale = daysInStock >= STALE_DAYS;
     const condBase = (p.product_condition || '').replace(/ · Bateria:.*/, '');
-    const battery = (p.product_condition || '').match(/Bateria: (.+)/)?.[1];
+    const battery = (p.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
+    const cycles = (p.product_condition || '').match(/Ciclos: (\d+)/)?.[1];
 
     const InfoRow = ({ icon, label, value, valueClass = '' }: { icon: React.ReactNode; label: string; value: string; valueClass?: string }) => (
       <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 last:border-0">
@@ -465,6 +471,7 @@ export const Estoque: React.FC = () => {
               {p.imei && <InfoRow icon={<Hash size={14} />} label={p.imei.length === 15 && /^\d+$/.test(p.imei) ? 'IMEI' : 'Nº de Série'} value={p.imei} valueClass="font-mono text-xs" />}
               {condBase && <InfoRow icon={<Tag size={14} />} label="Condição" value={condBase} />}
               {battery && <InfoRow icon={<Cpu size={14} />} label="Bateria" value={battery} />}
+              {cycles && <InfoRow icon={<Cpu size={14} />} label="Ciclos" value={`${cycles} ciclos`} />}
               {p.product_warranty && p.product_warranty !== 'Sem garantia' && <InfoRow icon={<Shield size={14} />} label="Garantia" value={p.product_warranty} valueClass="text-green-700" />}
               {p.product_origin && <InfoRow icon={<MapPin size={14} />} label="Origem" value={p.product_origin} />}
               {entryDate && (

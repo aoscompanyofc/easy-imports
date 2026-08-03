@@ -13,6 +13,7 @@ export interface DeviceFormData {
   color: string;
   condition: string;
   battery_health: string;
+  battery_cycles?: string;
   warranty: string;
   origin: string;
   entry_date: string;
@@ -30,6 +31,7 @@ export function emptyDeviceForm(): DeviceFormData {
     color: '',
     condition: 'Seminovo — Excelente',
     battery_health: '',
+    battery_cycles: '',
     warranty: 'Sem garantia',
     origin: '',
     entry_date: new Date().toISOString().split('T')[0],
@@ -115,7 +117,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
   // When condition is "Novo (lacrado)", auto-fill Apple 1-year warranty
   const handleCondition = (cond: string) => {
     if (cond === 'Novo (lacrado)') {
-      onChange({ ...value, condition: cond, warranty: '1 ano (Apple)', battery_health: '' });
+      onChange({ ...value, condition: cond, warranty: '1 ano (Apple)', battery_health: '', battery_cycles: '' });
     } else {
       onChange({ ...value, condition: cond });
     }
@@ -252,6 +254,28 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         )}
       </div>
 
+      {/* Row 3.5: Battery Cycles — aparece na mensagem de estoque */}
+      {showBattery && !isNovo && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+              Ciclos de Bateria
+              <span className="ml-2 text-[11px] font-normal text-neutral-400">(opcional)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              className={S}
+              placeholder="Ex: 150"
+              value={value.battery_cycles || ''}
+              onChange={set('battery_cycles')}
+            />
+          </div>
+          <div />
+        </div>
+      )}
+
       {/* Row 4: Warranty — auto-filled for new devices */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -378,6 +402,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         <div className="text-xs text-neutral-400 bg-neutral-50 rounded-lg px-3 py-2">
           Nome gerado: <strong className="text-neutral-600">{deviceFormToProductName(value)}</strong>
           {value.battery_health ? ` · Bateria: ${value.battery_health}` : ''}
+          {value.battery_cycles ? ` · ${value.battery_cycles} ciclos` : ''}
         </div>
       )}
     </div>

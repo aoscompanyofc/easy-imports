@@ -46,6 +46,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           const sectionDefaults = DEFAULT_LAYOUT.filter((w) => isSectionWidget(w.widgetId));
           valid = [...valid, ...sectionDefaults];
         }
+        // Migração incremental: novas seções padrão introduzidas depois que o
+        // usuário já tinha personalizado o layout (ex.: Follow-up 7 Dias) —
+        // anexa só as que ainda não existem, sem duplicar nem reordenar o resto.
+        const existingIds = new Set(valid.map((w: WidgetInstance) => w.widgetId));
+        const newDefaults = DEFAULT_LAYOUT.filter((w) => !existingIds.has(w.widgetId));
+        if (newDefaults.length > 0) {
+          valid = [...valid, ...newDefaults];
+        }
         const finalWidgets = valid.length > 0 ? valid : DEFAULT_LAYOUT;
         set({ widgets: finalWidgets, loaded: true });
         // Se limpou duplicatas ou migrou, regrava o layout corrigido.

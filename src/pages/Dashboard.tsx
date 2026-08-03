@@ -148,6 +148,20 @@ function buildWhatsAppLink(phone: string, customerName: string, productName: str
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 
+// Mensagem de follow-up ~7 dias após a venda/troca/prazo — link já pronto,
+// só falta clicar em enviar.
+const FOLLOWUP_DISMISSED_KEY = 'easy-imports-followup-dismissed';
+const FOLLOWUP_MIN_DAYS = 6;
+const FOLLOWUP_MAX_DAYS = 12;
+
+function buildFollowUpWhatsAppLink(phone: string, customerName: string, productName: string, saleType: string) {
+  const clean = phone.replace(/\D/g, '');
+  const num = clean.startsWith('55') ? clean : `55${clean}`;
+  const acao = saleType === 'troca' ? 'troca' : saleType === 'prazo' ? 'compra a prazo' : 'compra';
+  const msg = `Olá ${customerName}! 😊 Já faz alguns dias desde sua ${acao}${productName ? ` do *${productName}*` : ''} com a gente. Ficou tudo certo? Alguma dúvida ou precisa de alguma coisa, é só chamar! 🛍️\n\n— *Easy Imports*`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+}
+
 const CHANNEL_COLORS = ['#FFC107', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F59E0B'];
 
 function normalizePaymentMethod(raw: string): string {
@@ -750,6 +764,37 @@ export const Dashboard: React.FC = () => {
     return { overdueInstallments: overdue, dueSoonInstallments: dueSoon };
   }, [allSales]);
 
+  // Follow-up de ~7 dias — clientes que compraram/trocaram/parcelaram há uma
+  // semana, ainda não marcados como "já mandei mensagem".
+  const [followUpDismissed, setFollowUpDismissed] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(FOLLOWUP_DISMISSED_KEY) || '[]')); }
+    catch { return new Set(); }
+  });
+
+  const followUpSales = useMemo(() => {
+    const now = Date.now();
+    const out: { sale: any; daysSince: number }[] = [];
+    for (const sale of allSales) {
+      const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
+      if (!['venda', 'troca', 'prazo'].includes(type)) continue;
+      if (!sale.created_at || followUpDismissed.has(sale.id)) continue;
+      const phone = sale.customer_phone || sale.customers?.phone || '';
+      if (!phone) continue;
+      const daysSince = Math.floor((now - new Date(sale.created_at).getTime()) / 86400000);
+      if (daysSince >= FOLLOWUP_MIN_DAYS && daysSince <= FOLLOWUP_MAX_DAYS) out.push({ sale, daysSince });
+    }
+    return out.sort((a, b) => b.daysSince - a.daysSince);
+  }, [allSales, followUpDismissed]);
+
+  const dismissFollowUp = (saleId: string) => {
+    setFollowUpDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(saleId);
+      try { localStorage.setItem(FOLLOWUP_DISMISSED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   const handlePeriodClick = (p: Period) => {
     setPeriod(p);
     if (p === 'custom') {
@@ -822,6 +867,63 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
+    ) : null,
+    'sec-followup-7d': followUpSales.length > 0 ? (
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 bg-[#25D366]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <MessageCircle size={16} className="text-[#25D366]" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-neutral-900">Follow-up — 7 dias</p>
+                <p className="text-xs text-neutral-400">
+                  {followUpSales.length} cliente{followUpSales.length !== 1 ? 's' : ''} pra saber se está tudo certo
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {followUpSales.slice(0, 6).map(({ sale, daysSince }) => {
+                const customerName = sale.customer_name || sale.customers?.name || 'Cliente';
+                const productName  = sale.product_name || 'Produto';
+                const phone        = sale.customer_phone || sale.customers?.phone || '';
+                const type = sale.sale_type || (sale.incoming_name?.trim() ? 'troca' : 'venda');
+                const typeLabel = type === 'troca' ? 'Troca' : type === 'prazo' ? 'A prazo' : 'Venda';
+                return (
+                  <div key={sale.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-xl hover:bg-neutral-50 transition-colors">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary-900 flex-shrink-0">
+                      {getInitials(customerName)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-neutral-900 truncate">{customerName}</p>
+                      <p className="text-xs text-neutral-400 truncate">{typeLabel} · {productName}</p>
+                    </div>
+                    <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-neutral-100 text-neutral-500 flex-shrink-0">
+                      {daysSince}d atrás
+                    </span>
+                    <button
+                      onClick={() => dismissFollowUp(sale.id)}
+                      title="Dispensar — já falei com o cliente"
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-neutral-300 hover:text-neutral-500 hover:bg-neutral-100 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                    <a
+                      href={buildFollowUpWhatsAppLink(phone, customerName, productName, type)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => dismissFollowUp(sale.id)}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#20BD5A] transition-colors"
+                    >
+                      <MessageCircle size={13} /> Enviar
+                    </a>
+                  </div>
+                );
+              })}
+              {followUpSales.length > 6 && (
+                <p className="text-xs text-neutral-400 text-center pt-1">+ {followUpSales.length - 6} cliente{followUpSales.length - 6 !== 1 ? 's' : ''} — dispense os já contatados pra ver os próximos</p>
+              )}
+            </div>
+          </div>
     ) : null,
     'sec-meta': (
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">

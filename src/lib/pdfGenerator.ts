@@ -59,6 +59,13 @@ export interface SalePDFData {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const fmt  = (v?: string | null) => v?.trim() || '';
+// Nome do cliente no título da janela — vira o nome sugerido ao salvar o PDF,
+// pra identificar o cliente sem precisar abrir o arquivo. Remove caracteres
+// inválidos em nome de arquivo (Windows/macOS).
+const fileTitle = (base: string, customerName?: string | null) => {
+  const clean = (customerName || '').trim().replace(/[\\/:*?"<>|]/g, '-');
+  return clean ? `${base} - ${clean}` : base;
+};
 const fmtMoney = (v?: number) =>
   (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (iso?: string) =>
@@ -582,7 +589,7 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
   </div>
 </div>`;
 
-  openAndPrint(page('CONTRATO DE COMPRA E VENDA', sale.sale_number, date, body), `Venda ${sale.sale_number}`);
+  openAndPrint(page('CONTRATO DE COMPRA E VENDA', sale.sale_number, date, body), fileTitle(`Venda ${sale.sale_number}`, sale.customer_name));
 }
 
 // ─── TERMO DE TROCA ───────────────────────────────────────────────────────────
@@ -781,7 +788,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>`;
 
-  openAndPrint(page('TERMO DE TROCA', sale.sale_number, date, body), `Troca ${sale.sale_number}`);
+  openAndPrint(page('TERMO DE TROCA', sale.sale_number, date, body), fileTitle(`Troca ${sale.sale_number}`, sale.customer_name));
 }
 
 // ─── DOCUMENTO DE COMPRA ──────────────────────────────────────────────────────
@@ -866,7 +873,7 @@ export function generateCompraPDF(sale: SalePDFData, company: CompanyInfo) {
   </div>
 </div>`;
 
-  openAndPrint(page('DOCUMENTO DE COMPRA', sale.sale_number, date, body), `Compra ${sale.sale_number}`);
+  openAndPrint(page('DOCUMENTO DE COMPRA', sale.sale_number, date, body), fileTitle(`Compra ${sale.sale_number}`, sale.customer_name));
 }
 
 // ─── CONTRATO DE VENDA A PRAZO ───────────────────────────────────────────────
@@ -1089,7 +1096,7 @@ ${tradeInSection}
   </div>
 </div>`;
 
-  openAndPrint(page('CONTRATO DE VENDA A PRAZO', sale.sale_number, date, body), `Prazo ${sale.sale_number}`);
+  openAndPrint(page('CONTRATO DE VENDA A PRAZO', sale.sale_number, date, body), fileTitle(`Prazo ${sale.sale_number}`, sale.customer_name));
 }
 
 // ─── dispatcher ───────────────────────────────────────────────────────────────

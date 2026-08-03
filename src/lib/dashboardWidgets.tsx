@@ -2,7 +2,7 @@ import React from 'react';
 import {
   DollarSign, Wallet, TrendingUp, Package, Clock, Target, Users,
   Repeat, Crown, Calendar, Activity, Boxes, Sparkles, BarChart3,
-  ShoppingCart, Percent,
+  ShoppingCart, Percent, MessageCircle,
 } from 'lucide-react';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -408,6 +408,7 @@ export const SECTION_DEFS: WidgetDef[] = [
   { id: 'sec-stock-alerts', title: 'Alertas de Estoque', description: 'Produtos com estoque baixo ou zerado.', category: 'estoque', icon: Boxes, kind: 'section', defaultSize: 'md', keywords: ['alerta de estoque', 'estoque baixo', 'ruptura'], compute: emptyCompute },
   { id: 'sec-top-products', title: 'Top Produtos (detalhado)', description: 'Ranking visual dos produtos mais vendidos.', category: 'estoque', icon: Boxes, kind: 'section', defaultSize: 'lg', keywords: ['top produtos detalhado', 'ranking detalhado'], compute: emptyCompute },
   { id: 'sec-installment-alerts', title: 'Alertas de Parcelas', description: 'Parcelas a prazo vencidas ou próximas.', category: 'financeiro', icon: Clock, kind: 'section', defaultSize: 'lg', keywords: ['parcela', 'atraso', 'vencimento', 'prazo alerta'], compute: emptyCompute },
+  { id: 'sec-followup-7d', title: 'Follow-up — 7 Dias', description: 'Clientes que compraram há cerca de uma semana — hora de perguntar se está tudo certo.', category: 'clientes', icon: MessageCircle, kind: 'section', defaultSize: 'lg', keywords: ['follow-up', 'pos-venda', '7 dias', 'checar cliente', 'tudo certo'], compute: emptyCompute },
   { id: 'sec-summary', title: 'Resumo Rápido', description: 'Faixa compacta com os números do período.', category: 'financeiro', icon: BarChart3, kind: 'section', defaultSize: 'lg', keywords: ['resumo', 'faixa', 'summary'], compute: emptyCompute },
 ];
 
@@ -443,6 +444,7 @@ export const DEFAULT_LAYOUT: WidgetInstance[] = [
   // Seções (segundo grid)
   { instanceId: 'd-sec-meta', widgetId: 'sec-meta', size: 'lg' },
   { instanceId: 'd-sec-installment-alerts', widgetId: 'sec-installment-alerts', size: 'lg' },
+  { instanceId: 'd-sec-followup-7d', widgetId: 'sec-followup-7d', size: 'lg' },
   { instanceId: 'd-sec-revenue-chart', widgetId: 'sec-revenue-chart', size: 'lg' },
   { instanceId: 'd-sec-sales-list', widgetId: 'sec-sales-list', size: 'lg' },
   { instanceId: 'd-sec-channel', widgetId: 'sec-channel', size: 'md' },

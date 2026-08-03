@@ -98,7 +98,7 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
   {
     id: 'd7', category: 'Pós-venda',
     title: 'Lembrete de garantia',
-    message: 'Olá {nome}! 🛡️ Passando pra lembrar que seu {produto} ainda está dentro do período de garantia conosco. Qualquer problema é só chamar!',
+    message: 'Olá {nome}! 🔒 Passando pra lembrar que seu {produto} ainda está dentro do período de garantia conosco. Qualquer problema é só chamar!',
     createdAt: '',
   },
   {

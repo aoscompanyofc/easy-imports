@@ -144,7 +144,7 @@ function buildSourceData(sales: any[]) {
 function buildWhatsAppLink(phone: string, customerName: string, productName: string, saleNumber: string) {
   const clean = phone.replace(/\D/g, '');
   const num = clean.startsWith('55') ? clean : `55${clean}`;
-  const msg = `Olá ${customerName}! 😊 Tudo certo com sua compra${productName ? ` do *${productName}*` : ''}${saleNumber ? ` (${saleNumber})` : ''}?\n\nEstamos à disposição para qualquer dúvida! Se precisar de assistência, é só chamar. 🛍️\n\n— *Easy Imports*`;
+  const msg = `Olá ${customerName}! 😊 Tudo certo com sua compra${productName ? ` do *${productName}*` : ''}${saleNumber ? ` (${saleNumber})` : ''}?\n\nEstamos à disposição para qualquer dúvida! Se precisar de assistência, é só chamar. 🛒\n\n— *Easy Imports*`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -158,7 +158,7 @@ function buildFollowUpWhatsAppLink(phone: string, customerName: string, productN
   const clean = phone.replace(/\D/g, '');
   const num = clean.startsWith('55') ? clean : `55${clean}`;
   const acao = saleType === 'troca' ? 'troca' : saleType === 'prazo' ? 'compra a prazo' : 'compra';
-  const msg = `Olá ${customerName}! 😊 Já faz alguns dias desde sua ${acao}${productName ? ` do *${productName}*` : ''} com a gente. Ficou tudo certo? Alguma dúvida ou precisa de alguma coisa, é só chamar! 🛍️\n\n— *Easy Imports*`;
+  const msg = `Olá ${customerName}! 😊 Já faz alguns dias desde sua ${acao}${productName ? ` do *${productName}*` : ''} com a gente. Ficou tudo certo? Alguma dúvida ou precisa de alguma coisa, é só chamar! 🛒\n\n— *Easy Imports*`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 

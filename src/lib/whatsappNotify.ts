@@ -43,7 +43,7 @@ export function buildSaleNotificationText(params: {
     saleType === 'troca'  ? '🔄 Nova Troca'        :
     saleType === 'prazo'  ? '📋 Venda a Prazo'      :
     saleType === 'compra' ? '📦 Compra de Estoque'  :
-                            '🛍️ Nova Venda';
+                            '🛒 Nova Venda';
 
   const amount = totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const condition = productCondition ? ` · ${productCondition}` : '';

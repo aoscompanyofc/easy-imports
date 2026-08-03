@@ -115,10 +115,10 @@ const dateBR = (iso?: string) => {
 const warrantyLine = (s: SaleMsgData): string => {
   // Garantia explícita (ex.: "Garantia Apple até fev/2027") tem prioridade.
   const w = (s.warranty || '').trim();
-  if (w) return /apple/i.test(w) ? `🍎 ${w}` : `🛡️ ${w}`;
+  if (w) return /apple/i.test(w) ? `🍎 ${w}` : `🔒 ${w}`;
   // Se a condição já menciona garantia, não duplica com a genérica.
   if (/garantia/i.test(s.condition || '')) return '';
-  return s.isNovo ? '🍎 Garantia Apple' : '🛡️ Garantia Easy Imports 90 dias';
+  return s.isNovo ? '🍎 Garantia Apple' : '🔒 Garantia Easy Imports 90 dias';
 };
 
 function productBlock(name: string, capacity?: string, color?: string, condition?: string, price?: number): string[] {
@@ -166,7 +166,7 @@ function chargeLineMotoboy(d: DeliveryInfo, amount: number): string[] {
     const total = split.reduce((a, b) => a + Number(b.amount), 0);
     lines.push(`   ➡️ Total a receber: ${brl(total)}`);
     if (split.some((b) => b.method === 'pix')) {
-      lines.push('⚠️ Conferir o comprovante do PIX antes de liberar o produto');
+      lines.push('🚨 Conferir o comprovante do PIX antes de liberar o produto');
     }
     return lines;
   }
@@ -174,7 +174,7 @@ function chargeLineMotoboy(d: DeliveryInfo, amount: number): string[] {
     case 'aguardar_pix':
       return [
         `💰 Cobrar via PIX: ${brl(amount)}`,
-        '⚠️ SÓ LIBERAR o produto após confirmação do PIX com a loja',
+        '🚨 SÓ LIBERAR o produto após confirmação do PIX com a loja',
       ];
     case 'maquininha':
       return [`💳 Cobrar ${brl(amount)} na maquininha`];
@@ -343,11 +343,11 @@ function chargeBlock(d: DeliveryInfo, amount: number): string[] {
     split.forEach((b) => lines.push(`${methodIcon(b.method)} ${brl(b.amount)} no ${methodWord(b.method)}`));
     const total = split.reduce((a, b) => a + Number(b.amount), 0);
     lines.push(`➡️ *Total: ${brl(total)}*`);
-    if (split.some((b) => b.method === 'pix')) lines.push('⚠️ *Confirmar pagamentos antes de entregar.*');
+    if (split.some((b) => b.method === 'pix')) lines.push('🚨 *Confirmar pagamentos antes de entregar.*');
     return lines;
   }
   switch (d.chargeMode) {
-    case 'aguardar_pix': return ['💰 *Pagamento:*', `📲 ${brl(amount)} via PIX`, '⚠️ *SÓ LIBERAR após confirmação do PIX com a loja*'];
+    case 'aguardar_pix': return ['💰 *Pagamento:*', `📲 ${brl(amount)} via PIX`, '🚨 *SÓ LIBERAR após confirmação do PIX com a loja*'];
     case 'maquininha':   return ['💰 *Pagamento:*', `💳 ${brl(amount)} na maquininha`];
     case 'dinheiro':     return ['💰 *Pagamento:*', `💵 ${brl(amount)} em dinheiro`];
     default:             return ['✅ *Já pago — só entregar*'];
@@ -364,7 +364,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
     s.saleType === 'troca'  ? 'TROCA' :
     s.saleType === 'compra' ? 'COMPRA' : 'ENTREGA';
 
-  L.push(`🏍️ *${tipo}* · ${s.saleNumber ? `${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
+  L.push(`🛵 *${tipo}* · ${s.saleNumber ? `${s.saleNumber}` : ''} · ${dateBR(s.saleDateISO)}`);
   L.push('');
 
   const baseCharge =
@@ -377,8 +377,8 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
   // ─── COMPRA (fluxo invertido: vai ao cliente, traz aparelho, paga) ───────
   if (s.saleType === 'compra') {
     const prod = deviceLabel(s.productName, s.capacity, s.color);
-    const dest = d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE';
-    const loja = d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DA LOJA';
+    const dest = d.deliveryAddress.trim() || '🚨 CONFIRMAR ENDEREÇO DO CLIENTE';
+    const loja = d.pickupLocation.trim() || '🚨 CONFIRMAR ENDEREÇO DA LOJA';
     const quem = d.recipient.trim() || s.customerName || 'cliente';
 
     L.push('📦 *COLETA (com o cliente)*');
@@ -408,7 +408,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
   // COLETA
   L.push('📦 *COLETA*');
-  L.push(`📍 ${d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE COLETA'}`);
+  L.push(`📍 ${d.pickupLocation.trim() || '🚨 CONFIRMAR ENDEREÇO DE COLETA'}`);
   if (d.pickupContact.trim()) L.push(`👤 Retirar com: ${d.pickupContact.trim()}`);
   if (d.pickupTime.trim())    L.push(`🕒 Horário: ${d.pickupTime.trim()}`);
   L.push(`📱 ${allProds}`);
@@ -416,7 +416,7 @@ export function buildMotoboyMessage(s: SaleMsgData, d: DeliveryInfo): string {
 
   // ENTREGA
   L.push('🚚 *ENTREGA*');
-  L.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DE ENTREGA'}`);
+  L.push(`📍 ${d.deliveryAddress.trim() || '🚨 CONFIRMAR ENDEREÇO DE ENTREGA'}`);
   L.push(`👤 Entregar para: ${d.recipient.trim() || s.customerName || 'cliente'}`);
   if (d.deliveryTime.trim()) L.push(`🕒 Horário: ${d.deliveryTime.trim()}`);
   L.push('');
@@ -450,12 +450,12 @@ export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string 
 
   const lines: string[] = [];
   const quando = `${d.collectionDate ? dateBR(d.collectionDate) : 'data a confirmar'}${d.collectionTime ? ` · ${d.collectionTime.trim()}` : ''}`;
-  lines.push(`🏍️ *BUSCA*${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${quando}`);
+  lines.push(`🛵 *BUSCA*${s.saleNumber ? ` · ${s.saleNumber}` : ''} · ${quando}`);
   lines.push('');
 
   // BUSCAR com o cliente
   lines.push('📦 *BUSCAR (com o cliente)*');
-  lines.push(`📍 ${d.deliveryAddress.trim() || '⚠️ CONFIRMAR ENDEREÇO DO CLIENTE'}`);
+  lines.push(`📍 ${d.deliveryAddress.trim() || '🚨 CONFIRMAR ENDEREÇO DO CLIENTE'}`);
   lines.push(`👤 ${d.recipient.trim() || s.customerName || 'cliente'}`);
   if (d.collectionTime.trim()) lines.push(`🕒 ${d.collectionTime.trim()}`);
   if (devs.length > 0) {
@@ -468,7 +468,7 @@ export function buildCollectionMessage(s: SaleMsgData, d: DeliveryInfo): string 
 
   // ENTREGAR no destino
   lines.push('🏪 *ENTREGAR*');
-  lines.push(`📍 ${d.collectionDropoffLocation.trim() || d.pickupLocation.trim() || '⚠️ CONFIRMAR ENDEREÇO DE DESTINO'}`);
+  lines.push(`📍 ${d.collectionDropoffLocation.trim() || d.pickupLocation.trim() || '🚨 CONFIRMAR ENDEREÇO DE DESTINO'}`);
   lines.push('');
   lines.push('📲 Avisar quando finalizar');
   return lines.join('\n');

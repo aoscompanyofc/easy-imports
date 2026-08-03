@@ -81,10 +81,10 @@ export const Estoque: React.FC = () => {
 
     const warrantyLine = (w: string): string => {
       if (!w || w === 'Sem garantia') return '';
-      if (w === '1 ano (Apple)' || w === 'Garantia de Fábrica' || w === '12 meses') return '🛡️ Garantia Apple — 1 ano';
-      if (w === 'AppleCare+') return '🛡️ AppleCare+';
-      if (w.startsWith('Garantia')) return `🛡️ ${w}`;
-      return `🛡️ Garantia: ${w}`;
+      if (w === '1 ano (Apple)' || w === 'Garantia de Fábrica' || w === '12 meses') return '🔒 Garantia Apple — 1 ano';
+      if (w === 'AppleCare+') return '🔒 AppleCare+';
+      if (w.startsWith('Garantia')) return `🔒 ${w}`;
+      return `🔒 Garantia: ${w}`;
     };
 
     const parseNotes = (notes: string): string[] =>

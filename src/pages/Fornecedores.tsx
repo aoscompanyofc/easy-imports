@@ -197,7 +197,7 @@ export const Fornecedores: React.FC = () => {
 
     lines.push(sep);
     lines.push('');
-    lines.push(`⚠️ Preços sujeitos a alteração. Confirmar disponibilidade antes de fechar.`);
+    lines.push(`🚨 Preços sujeitos a alteração. Confirmar disponibilidade antes de fechar.`);
     return lines.join('\n');
   };
 
@@ -281,7 +281,7 @@ export const Fornecedores: React.FC = () => {
             lines.push(`💰 ${fmtPrice(sellPrice)}`);
             if (cond === 'novo') lines.push('✅ LACRADO – IMPECÁVEL');
             else lines.push('✅ Seminovo – Qualidade Verificada');
-            lines.push('🛡️ Garantia Apple');
+            lines.push('🔒 Garantia Apple');
             lines.push('');
           }
         }

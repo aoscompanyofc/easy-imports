@@ -157,8 +157,9 @@ const FOLLOWUP_MAX_DAYS = 12;
 function buildFollowUpWhatsAppLink(phone: string, customerName: string, productName: string, saleType: string) {
   const clean = phone.replace(/\D/g, '');
   const num = clean.startsWith('55') ? clean : `55${clean}`;
+  const firstName = (customerName || '').trim().split(/\s+/)[0] || 'Cliente';
   const acao = saleType === 'troca' ? 'troca' : saleType === 'prazo' ? 'compra a prazo' : 'compra';
-  const msg = `Olá ${customerName}! 😊 Já faz alguns dias desde sua ${acao}${productName ? ` do *${productName}*` : ''} com a gente. Ficou tudo certo? Alguma dúvida ou precisa de alguma coisa, é só chamar! 🛒\n\n— *Easy Imports*`;
+  const msg = `Olá ${firstName}!! Tudo bem?\nJá faz alguns dias desde sua ${acao}${productName ? ` do *${productName}*` : ''} com a gente. Ta gostando? Tudo certo?\nAlguma dúvida ou se precisar de alguma coisa, é só me chamar! \n\nObrigado a confiança e a preferencia, conte comigo - Easy Imports`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 

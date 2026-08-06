@@ -243,9 +243,9 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
 
         {showBattery && !isNovo ? (
           <div>
-            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria</label>
-            <select className={S} value={value.battery_health} onChange={set('battery_health')}>
-              <option value="">Não verificado</option>
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">Saúde da Bateria *</label>
+            <select className={S} value={value.battery_health} onChange={set('battery_health')} required>
+              <option value="" disabled>Selecione...</option>
               {BATTERY_HEALTH_OPTIONS.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>

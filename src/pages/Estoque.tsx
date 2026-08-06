@@ -609,15 +609,26 @@ export const Estoque: React.FC = () => {
             const lower = cond.toLowerCase();
             const isNovo = lower.startsWith('novo');
             const isSemi = lower.startsWith('seminovo');
+            const hasBattery = /Bateria: [^·]+/.test(p.product_condition || '');
             if (!cond) return <span className="text-neutral-300 text-xs">—</span>;
             return (
-              <span className={`text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap ${
-                isNovo ? 'bg-neutral-900 text-white' :
-                isSemi ? 'bg-neutral-200 text-neutral-700' :
-                'bg-neutral-100 text-neutral-500'
-              }`}>
-                {isNovo ? 'Novo' : isSemi ? 'Seminovo' : cond.split(' ')[0]}
-              </span>
+              <div className="flex items-center justify-center gap-1 flex-wrap">
+                <span className={`text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap ${
+                  isNovo ? 'bg-neutral-900 text-white' :
+                  isSemi ? 'bg-neutral-200 text-neutral-700' :
+                  'bg-neutral-100 text-neutral-500'
+                }`}>
+                  {isNovo ? 'Novo' : isSemi ? 'Seminovo' : cond.split(' ')[0]}
+                </span>
+                {!isNovo && !hasBattery && (
+                  <span
+                    title="Bateria não informada — edite o produto para adicionar"
+                    className="text-[10px] font-black px-1.5 py-1 rounded-full whitespace-nowrap bg-danger/10 text-danger flex items-center gap-0.5"
+                  >
+                    <AlertTriangle size={10} /> Sem bateria
+                  </span>
+                )}
+              </div>
             );
           })()}
         </td>
@@ -713,6 +724,11 @@ export const Estoque: React.FC = () => {
                 isNovo ? 'bg-neutral-900 text-white' : isSemi ? 'bg-neutral-200 text-neutral-700' : 'bg-neutral-100 text-neutral-500'
               }`}>
                 {isNovo ? 'Novo' : isSemi ? 'Seminovo' : condBase.split(' ')[0]}
+              </span>
+            )}
+            {!isNovo && condBase && !/Bateria: [^·]+/.test(p.product_condition || '') && (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-danger/10 text-danger flex items-center gap-0.5">
+                <AlertTriangle size={9} /> Sem bateria
               </span>
             )}
             {isStale && (

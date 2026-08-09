@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check, ShoppingCart } from 'lucide-react';
+import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check, ShoppingCart, Lock, Unlock, Banknote, User } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
@@ -31,6 +31,18 @@ function deduplicateName(name: string, capacity: string, color: string): string 
   return [n, cap, col].filter(Boolean).join(' ');
 }
 
+interface Reservation { customerName: string; amount: number; date: string }
+
+// Sinal/reserva é guardado como JSON na coluna `description` (livre, não usada por outra feature).
+function parseReservation(p: any): Reservation | null {
+  if (p?.status !== 'reserved' || !p?.description) return null;
+  try {
+    const r = JSON.parse(p.description);
+    if (r && typeof r.customerName === 'string') return r;
+  } catch { /* description não é uma reserva válida */ }
+  return null;
+}
+
 export const Estoque: React.FC = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
@@ -48,7 +60,8 @@ export const Estoque: React.FC = () => {
   const CONDITION_OPTIONS = ['Todas', 'Novo', 'Seminovo'];
   const [showFilters, setShowFilters] = useState(false);
 
-  const buildStockMessage = (prods: any[]): string => {
+  const buildStockMessage = (allProds: any[]): string => {
+    const prods = allProds.filter(p => p.status !== 'reserved'); // reservados não saem na lista pros clientes
     const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const fmtPrice = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const sep = '────────────────────';
@@ -208,6 +221,55 @@ export const Estoque: React.FC = () => {
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [messageCopied, setMessageCopied] = useState(false);
   const autoFixedRef = useRef(false); // run dedup only once per session
+
+  const [reserveProduct, setReserveProduct] = useState<any | null>(null);
+  const [reserveName, setReserveName] = useState('');
+  const [reserveAmount, setReserveAmount] = useState('');
+  const [isSavingReserve, setIsSavingReserve] = useState(false);
+
+  const openReserveModal = (product: any) => {
+    setReserveProduct(product);
+    setReserveName('');
+    setReserveAmount('');
+  };
+
+  const handleSaveReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reserveProduct || !reserveName.trim() || !reserveAmount) {
+      toast.error('Informe o nome do cliente e o valor do sinal.');
+      return;
+    }
+    try {
+      setIsSavingReserve(true);
+      const reservation: Reservation = {
+        customerName: reserveName.trim(),
+        amount: Number(reserveAmount),
+        date: new Date().toISOString().split('T')[0],
+      };
+      await dataService.updateProduct(reserveProduct.id, {
+        status: 'reserved',
+        description: JSON.stringify(reservation),
+      });
+      toast.success('Aparelho reservado!');
+      setReserveProduct(null);
+      fetchProducts();
+    } catch (error: any) {
+      toast.error('Erro ao reservar: ' + error.message);
+    } finally {
+      setIsSavingReserve(false);
+    }
+  };
+
+  const handleCancelReservation = async (product: any) => {
+    if (!confirm('Cancelar a reserva deste aparelho? Ele volta a aparecer na lista de Seminovos.')) return;
+    try {
+      await dataService.updateProduct(product.id, { status: 'available', description: '' });
+      toast.success('Reserva cancelada.');
+      fetchProducts();
+    } catch (error: any) {
+      toast.error('Erro ao cancelar reserva: ' + error.message);
+    }
+  };
 
   const fetchProducts = async (skipAutoFix = false) => {
     try {
@@ -419,6 +481,7 @@ export const Estoque: React.FC = () => {
     const condBase = (p.product_condition || '').replace(/ · Bateria:.*/, '');
     const battery = (p.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
     const cycles = (p.product_condition || '').match(/Ciclos: (\d+)/)?.[1];
+    const reservation = parseReservation(p);
 
     const InfoRow = ({ icon, label, value, valueClass = '' }: { icon: React.ReactNode; label: string; value: string; valueClass?: string }) => (
       <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 last:border-0">
@@ -465,6 +528,22 @@ export const Estoque: React.FC = () => {
             </div>
           </div>
 
+          {/* Reservation banner */}
+          {reservation && (
+            <div className="bg-info/10 border-b border-info/20 px-5 py-3 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-info/20 flex items-center justify-center flex-shrink-0">
+                <Lock size={14} className="text-info" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-info uppercase tracking-wide">Reservado</p>
+                <p className="text-sm font-bold text-neutral-800 mt-0.5">{reservation.customerName}</p>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Sinal (Pix): {formatCurrency(reservation.amount)} · {new Date(reservation.date + 'T12:00').toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Details */}
           <div className="flex-1">
             <div className="bg-neutral-50 rounded-none">
@@ -498,6 +577,21 @@ export const Estoque: React.FC = () => {
             >
               <ShoppingCart size={15} /> Iniciar Venda
             </button>
+            {reservation ? (
+              <button
+                onClick={() => { setDetailProduct(null); handleCancelReservation(p); }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-info/10 hover:bg-info/20 text-info font-bold text-sm transition-colors"
+              >
+                <Unlock size={15} /> Cancelar Reserva
+              </button>
+            ) : (
+              <button
+                onClick={() => { setDetailProduct(null); openReserveModal(p); }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-colors"
+              >
+                <Lock size={15} /> Reservar Aparelho
+              </button>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => { setDetailProduct(null); handleOpenEdit(p); }}
@@ -526,6 +620,7 @@ export const Estoque: React.FC = () => {
     const entryDate = p.entry_date ? new Date(p.entry_date + 'T12:00') : null;
     const daysInStock = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / 86400000) : 0;
     const isStale = !isSoldView && daysInStock >= STALE_DAYS;
+    const reservation = parseReservation(p);
 
     return (
       <tr
@@ -628,6 +723,14 @@ export const Estoque: React.FC = () => {
                     <AlertTriangle size={10} /> Sem bateria
                   </span>
                 )}
+                {reservation && (
+                  <span
+                    title={`Reservado para ${reservation.customerName} — sinal de ${formatCurrency(reservation.amount)}`}
+                    className="text-[10px] font-black px-1.5 py-1 rounded-full whitespace-nowrap bg-info/10 text-info flex items-center gap-0.5"
+                  >
+                    <Lock size={10} /> Reservado
+                  </span>
+                )}
               </div>
             );
           })()}
@@ -645,6 +748,23 @@ export const Estoque: React.FC = () => {
                 <ShoppingCart size={10} /> Vender
               </button>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {reservation ? (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleCancelReservation(p); }}
+                    className="p-1.5 rounded-lg text-info hover:text-info hover:bg-info/10 transition-colors"
+                    title={`Reservado para ${reservation.customerName} — clique para cancelar`}
+                  >
+                    <Unlock size={13} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={e => { e.stopPropagation(); openReserveModal(p); }}
+                    className="p-1.5 rounded-lg text-neutral-400 hover:text-info hover:bg-info/10 transition-colors"
+                    title="Reservar Aparelho"
+                  >
+                    <Lock size={13} />
+                  </button>
+                )}
                 <button
                   onClick={e => { e.stopPropagation(); handleOpenEdit(p); }}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -688,6 +808,7 @@ export const Estoque: React.FC = () => {
     const condLower = condBase.toLowerCase();
     const isNovo = condLower.startsWith('novo');
     const isSemi = condLower.startsWith('seminovo');
+    const reservation = parseReservation(p);
 
     return (
       <div
@@ -729,6 +850,11 @@ export const Estoque: React.FC = () => {
             {!isNovo && condBase && !/Bateria: [^·]+/.test(p.product_condition || '') && (
               <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-danger/10 text-danger flex items-center gap-0.5">
                 <AlertTriangle size={9} /> Sem bateria
+              </span>
+            )}
+            {reservation && (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-info/10 text-info flex items-center gap-0.5">
+                <Lock size={9} /> Reservado
               </span>
             )}
             {isStale && (
@@ -1104,9 +1230,17 @@ export const Estoque: React.FC = () => {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-neutral-500">
-                {available.length} aparelho{available.length !== 1 ? 's' : ''} disponíve{available.length !== 1 ? 'is' : 'l'} · Atualizado agora
-              </p>
+              {(() => {
+                const listed = available.filter(p => p.status !== 'reserved').length;
+                const reservedCount = available.length - listed;
+                return (
+                  <p className="text-sm text-neutral-500">
+                    {listed} aparelho{listed !== 1 ? 's' : ''} na mensagem
+                    {reservedCount > 0 ? ` · ${reservedCount} reservado${reservedCount !== 1 ? 's' : ''} (não entra${reservedCount !== 1 ? 'm' : ''})` : ''}
+                    {' '}· Atualizado agora
+                  </p>
+                );
+              })()}
               <button
                 onClick={() => {
                   const msg = buildStockMessage(available);
@@ -1157,6 +1291,51 @@ export const Estoque: React.FC = () => {
             <Button fullWidth loading={isSavingEdit} type="submit">Salvar Alterações</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* MODAL RESERVAR */}
+      <Modal isOpen={!!reserveProduct} onClose={() => setReserveProduct(null)} title="Reservar Aparelho" maxWidth="sm">
+        {reserveProduct && (
+          <form onSubmit={handleSaveReservation} className="space-y-4">
+            <p className="text-sm text-neutral-500 -mt-1">
+              {reserveProduct.name}
+              {reserveProduct.imei ? ` · IMEI: ${reserveProduct.imei}` : ''}
+            </p>
+            <p className="text-xs text-neutral-400 bg-neutral-50 border border-neutral-100 rounded-xl px-3 py-2">
+              Enquanto reservado, este aparelho não aparece na mensagem de Seminovos exportada para clientes.
+            </p>
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Nome do Cliente *</label>
+              <div className="relative">
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="text" required autoFocus
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                  placeholder="Ex: João Silva"
+                  value={reserveName}
+                  onChange={e => setReserveName(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor do Sinal (Pix) *</label>
+              <div className="relative">
+                <Banknote size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="number" required min="0" step="0.01"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                  placeholder="Ex: 200"
+                  value={reserveAmount}
+                  onChange={e => setReserveAmount(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" fullWidth onClick={() => setReserveProduct(null)} type="button">Cancelar</Button>
+              <Button fullWidth loading={isSavingReserve} type="submit">Confirmar Reserva</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

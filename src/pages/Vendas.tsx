@@ -2288,7 +2288,7 @@ export const Vendas: React.FC = () => {
                     const battery = (p.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
                     return (
                       <option key={p.id} value={p.id}>
-                        {p.name}{battery ? ` · 🔋 ${battery}` : ''}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
+                        {p.status === 'reserved' ? '🔒 [RESERVADO] ' : ''}{p.name}{battery ? ` · 🔋 ${battery}` : ''}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
                       </option>
                     );
                   })}
@@ -2644,7 +2644,7 @@ export const Vendas: React.FC = () => {
                                   const battery = (p.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
                                   return (
                                     <option key={p.id} value={p.id}>
-                                      {p.name}{battery ? ` · 🔋 ${battery}` : ''}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
+                                      {p.status === 'reserved' ? '🔒 [RESERVADO] ' : ''}{p.name}{battery ? ` · 🔋 ${battery}` : ''}{p.imei ? ` · IMEI: ${p.imei}` : ''} — {formatCurrency(p.sale_price)}
                                     </option>
                                   );
                                 })}
@@ -2709,7 +2709,7 @@ export const Vendas: React.FC = () => {
                           )}
                           {prod && item.mode === 'stock' && (
                             <div className="sm:col-span-2 bg-neutral-50 rounded-lg px-3 py-2 text-xs text-neutral-600 font-medium">
-                              {prod.name}{prod.product_capacity ? ` · ${prod.product_capacity}` : ''}{prod.product_color ? ` · ${prod.product_color}` : ''}
+                              {prod.status === 'reserved' ? '🔒 [RESERVADO] ' : ''}{prod.name}{prod.product_capacity ? ` · ${prod.product_capacity}` : ''}{prod.product_color ? ` · ${prod.product_color}` : ''}
                               {(() => {
                                 const battery = (prod.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim();
                                 return battery ? ` · 🔋 ${battery}` : '';

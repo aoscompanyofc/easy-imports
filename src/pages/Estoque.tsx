@@ -1167,8 +1167,8 @@ export const Estoque: React.FC = () => {
                 <col className="w-28" />
                 <col className="w-32" />
                 <col className="w-16" />
-                <col className="w-24" />
                 <col className="w-32" />
+                <col className="w-52" />
               </colgroup>
               <TableHeader />
               <tbody>
@@ -1205,8 +1205,8 @@ export const Estoque: React.FC = () => {
                     <col className="w-28" />
                     <col className="w-32" />
                     <col className="w-16" />
-                    <col className="w-24" />
                     <col className="w-32" />
+                    <col className="w-52" />
                   </colgroup>
                   <TableHeader />
                   <tbody>

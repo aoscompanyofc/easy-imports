@@ -790,6 +790,21 @@ export const Vendas: React.FC = () => {
       // A venda já está persistida — falhas a partir daqui não devem sugerir "venda falhou"
       saleCommitted = true;
 
+      // Venda normal (não-prazo) com produto do estoque: o desconto de estoque acima só
+      // mexeu em quantidade/status — se o IMEI/Nº de série foi corrigido na hora da venda,
+      // sincroniza de volta pro cadastro do produto para não ficar divergente no histórico.
+      if (!isPrazo && product) {
+        if (form.product_imei && form.product_imei !== (product.imei || '')) {
+          await dataService.updateProduct(product.id, { imei: form.product_imei });
+        }
+        for (const addItem of additionalItems.filter(i => i.selectedProduct)) {
+          const addProd = products.find((p: any) => p.id === addItem.selectedProduct);
+          if (addProd && addItem.imei_override && addItem.imei_override !== (addProd.imei || '')) {
+            await dataService.updateProduct(addProd.id, { imei: addItem.imei_override });
+          }
+        }
+      }
+
       // For troca/prazo: add ALL incoming devices to stock
       if (form.sale_type === 'troca' || (isPrazo && incomingDevices.some(d => d.model.trim()))) {
         for (const device of incomingDevices) {
@@ -835,7 +850,7 @@ export const Vendas: React.FC = () => {
             name: product.name, category: product.category,
             purchase_price: product.purchase_price, sale_price: product.sale_price,
             stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
-            imei: product.imei || '',
+            imei: form.product_imei || product.imei || '',
           });
           // Custo registrado na criação da venda — imune a problemas de schema
           const costValue = Number(form.product_cost_manual) || product.purchase_price || 0;
@@ -880,7 +895,7 @@ export const Vendas: React.FC = () => {
               name: addProd.name, category: addProd.category,
               purchase_price: addProd.purchase_price, sale_price: addProd.sale_price,
               stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
-              imei: addProd.imei || '',
+              imei: addItem.imei_override || addProd.imei || '',
             });
             if (addProd.purchase_price > 0) {
               await dataService.addTransaction({
@@ -942,7 +957,7 @@ export const Vendas: React.FC = () => {
               name: addProd.name, category: addProd.category,
               purchase_price: addProd.purchase_price, sale_price: addProd.sale_price,
               stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available',
-              imei: addProd.imei || '',
+              imei: addItem.imei_override || addProd.imei || '',
             });
             if (addPrice > 0) {
               await dataService.addTransaction({

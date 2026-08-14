@@ -136,12 +136,22 @@ export const Estoque: React.FC = () => {
       if (p.notes) lines.push(...parseNotes(p.notes));
       const cond = conditionLabel(p.product_condition || '');
       if (cond) lines.push(`✅ ${cond}`);
-      const wLine = warrantyLine(p.product_warranty || '');
-      if (wLine) lines.push(wLine);
+      // Garantia é uniforme por política (3 meses em todo seminovo, 1 ano Apple em todo
+      // lacrado) — só vale a pena mostrar por item quando foge dessa regra padrão, senão
+      // é ruído repetido em toda a lista. A regra padrão é anunciada uma única vez no
+      // cabeçalho de cada seção (ver buildSection).
+      const isNovoItem = (p.product_condition || '').toLowerCase().startsWith('novo');
+      const isStandardWarranty = isNovoItem
+        ? ['1 ano (apple)', 'garantia de fábrica', '12 meses'].includes((p.product_warranty || '').toLowerCase())
+        : (p.product_warranty || '').toLowerCase() === '3 meses';
+      if (!isStandardWarranty) {
+        const wLine = warrantyLine(p.product_warranty || '');
+        if (wLine) lines.push(wLine);
+      }
       return lines.join('\n');
     };
 
-    const buildSection = (list: any[], header: string): string => {
+    const buildSection = (list: any[], header: string, policyLine?: string): string => {
       if (list.length === 0) return '';
       const modelMap = new Map<string, any[]>();
       for (const p of list) {
@@ -150,16 +160,20 @@ export const Estoque: React.FC = () => {
         modelMap.get(m)!.push(p);
       }
       const sortedModels = Array.from(modelMap.keys()).sort();
-      const parts: string[] = [header, ''];
+      const parts: string[] = policyLine ? [header, policyLine, ''] : [header, ''];
       for (const model of sortedModels) {
         parts.push(sep);
         parts.push('');
         parts.push(`📱 ${model}`);
         parts.push('');
+        // Ordena por capacidade e, dentro da mesma capacidade, por preço crescente —
+        // sem isso, aparelhos do mesmo modelo/capacidade saem em ordem aleatória (a da
+        // entrada no estoque), o que confunde o cliente lendo a lista.
         const items = modelMap.get(model)!.sort((a, b) => {
           const ca = parseInt(a.product_capacity || '0');
           const cb = parseInt(b.product_capacity || '0');
-          return ca - cb;
+          if (ca !== cb) return ca - cb;
+          return (Number(a.sale_price) || 0) - (Number(b.sale_price) || 0);
         });
         for (const p of items) {
           parts.push(buildProductEntry(p));
@@ -181,8 +195,8 @@ export const Estoque: React.FC = () => {
       '💳 Cartão em até 18x',
     ].join('\n');
 
-    const semiSection = buildSection(seminovos, '🍏 Seminovos – Qualidade Garantida');
-    const novoSection = buildSection(novos, '✨ Novos (Lacrados)');
+    const semiSection = buildSection(seminovos, '🍏 Seminovos – Qualidade Garantida', '🔒 Garantia Easy Imports de 3 meses em todos os seminovos');
+    const novoSection = buildSection(novos, '✨ Novos (Lacrados)', '🔒 Garantia Apple de 1 ano em todos os lacrados');
 
     const footer = [
       sep,
@@ -412,15 +426,21 @@ export const Estoque: React.FC = () => {
     if (cap && modelName.endsWith(` ${cap}`)) modelName = modelName.slice(0, -(cap.length + 1));
     modelName = modelName.trim();
 
+    const editCondition = (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, '');
+    // Garantia é regra fixa por condição (ver handleCondition no DeviceForm) — normaliza aqui
+    // também, pra corrigir sozinho registros antigos que ficaram com garantia incompatível
+    // (ex: "1 ano (Apple)" cadastrado por engano num seminovo).
+    const editWarranty = editCondition === 'Novo (lacrado)' ? '1 ano (Apple)' : '3 meses';
+
     setEditForm({
       category: product.category || 'iPhone',
       model: modelName,
       capacity: cap,
       color: col,
-      condition: (product.product_condition || 'Seminovo — Excelente').replace(/ · Bateria:.*/, ''),
+      condition: editCondition,
       battery_health: (product.product_condition || '').match(/Bateria: ([^·]+)/)?.[1]?.trim() || '',
       battery_cycles: (product.product_condition || '').match(/Ciclos: (\d+)/)?.[1] || '',
-      warranty: product.product_warranty || 'Sem garantia',
+      warranty: editWarranty,
       origin: product.product_origin || '',
       entry_date: product.entry_date || new Date().toISOString().split('T')[0],
       imei: product.imei || '',

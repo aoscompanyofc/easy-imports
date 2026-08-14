@@ -3,7 +3,7 @@ import { Input } from './Input';
 import {
   DEVICE_CATALOG, ALL_CATEGORIES, getModelsByCategory,
   getCapacitiesForModel, getColorsForModel,
-  BATTERY_HEALTH_OPTIONS, COMMON_CONDITIONS, WARRANTY_OPTIONS,
+  BATTERY_HEALTH_OPTIONS, COMMON_CONDITIONS,
 } from '../../lib/deviceCatalog';
 
 export interface DeviceFormData {
@@ -32,7 +32,7 @@ export function emptyDeviceForm(): DeviceFormData {
     condition: 'Seminovo — Excelente',
     battery_health: '',
     battery_cycles: '',
-    warranty: 'Sem garantia',
+    warranty: '3 meses',
     origin: '',
     entry_date: new Date().toISOString().split('T')[0],
     imei: '',
@@ -114,12 +114,14 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
     onChange({ ...value, color: col });
   };
 
-  // When condition is "Novo (lacrado)", auto-fill Apple 1-year warranty
+  // Garantia é regra comercial fixa, não escolha manual: Novo (lacrado) = 1 ano Apple,
+  // qualquer outra condição (seminovo/usado) = 3 meses Easy Imports. Evita cadastrar
+  // garantia Apple num aparelho usado por engano.
   const handleCondition = (cond: string) => {
     if (cond === 'Novo (lacrado)') {
       onChange({ ...value, condition: cond, warranty: '1 ano (Apple)', battery_health: '', battery_cycles: '' });
     } else {
-      onChange({ ...value, condition: cond });
+      onChange({ ...value, condition: cond, warranty: '3 meses' });
     }
   };
 
@@ -286,9 +288,10 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
               <span className="text-sm font-bold text-green-700">1 ano (Apple) — garantia de fábrica</span>
             </div>
           ) : (
-            <select className={S} value={value.warranty || 'Sem garantia'} onChange={set('warranty')}>
-              {WARRANTY_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
-            </select>
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-neutral-100 border border-neutral-200 rounded-xl">
+              <span className="text-neutral-500 font-black text-base">✓</span>
+              <span className="text-sm font-bold text-neutral-600">3 meses — garantia Easy Imports</span>
+            </div>
           )}
         </div>
       </div>

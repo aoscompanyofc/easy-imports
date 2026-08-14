@@ -218,9 +218,38 @@ export const Clientes: React.FC = () => {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
+  // Detecção de duplicidade: CPF e telefone são identificadores fortes (normalizados,
+  // sem máscara) — batem mesmo se digitados com formatação diferente. Nome só conta
+  // como sinal quando não há CPF/telefone pra desambiguar (dois clientes reais podem
+  // ter o mesmo nome).
+  const normalizeDigits = (v: string) => (v || '').replace(/\D/g, '');
+  const normalizeName = (v: string) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const findDuplicateCustomer = (data: FormData, excludeId?: string) => {
+    const cpf = normalizeDigits(data.cpf);
+    const phone = normalizeDigits(data.phone);
+    const name = normalizeName(data.name);
+    return customers.find((c: any) => {
+      if (excludeId && c.id === excludeId) return false;
+      if (cpf && normalizeDigits(c.cpf) === cpf) return true;
+      if (phone && phone.length >= 8 && normalizeDigits(c.phone) === phone) return true;
+      if (!cpf && !phone && name && normalizeName(c.name) === name) return true;
+      return false;
+    });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { toast.error('Informe o nome do cliente.'); return; }
+    const dup = findDuplicateCustomer(formData);
+    if (dup) {
+      const detail = [dup.phone, dup.cpf ? `CPF ${dup.cpf}` : ''].filter(Boolean).join(' — ');
+      const isSamePerson = confirm(`Já existe um cliente parecido: "${dup.name}"${detail ? ` (${detail})` : ''}.\n\nÉ a mesma pessoa?\n\nOK = abrir o cadastro existente\nCancelar = não, cadastrar como cliente novo mesmo assim`);
+      if (isSamePerson) {
+        setIsAddOpen(false); setFormData(emptyForm());
+        handleOpenEdit(dup);
+        return;
+      }
+    }
     try {
       setIsSaving(true);
       const created = await dataService.addCustomer(formData);
@@ -253,6 +282,11 @@ export const Clientes: React.FC = () => {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingId || !editForm.name.trim()) { toast.error('O nome não pode ficar vazio.'); return; }
+    const dup = findDuplicateCustomer(editForm, editingId);
+    if (dup) {
+      toast.error(`Esses dados já pertencem a "${dup.name}" — confira o CPF/telefone antes de salvar.`);
+      return;
+    }
     try {
       setIsEditSaving(true);
       const updated = await dataService.updateCustomer(editingId, editForm);

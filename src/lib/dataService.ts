@@ -94,15 +94,15 @@ export const dataService = {
     const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status,
       imei, supplier_id, product_capacity, product_color, product_condition,
-      product_warranty, product_origin, entry_date, description, notes } = product;
+      product_warranty, product_origin, entry_date, description, notes, is_advertised } = product;
     const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
     return tryInsert('products', [
-      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, description, notes },
-      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date },
-      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty },
-      { ...base, imei, supplier_id, product_capacity, product_color, product_condition },
-      { ...base, imei, supplier_id },
-      { ...base, imei },
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, description, notes, is_advertised },
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, is_advertised },
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, is_advertised },
+      { ...base, imei, supplier_id, product_capacity, product_color, product_condition, is_advertised },
+      { ...base, imei, supplier_id, is_advertised },
+      { ...base, imei, is_advertised },
       base,
     ]);
   },
@@ -110,11 +110,12 @@ export const dataService = {
     if (useMock) return mockDataService.updateProduct(id, updates);
     const { name, category, purchase_price, sale_price, stock_quantity, status,
       imei, product_capacity, product_color, product_condition,
-      product_warranty, product_origin, entry_date, supplier_id, description, notes } = updates;
+      product_warranty, product_origin, entry_date, supplier_id, description, notes, is_advertised } = updates;
     const base: any = { name, category, purchase_price, stock_quantity, status };
     if (sale_price !== undefined) base.sale_price = sale_price || 0;
     if (imei !== undefined) base.imei = imei;
     if (supplier_id !== undefined) base.supplier_id = supplier_id;
+    if (is_advertised !== undefined) base.is_advertised = is_advertised;
     return tryUpdate('products', id, [
       { ...base, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, description, notes },
       { ...base, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date },

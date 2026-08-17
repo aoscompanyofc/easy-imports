@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Package, Plus, Search, Filter, Trash2, Edit2, X, ChevronDown, CheckCircle2, Download, AlertTriangle, ChevronRight, Calendar, Tag, Cpu, Shield, MapPin, Hash, MessageSquare, Copy, Check, ShoppingCart, Lock, Unlock, Banknote, User } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Switch } from '../components/ui/Switch';
 import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { formatCurrency, formatDate } from '../lib/formatters';
@@ -489,6 +490,21 @@ export const Estoque: React.FC = () => {
     }
   };
 
+  // Liga/desliga o status "Anunciado" (OLX) do produto — atualização otimista com
+  // rollback se a gravação falhar, pra não travar a tela esperando o servidor.
+  const handleToggleAdvertised = async (product: any) => {
+    const next = !product.is_advertised;
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_advertised: next } : p));
+    setDetailProduct((prev: any) => prev && prev.id === product.id ? { ...prev, is_advertised: next } : prev);
+    try {
+      await dataService.updateProduct(product.id, { is_advertised: next });
+    } catch (error: any) {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_advertised: !next } : p));
+      setDetailProduct((prev: any) => prev && prev.id === product.id ? { ...prev, is_advertised: !next } : prev);
+      toast.error('Erro ao atualizar anúncio: ' + error.message);
+    }
+  };
+
   const STALE_DAYS = 45;
   const [detailProduct, setDetailProduct] = useState<any | null>(null);
 
@@ -572,6 +588,19 @@ export const Estoque: React.FC = () => {
                 {Number(p.sale_price) > 0 ? `${formatCurrency(profit)} (${margin.toFixed(0)}%)` : '—'}
               </p>
             </div>
+          </div>
+
+          {/* Anunciado (OLX) toggle */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-100 bg-neutral-50">
+            <div>
+              <p className="text-sm font-bold text-neutral-800">Anunciado no OLX</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">{p.is_advertised ? 'Anúncio ativo' : 'Sem anúncio ativo'}</p>
+            </div>
+            <Switch
+              checked={!!p.is_advertised}
+              onChange={() => handleToggleAdvertised(p)}
+              label={p.is_advertised ? 'Anunciado no OLX — clique para desativar' : 'Não anunciado — clique para ativar'}
+            />
           </div>
 
           {/* Reservation banner */}
@@ -782,6 +811,17 @@ export const Estoque: React.FC = () => {
           })()}
         </td>
 
+        {/* Anunciado (OLX) */}
+        <td className="px-3 py-3 text-center whitespace-nowrap">
+          <Switch
+            checked={!!p.is_advertised}
+            onChange={() => handleToggleAdvertised(p)}
+            disabled={isSoldView}
+            size="sm"
+            label={p.is_advertised ? 'Anunciado no OLX — clique para desativar' : 'Não anunciado — clique para ativar'}
+          />
+        </td>
+
         {/* Ações */}
         {!isSoldView && (
           <td className="pr-4 pl-2 py-3">
@@ -912,6 +952,19 @@ export const Estoque: React.FC = () => {
           </div>
         </div>
 
+        {/* Anunciado (OLX) */}
+        {!isSoldView && (
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <Switch
+              checked={!!p.is_advertised}
+              onChange={() => handleToggleAdvertised(p)}
+              size="sm"
+              label={p.is_advertised ? 'Anunciado no OLX — toque para desativar' : 'Não anunciado — toque para ativar'}
+            />
+            <span className="text-[8px] font-black text-neutral-400 uppercase tracking-wide">OLX</span>
+          </div>
+        )}
+
         {/* Price */}
         <div className="text-right flex-shrink-0">
           {Number(p.sale_price) > 0 ? (
@@ -945,6 +998,7 @@ export const Estoque: React.FC = () => {
         <th className="px-3 py-2.5 text-right text-[10px] font-black text-neutral-400 uppercase tracking-widest">Lucro</th>
         <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Dias</th>
         <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Condição</th>
+        <th className="px-3 py-2.5 text-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">Anunciado</th>
         <th className="pr-4 pl-2 py-2.5" />
       </tr>
     </thead>
@@ -1214,6 +1268,7 @@ export const Estoque: React.FC = () => {
                 <col className="w-32" />
                 <col className="w-16" />
                 <col className="w-32" />
+                <col className="w-24" />
                 <col className="w-52" />
               </colgroup>
               <TableHeader />

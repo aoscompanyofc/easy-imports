@@ -17,8 +17,6 @@ interface DashboardState {
   persist: () => void;
 }
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   widgets: DEFAULT_LAYOUT,
   editMode: false,
@@ -110,11 +108,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     get().persist();
   },
 
+  // Salva na hora (sem debounce): cada mutação é uma ação pontual do usuário
+  // (soltar o drag, clicar em redimensionar/add/remover), não um evento contínuo —
+  // um debounce aqui só criava risco de perder a edição se a página fosse
+  // atualizada antes do timer disparar.
   persist: () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    const snapshot = get().widgets;
-    saveTimer = setTimeout(() => {
-      dataService.saveDashboardLayout(snapshot).catch(() => { /* silencioso */ });
-    }, 600);
+    dataService.saveDashboardLayout(get().widgets).catch(() => { /* silencioso */ });
   },
 }));

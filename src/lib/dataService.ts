@@ -80,6 +80,15 @@ export const dataService = {
     if (error) throw error;
     return data;
   },
+  // Estado atual de um produto direto do banco — usado para revalidar estoque no
+  // instante da venda (a lista carregada na tela pode estar desatualizada se outra
+  // pessoa vendeu o mesmo aparelho enquanto a tela estava aberta).
+  async getProductById(id: string) {
+    if (useMock) return mockDataService.getProducts().then((all: any[]) => all.find((p) => p.id === id) || null);
+    const { data, error } = await supabase.from('products').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data;
+  },
   async addProduct(product: any) {
     if (useMock) return mockDataService.addProduct(product);
     const uid = await getUid();

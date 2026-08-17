@@ -343,10 +343,27 @@ export const Estoque: React.FC = () => {
 
   useEffect(() => { fetchProducts(); }, []);
 
+  // IMEI/Nº de série identifica um aparelho físico único — não pode existir cadastrado
+  // duas vezes (mesmo aparelho lançado 2x, ou reaproveitado de um produto já vendido).
+  const findDuplicateImei = (imei: string, excludeId?: string) => {
+    const clean = (imei || '').trim();
+    if (!clean) return null;
+    return products.find((p: any) => p.id !== excludeId && (p.imei || '').trim() === clean) || null;
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = deviceFormToProductName(addForm);
     if (!name && !addForm.model) { toast.error('Selecione ou informe o modelo.'); return; }
+    if (Number(addForm.purchase_price) < 0 || Number(addForm.sale_price) < 0) {
+      toast.error('Preço não pode ser negativo.');
+      return;
+    }
+    const dupImei = findDuplicateImei(addForm.imei);
+    if (dupImei) {
+      toast.error(`Esse IMEI/Nº de série já está cadastrado em "${dupImei.name}" (${dupImei.stock_quantity > 0 ? 'disponível' : 'vendido'}). Confira se não é o mesmo aparelho.`);
+      return;
+    }
     try {
       setIsSavingAdd(true);
       const batteryNote = (addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '')
@@ -381,6 +398,15 @@ export const Estoque: React.FC = () => {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingId) return;
+    if (Number(editForm.purchase_price) < 0 || Number(editForm.sale_price) < 0) {
+      toast.error('Preço não pode ser negativo.');
+      return;
+    }
+    const dupImei = findDuplicateImei(editForm.imei, editingId);
+    if (dupImei) {
+      toast.error(`Esse IMEI/Nº de série já está cadastrado em "${dupImei.name}" (${dupImei.stock_quantity > 0 ? 'disponível' : 'vendido'}). Confira se não é o mesmo aparelho.`);
+      return;
+    }
     try {
       setIsSavingEdit(true);
       const batteryNote = (editForm.battery_health ? ` · Bateria: ${editForm.battery_health}` : '')

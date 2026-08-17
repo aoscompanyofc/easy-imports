@@ -350,6 +350,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
         <Input
           label={purchasePriceLabel || 'Preço de Custo (R$) *'}
           type="number"
+          min="0"
           step="any"
           inputMode="decimal"
           placeholder="Ex: 9000"
@@ -362,6 +363,7 @@ export const DeviceForm: React.FC<Props> = ({ value, onChange, showSalePrice = t
           <Input
             label={salePriceLabel || 'Preço de Venda (R$) — opcional'}
             type="number"
+            min="0"
             step="any"
             inputMode="decimal"
             placeholder="Ex: 11000"

@@ -671,6 +671,26 @@ export const Vendas: React.FC = () => {
       }
       // ─────────────────────────────────────────────────────────────────────────
 
+      // Revalida o estoque direto no banco antes de confirmar — a lista carregada na tela
+      // pode estar desatualizada se outra pessoa vendeu o mesmo aparelho enquanto esta
+      // tela estava aberta. Evita vender o mesmo IMEI duas vezes.
+      const stockItemsToCheck = [
+        ...(product ? [{ id: product.id, label: product.name }] : []),
+        ...additionalItems.filter((i) => i.selectedProduct).map((i) => {
+          const p = products.find((pr: any) => pr.id === i.selectedProduct);
+          return { id: i.selectedProduct, label: p?.name || 'produto adicional' };
+        }),
+      ];
+      for (const item of stockItemsToCheck) {
+        const fresh = await dataService.getProductById(item.id);
+        if (!fresh || fresh.stock_quantity <= 0) {
+          printWin?.close();
+          toast.error(`"${item.label}" não está mais disponível no estoque — provavelmente já foi vendido em outra operação. Atualize a página.`);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       // Create new customer on-the-fly if requested
       let customerId = form.selectedCustomer || null;
       let customerName = selectedCustomerData?.name || form.seller_name || 'Avulso';

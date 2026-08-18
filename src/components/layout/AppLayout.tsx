@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
-import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator, Trello } from 'lucide-react';
+import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator, Trello, Workflow } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
@@ -30,6 +30,7 @@ const menuItems = [
   { icon: MessageSquare, label: 'Mensagens', path: '/mensagens' },
   { icon: Calculator, label: 'Calculadora', path: '/calculadora' },
   { icon: Trello, label: 'Tarefas', path: '/tarefas' },
+  { icon: Workflow, label: 'Processos', path: '/processos' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
 

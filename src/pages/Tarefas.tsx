@@ -36,6 +36,9 @@ interface Task {
   priority: TaskPriority;
   due_date: string; // '' quando não definida
   archived: boolean;
+  // Quando presente, concluir esta tarefa marca esse produto do Estoque como
+  // "Anunciado no OLX" automaticamente (ver markLinkedProductAdvertised).
+  linkedProductId?: string;
   created_at: string;
   updated_at: string;
 }
@@ -114,15 +117,25 @@ const CardContent = ({ task, isDragging = false, onClick }: { task: Task; isDrag
           <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2">{task.description}</p>
         )}
 
-        {task.due_date && (
-          <div className={cn(
-            'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-            overdue ? 'bg-danger/10 text-danger' : 'bg-neutral-100 text-neutral-500',
-          )}>
-            {overdue ? <AlertTriangle size={10} /> : <Calendar size={10} />}
-            {formatDueDate(task.due_date)}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {task.due_date && (
+            <div className={cn(
+              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+              overdue ? 'bg-danger/10 text-danger' : 'bg-neutral-100 text-neutral-500',
+            )}>
+              {overdue ? <AlertTriangle size={10} /> : <Calendar size={10} />}
+              {formatDueDate(task.due_date)}
+            </div>
+          )}
+          {task.linkedProductId && (
+            <div
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-info/10 text-info"
+              title={task.status === 'done' ? 'Aparelho já marcado como Anunciado no OLX' : 'Ao concluir, marca o aparelho como Anunciado no OLX'}
+            >
+              <Megaphone size={10} /> {task.status === 'done' ? 'Anunciado' : 'Vinculado ao Estoque'}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -271,17 +284,31 @@ export const Tarefas: React.FC = () => {
     setIsFormOpen(true);
   };
 
+  // Concluir uma tarefa vinculada a um produto (ex: "Anunciar X na OLX")
+  // marca esse produto como Anunciado no OLX sozinho, no Estoque. Nunca trava
+  // a conclusão da tarefa se a atualização do produto falhar.
+  const markLinkedProductAdvertised = useCallback((task: Task) => {
+    if (!task.linkedProductId) return;
+    dataService.updateProduct(task.linkedProductId, { is_advertised: true })
+      .then(() => toast.success('Aparelho marcado como Anunciado no OLX! 📢', { duration: 3000 }))
+      .catch(() => { /* silencioso */ });
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Informe o título da tarefa.'); return; }
     setIsSaving(true);
     const now = new Date().toISOString();
     if (editingId) {
+      const original = tasks.find(t => t.id === editingId);
       const next = tasks.map(t => t.id === editingId
         ? { ...t, title: form.title.trim(), description: form.description.trim(), priority: form.priority, due_date: form.due_date, status: form.status, updated_at: now }
         : t);
       persist(next);
       toast.success('Tarefa atualizada!');
+      if (form.status === 'done' && original && original.status !== 'done') {
+        markLinkedProductAdvertised(original);
+      }
     } else {
       const newTask: Task = {
         id: safeUUID(),
@@ -337,8 +364,11 @@ export const Tarefas: React.FC = () => {
     if (!task || task.status === targetStatus) return;
     const next = tasks.map(t => t.id === task.id ? { ...t, status: targetStatus, updated_at: new Date().toISOString() } : t);
     persist(next);
-    if (targetStatus === 'done') toast.success(`"${task.title}" concluída! 🎉`, { duration: 2500 });
-  }, [tasks, persist]);
+    if (targetStatus === 'done') {
+      toast.success(`"${task.title}" concluída! 🎉`, { duration: 2500 });
+      markLinkedProductAdvertised(task);
+    }
+  }, [tasks, persist, markLinkedProductAdvertised]);
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) ?? null : null;
 

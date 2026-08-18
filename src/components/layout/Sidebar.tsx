@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
 import {
-  LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
-  DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
-  ChevronLeft, ChevronRight, LucideIcon, Users2, MessageSquare, Calculator, Trello, Workflow,
-  GripVertical, Pencil, Check, RotateCcw,
+  ChevronLeft, ChevronRight, LucideIcon,
+  GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff, PanelTop,
 } from 'lucide-react';
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
@@ -17,33 +15,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { useAppStore } from '../../stores/appStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
 import { useNavOrderStore } from '../../store/navOrderStore';
+import { ALL_MENU_ITEMS, SETTINGS_ITEM, buildOrderedItems, type NavMenuItem } from '../../lib/navItems';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-const ALL_MENU_ITEMS = [
-  { icon: LayoutDashboard, label: 'Dashboard',     path: '/dashboard'     },
-  { icon: ShoppingCart,    label: 'Vendas',        path: '/vendas'        },
-  { icon: Package,         label: 'Estoque',       path: '/estoque'       },
-  { icon: Users,           label: 'Clientes',      path: '/clientes'      },
-  { icon: UserPlus,        label: 'Leads',         path: '/leads'         },
-  { icon: DollarSign,      label: 'Financeiro',    path: '/financeiro'    },
-  { icon: Truck,           label: 'Fornecedores',  path: '/fornecedores'  },
-  { icon: Megaphone,       label: 'Marketing',     path: '/marketing'     },
-  { icon: BarChart3,       label: 'Relatórios',    path: '/relatorios'    },
-  { icon: FileText,        label: 'Documentação',  path: '/documentacao'  },
-  { icon: Users2,          label: 'Vendedores',    path: '/vendedores'    },
-  { icon: MessageSquare,   label: 'Mensagens',     path: '/mensagens'     },
-  { icon: Calculator,      label: 'Calculadora',   path: '/calculadora'   },
-  { icon: Trello,          label: 'Tarefas',       path: '/tarefas'       },
-  { icon: Workflow,        label: 'Processos',     path: '/processos'     },
-];
-const ITEM_MAP = Object.fromEntries(ALL_MENU_ITEMS.map((i) => [i.path.slice(1), i]));
-
-const SETTINGS_ITEM = { icon: Settings, label: 'Configurações', path: '/configuracoes' };
 
 interface NavItemProps {
   icon: LucideIcon;
@@ -86,42 +64,53 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
 };
 
 // Item arrastável — usado só quando o modo de reorganizar está ativo.
-const SortableNavItem: React.FC<{ item: typeof ALL_MENU_ITEMS[number] }> = ({ item }) => {
+const SortableNavItem: React.FC<{ item: NavMenuItem; isHidden: boolean; onToggleHidden: () => void }> = ({ item, isHidden, onToggleHidden }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.path.slice(1) });
   const Icon = item.icon;
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center gap-1.5 px-1 py-1 rounded-lg bg-neutral-50 border border-neutral-100"
+      className={cn(
+        'flex items-center gap-1.5 px-1 py-1 rounded-lg border',
+        isHidden ? 'bg-neutral-50/50 border-dashed border-neutral-200' : 'bg-neutral-50 border-neutral-100',
+      )}
     >
       <button {...attributes} {...listeners} className="p-1.5 text-neutral-300 hover:text-neutral-600 cursor-grab active:cursor-grabbing touch-none flex-shrink-0">
         <GripVertical size={14} />
       </button>
-      <Icon size={15} className="text-neutral-400 flex-shrink-0" />
-      <span className="text-sm font-medium text-neutral-700 truncate">{item.label}</span>
+      <Icon size={15} className={cn('flex-shrink-0', isHidden ? 'text-neutral-300' : 'text-neutral-400')} />
+      <span className={cn('text-sm font-medium truncate flex-1', isHidden ? 'text-neutral-400 line-through' : 'text-neutral-700')}>{item.label}</span>
+      <button
+        onClick={onToggleHidden}
+        title={isHidden ? 'Mostrar no menu' : 'Ocultar do menu'}
+        className={cn('p-1.5 rounded-md transition-colors flex-shrink-0', isHidden ? 'text-neutral-300 hover:text-primary-700 hover:bg-primary/10' : 'text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200')}
+      >
+        {isHidden ? <EyeOff size={13} /> : <Eye size={13} />}
+      </button>
     </div>
   );
 };
 
 export const Sidebar: React.FC = () => {
-  const { sidebarMode, toggleSidebar } = useAppStore();
+  const { sidebarMode, toggleSidebar, sidebarPosition, setSidebarPosition } = useAppStore();
   const { allowedPages } = usePermissionsStore();
-  const { order, editMode, loaded, setEditMode, load, reorder, resetOrder } = useNavOrderStore();
+  const { order, hidden, editMode, loaded, setEditMode, load, reorder, toggleHidden, resetOrder } = useNavOrderStore();
 
   useEffect(() => { load(); }, [load]);
 
+  if (sidebarPosition === 'top') return null;
+
   const isCollapsed = sidebarMode === 'collapsed';
 
-  // Ordena os itens conforme a ordem personalizada; qualquer item ainda não
-  // presente na ordem salva (ex.: página nova) cai no fim, na ordem padrão.
   const orderedItems = loaded
-    ? [...order.map((key) => ITEM_MAP[key]).filter(Boolean), ...ALL_MENU_ITEMS.filter((i) => !order.includes(i.path.slice(1)))]
+    ? [...order.map((key) => ALL_MENU_ITEMS.find((i) => i.path.slice(1) === key)).filter(Boolean) as NavMenuItem[], ...ALL_MENU_ITEMS.filter((i) => !order.includes(i.path.slice(1)))]
     : ALL_MENU_ITEMS;
 
-  const mainItems = orderedItems.filter(
-    (item) => allowedPages.includes(item.path.slice(1))
-  );
+  // Em modo normal, itens ocultos somem. Em modo de edição, aparecem riscados
+  // (pra poder reativar). Os dois casos sempre respeitam as permissões da equipe.
+  const editableItems = orderedItems.filter((item) => allowedPages.includes(item.path.slice(1)));
+  const mainItems = editMode ? editableItems : buildOrderedItems(order, hidden, loaded).filter((item) => allowedPages.includes(item.path.slice(1)));
   const showSettings = allowedPages.includes('configuracoes');
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -163,25 +152,34 @@ export const Sidebar: React.FC = () => {
         {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
-      {/* Reorganizar menu — só quando expandido (precisa de espaço pro texto/drag) */}
+      {/* Reorganizar / ocultar / posição do menu — só quando expandido */}
       {!isCollapsed && (
         <div className="px-3 mb-1.5 flex items-center justify-between">
           <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">
-            {editMode ? 'Arraste pra reordenar' : 'Menu'}
+            {editMode ? 'Editar menu' : 'Menu'}
           </span>
           <div className="flex items-center gap-1">
             {editMode && (
-              <button
-                onClick={resetOrder}
-                title="Restaurar ordem padrão"
-                className="p-1 text-neutral-300 hover:text-neutral-600 transition-colors"
-              >
-                <RotateCcw size={12} />
-              </button>
+              <>
+                <button
+                  onClick={() => setSidebarPosition('top')}
+                  title="Mover menu pra cima da tela"
+                  className="p-1 text-neutral-300 hover:text-neutral-600 transition-colors"
+                >
+                  <PanelTop size={12} />
+                </button>
+                <button
+                  onClick={resetOrder}
+                  title="Restaurar menu padrão"
+                  className="p-1 text-neutral-300 hover:text-neutral-600 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </>
             )}
             <button
               onClick={() => setEditMode(!editMode)}
-              title={editMode ? 'Concluir' : 'Reorganizar menu'}
+              title={editMode ? 'Concluir' : 'Reorganizar / ocultar páginas'}
               className={cn('p-1 transition-colors', editMode ? 'text-primary-700' : 'text-neutral-300 hover:text-neutral-600')}
             >
               {editMode ? <Check size={13} /> : <Pencil size={12} />}
@@ -196,7 +194,12 @@ export const Sidebar: React.FC = () => {
           <SortableContext items={mainItems.map((i) => i.path.slice(1))} strategy={verticalListSortingStrategy}>
             <nav className="flex-1 px-2 space-y-1 overflow-y-auto overflow-x-hidden" aria-label="Reorganizar navegação">
               {mainItems.map((item) => (
-                <SortableNavItem key={item.path} item={item} />
+                <SortableNavItem
+                  key={item.path}
+                  item={item}
+                  isHidden={hidden.includes(item.path.slice(1))}
+                  onToggleHidden={() => toggleHidden(item.path.slice(1))}
+                />
               ))}
             </nav>
           </SortableContext>

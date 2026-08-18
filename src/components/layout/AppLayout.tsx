@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { TopNav, TOP_NAV_HEIGHT } from './TopNav';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
-import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign, Truck, Megaphone, BarChart3, FileText, Settings, LogOut, Users2, MessageSquare, Calculator, Trello, Workflow } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
 import { useNavOrderStore } from '../../store/navOrderStore';
 import { useAppStore } from '../../stores/appStore';
+import { ALL_MENU_ITEMS, SETTINGS_ITEM, buildOrderedItems } from '../../lib/navItems';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -17,50 +19,26 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: ShoppingCart, label: 'Vendas', path: '/vendas' },
-  { icon: Package, label: 'Estoque', path: '/estoque' },
-  { icon: Users, label: 'Clientes', path: '/clientes' },
-  { icon: UserPlus, label: 'Leads', path: '/leads' },
-  { icon: DollarSign, label: 'Financeiro', path: '/financeiro' },
-  { icon: Truck, label: 'Fornecedores', path: '/fornecedores' },
-  { icon: Megaphone, label: 'Marketing', path: '/marketing' },
-  { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
-  { icon: FileText, label: 'Documentação', path: '/documentacao' },
-  { icon: Users2, label: 'Vendedores', path: '/vendedores' },
-  { icon: MessageSquare, label: 'Mensagens', path: '/mensagens' },
-  { icon: Calculator, label: 'Calculadora', path: '/calculadora' },
-  { icon: Trello, label: 'Tarefas', path: '/tarefas' },
-  { icon: Workflow, label: 'Processos', path: '/processos' },
-  { icon: Settings, label: 'Configurações', path: '/configuracoes' },
-];
-
 export const AppLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
-  const { sidebarMode } = useAppStore();
+  const { sidebarMode, sidebarPosition } = useAppStore();
   const isSidebarCollapsed = sidebarMode === 'collapsed';
-  const { order, loaded: navOrderLoaded, load: loadNavOrder } = useNavOrderStore();
+  const isTopNav = sidebarPosition === 'top';
+  const { order, hidden, loaded: navOrderLoaded, load: loadNavOrder } = useNavOrderStore();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => { loadNavOrder(); }, [loadNavOrder]);
 
-  // Mesma ordem personalizada da Sidebar — Configurações sempre por último.
-  const itemMap = Object.fromEntries(menuItems.map((i) => [i.path.slice(1), i]));
-  const orderedMenuItems = navOrderLoaded
-    ? [
-        ...order.map((key) => itemMap[key]).filter(Boolean),
-        ...menuItems.filter((i) => i.path !== '/configuracoes' && !order.includes(i.path.slice(1))),
-        itemMap['configuracoes'],
-      ].filter(Boolean)
-    : menuItems;
-
-  const visibleMenuItems = orderedMenuItems.filter(
-    (item) => allowedPages.includes(item.path.slice(1))
-  );
+  // Mesma ordem/visibilidade personalizada da Sidebar/TopNav — o menu do
+  // celular (drawer) reflete exatamente o que foi configurado no desktop.
+  // Configurações sempre por último.
+  const visibleMenuItems = [
+    ...buildOrderedItems(order, hidden, navOrderLoaded),
+    SETTINGS_ITEM,
+  ].filter((item) => allowedPages.includes(item.path.slice(1)));
 
   const closeMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(false);
@@ -96,12 +74,12 @@ export const AppLayout: React.FC = () => {
     <div className={cn(
       "flex min-h-screen bg-neutral-50 overflow-x-hidden transition-colors duration-300"
     )}>
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Desktop: barra lateral OU barra superior, nunca as duas */}
+      {isTopNav ? <TopNav /> : <Sidebar />}
 
       {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm z-[50] lg:hidden animate-in fade-in duration-300"
           onClick={closeMobileMenu}
           aria-hidden="true"
@@ -109,7 +87,7 @@ export const AppLayout: React.FC = () => {
       )}
 
       {/* Mobile Drawer */}
-      <div 
+      <div
         className={cn(
           'fixed top-0 bottom-0 left-0 w-[280px] bg-white z-[60] lg:hidden transform transition-transform duration-300 ease-in-out',
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
@@ -129,7 +107,7 @@ export const AppLayout: React.FC = () => {
                 <span className="text-primary">Imports</span>
               </div>
             </NavLink>
-            <button 
+            <button
               onClick={closeMobileMenu}
               className="p-2 text-neutral-400 hover:text-neutral-900 rounded-lg transition-colors"
               aria-label="Fechar menu"
@@ -171,10 +149,14 @@ export const AppLayout: React.FC = () => {
         </div>
       </div>
 
-      <div className={cn(
-        'flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300',
-        isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]',
-      )}>
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300',
+          isTopNav ? '' : (isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'),
+        )}
+        style={isTopNav ? { paddingTop: 0 } : undefined}
+      >
+        <div className={isTopNav ? 'hidden lg:block' : 'hidden'} style={{ height: TOP_NAV_HEIGHT }} />
         <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
 
         <main className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8 overflow-x-hidden">

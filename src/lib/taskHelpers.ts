@@ -11,6 +11,9 @@ export interface QuickTaskInput {
   priority?: TaskPriority;
   status?: TaskStatus;
   due_date?: string;
+  // Quando presente, marca esse ID de produto do Estoque como "Anunciado no
+  // OLX" automaticamente assim que a tarefa for concluída (ver Tarefas.tsx).
+  linkedProductId?: string;
 }
 
 // Cria uma tarefa direto no quadro de Tarefas a partir de qualquer lugar do
@@ -30,6 +33,7 @@ export async function addQuickTask(input: QuickTaskInput): Promise<boolean> {
       priority: input.priority || 'media',
       due_date: input.due_date || '',
       archived: false,
+      linkedProductId: input.linkedProductId || '',
       created_at: now,
       updated_at: now,
     };

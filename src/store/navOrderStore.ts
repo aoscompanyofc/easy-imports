@@ -10,17 +10,20 @@ export const DEFAULT_NAV_ORDER = [
 
 interface NavOrderState {
   order: string[];
+  hidden: string[];
   editMode: boolean;
   loaded: boolean;
   setEditMode: (on: boolean) => void;
   load: () => Promise<void>;
   reorder: (activeKey: string, overKey: string) => void;
+  toggleHidden: (key: string) => void;
   resetOrder: () => void;
   persist: () => void;
 }
 
 export const useNavOrderStore = create<NavOrderState>((set, get) => ({
   order: DEFAULT_NAV_ORDER,
+  hidden: [],
   editMode: false,
   loaded: false,
 
@@ -29,14 +32,15 @@ export const useNavOrderStore = create<NavOrderState>((set, get) => ({
   load: async () => {
     try {
       const saved = await dataService.getNavOrder();
-      if (saved && Array.isArray(saved) && saved.length > 0) {
+      if (saved && Array.isArray(saved.order) && saved.order.length > 0) {
         // Só mantém chaves que ainda existem no sistema e anexa páginas novas
         // que não estavam no pedido salvo (ex.: Processos, adicionada depois).
-        let valid = saved.filter((key) => DEFAULT_NAV_ORDER.includes(key));
+        let valid = saved.order.filter((key) => DEFAULT_NAV_ORDER.includes(key));
         const missing = DEFAULT_NAV_ORDER.filter((key) => !valid.includes(key));
         if (missing.length > 0) valid = [...valid, ...missing];
-        set({ order: valid, loaded: true });
-        if (valid.length !== saved.length) get().persist();
+        const hidden = (saved.hidden || []).filter((key) => DEFAULT_NAV_ORDER.includes(key));
+        set({ order: valid, hidden, loaded: true });
+        if (valid.length !== saved.order.length) get().persist();
         return;
       }
     } catch {
@@ -56,12 +60,20 @@ export const useNavOrderStore = create<NavOrderState>((set, get) => ({
     get().persist();
   },
 
+  toggleHidden: (key) => {
+    const hidden = get().hidden.includes(key)
+      ? get().hidden.filter((k) => k !== key)
+      : [...get().hidden, key];
+    set({ hidden });
+    get().persist();
+  },
+
   resetOrder: () => {
-    set({ order: DEFAULT_NAV_ORDER });
+    set({ order: DEFAULT_NAV_ORDER, hidden: [] });
     get().persist();
   },
 
   persist: () => {
-    dataService.saveNavOrder(get().order).catch(() => { /* silencioso */ });
+    dataService.saveNavOrder({ order: get().order, hidden: get().hidden }).catch(() => { /* silencioso */ });
   },
 }));

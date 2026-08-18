@@ -370,7 +370,7 @@ export const Estoque: React.FC = () => {
       setIsSavingAdd(true);
       const batteryNote = (addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '')
         + (addForm.battery_cycles ? ` · Ciclos: ${addForm.battery_cycles}` : '');
-      await dataService.addProduct({
+      const created = await dataService.addProduct({
         name: name || addForm.model,
         category: addForm.category,
         imei: addForm.imei,
@@ -388,12 +388,15 @@ export const Estoque: React.FC = () => {
       });
       toast.success('Aparelho adicionado ao estoque!');
       // Todo aparelho seminovo/usado que entra no estoque já gera a tarefa de
-      // anunciar no OLX — não precisa lembrar de criar na mão.
+      // anunciar no OLX, vinculada a este produto — quando a tarefa for
+      // arrastada pra "Concluído" em Tarefas, o produto vira "Anunciado no
+      // OLX" sozinho aqui no Estoque (ver Tarefas.tsx).
       if (!addForm.condition.toLowerCase().startsWith('novo')) {
         addQuickTask({
           title: `Anunciar ${name || addForm.model} na OLX`,
           priority: 'media',
           status: 'todo',
+          linkedProductId: created?.id,
         }).then((ok) => { if (ok) toast('Tarefa criada: anunciar no OLX 📋', { duration: 3000 }); });
       }
       setIsAddModalOpen(false);

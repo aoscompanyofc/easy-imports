@@ -867,17 +867,25 @@ export const dataService = {
     }
   },
 
-  // ─── Ordem do menu lateral ───────────────────────────────────────────────
+  // ─── Ordem/visibilidade do menu lateral ──────────────────────────────────
   // Mesmo padrão do Dashboard Layout: um blob JSON por usuário em Supabase,
-  // com fallback em localStorage caso a tabela ainda não exista.
-  async getNavOrder(): Promise<string[] | null> {
+  // com fallback em localStorage caso a tabela ainda não exista. O formato
+  // guardado em `order_list` evoluiu de array simples (string[]) pra objeto
+  // { order, hidden } — getNavOrder aceita os dois formatos.
+  async getNavOrder(): Promise<{ order: string[]; hidden: string[] } | null> {
     const local = () => {
       try {
         const raw = localStorage.getItem('easy-imports-nav-order');
         return raw ? JSON.parse(raw) : null;
       } catch { return null; }
     };
-    if (useMock) return local();
+    const normalize = (raw: any): { order: string[]; hidden: string[] } | null => {
+      if (!raw) return null;
+      if (Array.isArray(raw)) return { order: raw, hidden: [] }; // formato antigo
+      if (Array.isArray(raw.order)) return { order: raw.order, hidden: Array.isArray(raw.hidden) ? raw.hidden : [] };
+      return null;
+    };
+    if (useMock) return normalize(local());
     try {
       const uid = await getUid();
       const { data, error } = await supabase
@@ -886,18 +894,17 @@ export const dataService = {
         .eq('user_id', uid)
         .maybeSingle();
       if (error) {
-        if (isTableErr(error)) return local();
+        if (isTableErr(error)) return normalize(local());
         throw error;
       }
-      if (data?.order_list) return data.order_list as string[];
-      return local();
+      return normalize(data?.order_list) ?? normalize(local());
     } catch {
-      return local();
+      return normalize(local());
     }
   },
-  async saveNavOrder(order: string[]): Promise<boolean> {
+  async saveNavOrder(data: { order: string[]; hidden: string[] }): Promise<boolean> {
     try {
-      localStorage.setItem('easy-imports-nav-order', JSON.stringify(order));
+      localStorage.setItem('easy-imports-nav-order', JSON.stringify(data));
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
@@ -905,7 +912,7 @@ export const dataService = {
       const { error } = await supabase
         .from('nav_layout')
         .upsert(
-          { user_id: uid, order_list: order, updated_at: new Date().toISOString() },
+          { user_id: uid, order_list: data, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;

@@ -833,7 +833,7 @@ export const Vendas: React.FC = () => {
           const deviceName = deviceFormToProductName(device) || device.model;
           if (!deviceName.trim()) continue;
           const batteryNote = device.battery_health ? ` · Bateria: ${device.battery_health}` : '';
-          await dataService.addProduct({
+          const createdIncoming = await dataService.addProduct({
             name: deviceName.trim(),
             category: device.category || 'iPhone',
             purchase_price: Number(device.purchase_price) || 0,
@@ -849,9 +849,10 @@ export const Vendas: React.FC = () => {
             entry_date: device.entry_date || new Date(form.sale_date).toISOString().split('T')[0],
           });
           // Aparelho recebido em troca entra como seminovo/usado por natureza —
-          // já gera a tarefa de anunciar no OLX, igual entrada manual no Estoque.
+          // já gera a tarefa de anunciar no OLX, vinculada a este produto, igual
+          // entrada manual no Estoque.
           if (!(device.condition || 'Seminovo — Excelente').toLowerCase().startsWith('novo')) {
-            addQuickTask({ title: `Anunciar ${deviceName.trim()} na OLX`, priority: 'media', status: 'todo' }).catch(() => {});
+            addQuickTask({ title: `Anunciar ${deviceName.trim()} na OLX`, priority: 'media', status: 'todo', linkedProductId: createdIncoming?.id }).catch(() => {});
           }
           if (Number(device.purchase_price) > 0) {
             await dataService.addTransaction({

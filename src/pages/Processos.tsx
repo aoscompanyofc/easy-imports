@@ -145,6 +145,227 @@ function seedProcesses(): ProcessDoc[] {
         'Aparelho sem saúde da bateria preenchida fica sinalizado no Estoque — preencha antes de gerar a lista, senão o cliente não vê essa informação.',
       ],
     ),
+    mk(
+      'Troca de Aparelho',
+      'Vendas',
+      'Cliente entrega um aparelho usado e paga a diferença por outro do estoque.',
+      [
+        ['Escolher "Troca de Aparelhos" no início da operação', ''],
+        ['Cadastrar o aparelho que o cliente está entregando', 'Categoria, modelo, IMEI, condição e valor de avaliação.'],
+        ['Selecionar o aparelho de saída no estoque', ''],
+        ['Conferir a diferença calculada automaticamente', 'Valor do aparelho de saída menos o valor de avaliação do que entrou.'],
+        ['Confirmar', 'O aparelho recebido entra automaticamente no estoque, pronto pra revenda.'],
+      ],
+      [
+        'O valor de avaliação que você digitar vira o preço de custo do aparelho recebido no estoque — confira o estado físico dele com atenção antes de definir esse valor.',
+      ],
+    ),
+    mk(
+      'Venda a Prazo (Parcelado)',
+      'Vendas',
+      'Venda parcelada em vencimentos mensais, com ou sem entrada.',
+      [
+        ['Escolher "Venda a Prazo" no início da operação', ''],
+        ['Definir o produto e o valor total', ''],
+        ['Informar entrada (opcional) e valor/quantidade das parcelas', ''],
+        ['Definir a data do 1º vencimento', 'As parcelas seguintes são geradas automaticamente mês a mês.'],
+        ['Informar o custo de entrada do produto', 'Obrigatório — sem isso o sistema calcula o lucro errado.'],
+        ['Confirmar', 'Gera o PDF e já lança o custo no Financeiro na hora.'],
+      ],
+      [
+        'Custo de entrada é obrigatório em venda a prazo — sem ele o lucro aparece 100% errado no Dashboard.',
+        'Ir em Financeiro marcar cada parcela como paga assim que o cliente pagar — o sistema não faz isso sozinho.',
+      ],
+    ),
+    mk(
+      'Edição de uma Venda Já Registrada',
+      'Vendas',
+      'Corrigir dados de uma venda depois de já ter sido feita.',
+      [
+        ['Abrir a venda no histórico de Vendas', ''],
+        ['Clicar em Editar', ''],
+        ['Ajustar os dados necessários', 'Cliente, produto, valor, forma de pagamento, etc.'],
+        ['Salvar', 'Gera uma nova versão do PDF automaticamente (v1, v2...).'],
+      ],
+      [
+        'Editar uma venda corrige o cadastro/recibo — não desfaz a baixa no estoque nem o lançamento financeiro já feito. Pra desfazer a operação de verdade, use excluir a venda.',
+      ],
+    ),
+    mk(
+      'Cancelamento de Venda',
+      'Vendas',
+      'Excluir uma venda e tentar devolver o aparelho pro estoque.',
+      [
+        ['Abrir a venda no histórico', ''],
+        ['Clicar em excluir', 'O sistema tenta devolver automaticamente o(s) aparelho(s) vendido(s) pro estoque, casando pelo IMEI ou nome do produto.'],
+        ['Conferir no Estoque', 'Verificar se o aparelho realmente voltou como "Disponível".'],
+      ],
+      [
+        'Se o IMEI do aparelho foi corrigido depois da venda original, a devolução automática pode não encontrar o produto certo — confira manualmente nesse caso.',
+      ],
+    ),
+    mk(
+      'Cadastro de Cliente',
+      'Atendimento',
+      'Cadastrar um novo cliente sem duplicar quem já existe.',
+      [
+        ['Ir em Clientes → Novo Cliente', ''],
+        ['Preencher nome (obrigatório), telefone, CPF, cidade e origem', ''],
+        ['O sistema confere duplicidade automaticamente', 'Por CPF, telefone ou nome parecido — avisa antes de salvar se já existir alguém assim.'],
+        ['Confirmar cadastro ou abrir o cliente existente', ''],
+      ],
+      [
+        'Se o aviso de "cliente parecido" aparecer, confira com calma — CPF ou telefone repetido é quase sempre a mesma pessoa.',
+      ],
+    ),
+    mk(
+      'Aniversariantes — Mensagem de Parabéns',
+      'Atendimento',
+      'Enviar mensagem de aniversário com cupom pros clientes do mês.',
+      [
+        ['Ir em Clientes → aba de Aniversariantes', ''],
+        ['Ver quem faz aniversário no mês selecionado', ''],
+        ['Clicar em enviar', 'Abre o WhatsApp com a mensagem pronta, incluindo o cupom de desconto.'],
+      ],
+      [
+        'Só funciona pra clientes que têm a data de nascimento preenchida no cadastro — vale a pena perguntar e completar esse dado com o tempo.',
+      ],
+    ),
+    mk(
+      'Gestão de Leads (Funil de Vendas)',
+      'Vendas',
+      'Acompanhar um contato desde o primeiro interesse até virar cliente.',
+      [
+        ['Ir em Leads → Novo Lead', 'Preencher dados de contato e origem (Instagram, indicação, etc.).'],
+        ['Arrastar entre as etapas conforme o andamento', 'Novo Lead → Interessado → Follow Up → Negociando → Cliente.'],
+        ['Quando chega em "Cliente"', 'O sistema cadastra automaticamente esse lead como cliente.'],
+      ],
+      [
+        'Só mover um lead pra "Cliente" quando a venda realmente aconteceu — mover antes da hora infla a taxa de conversão sem faturamento real por trás.',
+      ],
+    ),
+    mk(
+      'Lançamento Financeiro Manual',
+      'Financeiro',
+      'Registrar receitas e despesas que não vêm de uma venda ou compra.',
+      [
+        ['Ir em Financeiro → Nova Transação', ''],
+        ['Escolher tipo (receita ou despesa), categoria, valor e data', ''],
+        ['Salvar', ''],
+      ],
+      [
+        'Vendas e custos de produto já lançam sozinhos no Financeiro — lance manualmente só o que não passa por Venda/Compra (aluguel, energia, salário, etc.), senão duplica o valor.',
+      ],
+    ),
+    mk(
+      'Controle de Parcelas (Venda a Prazo)',
+      'Financeiro',
+      'Acompanhar e dar baixa nas parcelas de vendas parceladas.',
+      [
+        ['Ir em Financeiro → parcelas pendentes/atrasadas', ''],
+        ['Marcar como paga quando o cliente pagar', ''],
+      ],
+      [
+        'Parcela atrasada não bloqueia nada sozinha no sistema — o acompanhamento e a cobrança são manuais.',
+      ],
+    ),
+    mk(
+      'Cadastro de Fornecedor',
+      'Compras',
+      'Registrar de quem a loja compra aparelhos e acessórios.',
+      [
+        ['Ir em Fornecedores → Novo Fornecedor', ''],
+        ['Preencher dados de contato', ''],
+        ['Vincular às compras feitas com ele', ''],
+      ],
+      [],
+    ),
+    mk(
+      'Cálculo de Parcelamento na Maquininha',
+      'Financeiro',
+      'Simular o valor final de uma venda parcelada no cartão, já com a taxa da maquininha embutida.',
+      [
+        ['Ir em Calculadora', ''],
+        ['Informar o valor e escolher a bandeira do cartão', ''],
+        ['Escolher o número de parcelas (até 18x)', ''],
+        ['Gerar a imagem com o valor final', 'Pronta pra mandar direto pro cliente.'],
+      ],
+      [
+        'Confira a bandeira certa antes de gerar — a taxa muda bastante de uma bandeira pra outra.',
+      ],
+    ),
+    mk(
+      'Mensagens Prontas (Templates de WhatsApp)',
+      'Atendimento',
+      'Usar modelos de mensagem já prontos pra situações recorrentes.',
+      [
+        ['Ir em Mensagens', ''],
+        ['Escolher o modelo', 'Garantia, cobrança, avisos, etc.'],
+        ['Preencher os dados do cliente no modelo', ''],
+        ['Copiar e enviar', ''],
+      ],
+      [],
+    ),
+    mk(
+      'Gestão de Vendedores e Comissão',
+      'Operacional',
+      'Acompanhar a performance individual de cada vendedor.',
+      [
+        ['Ir em Vendedores → Novo Vendedor', ''],
+        ['Vincular o vendedor na hora de registrar uma venda', 'Campo "Vendedor Responsável" na tela de Venda.'],
+        ['Acompanhar o desempenho de cada um', 'Em Vendedores ou Relatórios.'],
+      ],
+      [],
+    ),
+    mk(
+      'Permissões da Equipe',
+      'Operacional',
+      'Controlar o que cada membro da equipe pode acessar no sistema.',
+      [
+        ['Ir em Configurações → Equipe', ''],
+        ['Cadastrar o membro com e-mail e senha', ''],
+        ['Escolher quais páginas ele pode acessar', ''],
+      ],
+      [
+        'Por padrão, um vendedor só enxerga Dashboard, Vendas, Estoque, Clientes e Leads — libere manualmente qualquer página extra que ele precisar (Financeiro, Processos, etc.).',
+      ],
+    ),
+    mk(
+      'Quadro de Tarefas (Kanban)',
+      'Operacional',
+      'Organizar o que precisa ser feito no dia a dia da loja.',
+      [
+        ['Ir em Tarefas → Nova Tarefa', ''],
+        ['Definir coluna inicial, prioridade e prazo', ''],
+        ['Arrastar entre as colunas conforme o progresso', 'A Fazer → Em Andamento → Concluído.'],
+        ['Ocultar tarefas concluídas antigas', 'Sem perder o histórico — dá pra restaurar depois.'],
+      ],
+      [],
+    ),
+    mk(
+      'Correção de IMEI Depois de Cadastrado',
+      'Estoque',
+      'Como corrigir um IMEI/número de série digitado errado.',
+      [
+        ['Editando o produto direto no Estoque', ''],
+        ['Ou direto na tela de Venda, no momento de vender', 'Sincroniza sozinho de volta pro cadastro do Estoque.'],
+        ['Ou editando uma venda já feita', 'Nesse caso só corrige o recibo/PDF, não o cadastro do Estoque.'],
+      ],
+      [
+        'O sistema bloqueia sozinho o cadastro de dois produtos com o mesmo IMEI — se aparecer o aviso, confira se não é o mesmo aparelho reentrando.',
+      ],
+    ),
+    mk(
+      'Geração de Relatórios',
+      'Financeiro',
+      'Ver o desempenho da loja num período.',
+      [
+        ['Ir em Relatórios', ''],
+        ['Escolher o período', ''],
+        ['Analisar faturamento, lucro, produtos mais vendidos e desempenho por vendedor', ''],
+      ],
+      [],
+    ),
   ];
 }
 
@@ -251,10 +472,20 @@ export const Processos: React.FC = () => {
           dataService.getLeads().catch(() => []),
           dataService.getTransactions().catch(() => []),
         ]);
+        const allSeeds = seedProcesses();
         if (board && Array.isArray(board.processes) && board.processes.length > 0) {
-          setProcesses(board.processes);
+          // Migração incremental: novos processos padrão adicionados depois que o
+          // usuário já tinha o quadro — anexa só os que ainda não existem (por
+          // título), sem duplicar nem mexer no que já foi editado.
+          const existingTitles = new Set(board.processes.map((p: ProcessDoc) => p.title));
+          const missing = allSeeds.filter(p => !existingTitles.has(p.title));
+          const merged = missing.length > 0 ? [...board.processes, ...missing] : board.processes;
+          setProcesses(merged);
+          if (missing.length > 0) {
+            dataService.saveProcessosBoard({ processes: merged, goals: board.goals || [] }).catch(() => { /* silencioso */ });
+          }
         } else {
-          setProcesses(seedProcesses());
+          setProcesses(allSeeds);
         }
         setGoals(board?.goals && Array.isArray(board.goals) ? board.goals : []);
         setRawData({ sales: sales || [], products: products || [], leads: leads || [], transactions: transactions || [] });

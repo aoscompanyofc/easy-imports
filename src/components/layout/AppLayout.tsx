@@ -8,6 +8,7 @@ import { X, LayoutDashboard, ShoppingCart, Package, Users, UserPlus, DollarSign,
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
+import { useNavOrderStore } from '../../store/navOrderStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -38,10 +39,23 @@ export const AppLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
+  const { order, loaded: navOrderLoaded, load: loadNavOrder } = useNavOrderStore();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const visibleMenuItems = menuItems.filter(
+  useEffect(() => { loadNavOrder(); }, [loadNavOrder]);
+
+  // Mesma ordem personalizada da Sidebar — Configurações sempre por último.
+  const itemMap = Object.fromEntries(menuItems.map((i) => [i.path.slice(1), i]));
+  const orderedMenuItems = navOrderLoaded
+    ? [
+        ...order.map((key) => itemMap[key]).filter(Boolean),
+        ...menuItems.filter((i) => i.path !== '/configuracoes' && !order.includes(i.path.slice(1))),
+        itemMap['configuracoes'],
+      ].filter(Boolean)
+    : menuItems;
+
+  const visibleMenuItems = orderedMenuItems.filter(
     (item) => allowedPages.includes(item.path.slice(1))
   );
 

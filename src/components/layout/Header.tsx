@@ -4,6 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, LucideIcon,
   User, Loader2, Sun, Moon, Calculator, Trello, Workflow,
+  Repeat, Wallet, UserMinus, ListChecks, CheckCheck, BellOff,
 } from 'lucide-react';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -11,6 +12,16 @@ import { useProfileStore } from '../../stores/profileStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { dataService } from '../../lib/dataService';
 import { formatCurrency } from '../../lib/formatters';
+import type { AppNotification, NotificationType } from '../../lib/notificationHelpers';
+
+const NOTIF_ICONS: Record<NotificationType, LucideIcon> = {
+  venda: ShoppingCart, troca: Repeat, prazo: Wallet, venda_cancelada: BellOff,
+  cliente_novo: UserPlus, cliente_removido: UserMinus, tarefa_nova: ListChecks,
+};
+const NOTIF_COLORS: Record<NotificationType, string> = {
+  venda: '#16A34A', troca: '#2563EB', prazo: '#B45309', venda_cancelada: '#DC2626',
+  cliente_novo: '#7C3AED', cliente_removido: '#DC2626', tarefa_nova: '#525252',
+};
 
 // ─── Page routes ────────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
@@ -245,6 +256,43 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    dataService.getNotifications().then((list) => { if (Array.isArray(list)) setNotifications(list); }).catch(() => { /* silencioso */ });
+  }, []);
+
+  const persistNotifications = (next: AppNotification[]) => {
+    setNotifications(next);
+    dataService.saveNotifications(next).catch(() => { /* já ficou salvo local */ });
+  };
+  const markAllNotifsRead = () => persistNotifications(notifications.map((n) => ({ ...n, read: true })));
+  const handleNotifClick = (n: AppNotification) => {
+    persistNotifications(notifications.map((x) => x.id === n.id ? { ...x, read: true } : x));
+    setIsNotifOpen(false);
+    if (n.link) navigate(n.link);
+  };
+  const timeAgo = (iso: string) => {
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `há ${mins}min`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `há ${hrs}h`;
+    const days = Math.floor(hrs / 24);
+    return `há ${days}d`;
+  };
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setIsNotifOpen(false);
+    };
+    if (isNotifOpen) document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [isNotifOpen]);
 
   const getPageTitle = () => {
     const path = location.pathname.split('/')[1];
@@ -458,10 +506,65 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
           }
         </button>
 
-        <button className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors relative">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-danger rounded-full border-2 border-white" />
-        </button>
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setIsNotifOpen((v) => !v)}
+            className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors relative"
+          >
+            <Bell size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-danger rounded-full border-2 border-white text-[9px] font-black text-white leading-none">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {isNotifOpen && (
+            <div className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-[480px] flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 flex-shrink-0">
+                <p className="text-sm font-bold text-neutral-800">Notificações</p>
+                {unreadCount > 0 && (
+                  <button onClick={markAllNotifsRead} className="text-xs font-bold text-primary-700 hover:underline flex items-center gap-1">
+                    <CheckCheck size={13} /> Marcar todas como lidas
+                  </button>
+                )}
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {notifications.length === 0 ? (
+                  <div className="py-10 text-center text-neutral-400">
+                    <Bell size={28} className="mx-auto mb-2 text-neutral-300" />
+                    <p className="text-sm">Nenhuma notificação ainda.</p>
+                    <p className="text-xs mt-1">Vendas, trocas, clientes e tarefas vão aparecer aqui.</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => {
+                    const Icon = NOTIF_ICONS[n.type] || Bell;
+                    const color = NOTIF_COLORS[n.type] || '#525252';
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => handleNotifClick(n)}
+                        className={`w-full flex items-start gap-3 px-4 py-3 border-b border-neutral-50 last:border-0 text-left transition-colors hover:bg-neutral-50 ${n.read ? 'opacity-60' : ''}`}
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + '18', color }}>
+                          <Icon size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-neutral-800 truncate">{n.title}</p>
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-neutral-400 truncate">{n.message}</p>
+                          <p className="text-[10px] text-neutral-300 mt-0.5">{timeAgo(n.created_at)}</p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="relative" ref={dropdownRef}>
           <button

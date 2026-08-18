@@ -11,6 +11,7 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { formatCurrency } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
+import { addNotification } from '../lib/notificationHelpers';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -263,6 +264,11 @@ export const Clientes: React.FC = () => {
       if (created.__migration_needed) {
         localStorage.setItem('needs_customer_migration', '1');
       }
+      addNotification({
+        type: 'cliente_novo', title: 'Novo cliente cadastrado',
+        message: formData.phone ? `${formData.name} — ${formData.phone}` : formData.name,
+        link: '/clientes',
+      }).catch(() => {});
       toast.success('Cliente cadastrado!');
       setIsAddOpen(false); setFormData(emptyForm()); fetchAll();
     } catch (error: any) {
@@ -317,6 +323,7 @@ export const Clientes: React.FC = () => {
         );
         if (match) await dataService.deleteLead(match.id);
       } catch { /* ignore sync errors */ }
+      addNotification({ type: 'cliente_removido', title: 'Cliente removido', message: name, link: '/clientes' }).catch(() => {});
       toast.success('Cliente removido!');
       fetchAll();
     } catch (error: any) {

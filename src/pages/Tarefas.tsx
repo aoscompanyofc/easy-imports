@@ -9,13 +9,15 @@ import {
 } from '@dnd-kit/core';
 import {
   Plus, Trash2, Calendar, Flag, Archive, ArchiveRestore,
-  Trello, AlertTriangle,
+  Trello, AlertTriangle, Zap, Megaphone, Instagram, PackageSearch,
+  Wallet, PhoneCall, Cake, ClipboardCheck,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { dataService } from '../lib/dataService';
 import { safeUUID } from '../lib/storage';
+import { addNotification } from '../lib/notificationHelpers';
 import toast from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -50,6 +52,18 @@ const PRIORITIES: { id: TaskPriority; label: string; color: string; bg: string }
   { id: 'baixa', label: 'Baixa', color: '#166534', bg: '#DCFCE7' },
 ];
 function getPriority(id: string) { return PRIORITIES.find(p => p.id === id) ?? PRIORITIES[1]; }
+
+// ─── Modelos de tarefa do dia a dia — clique e já cria, sem precisar digitar ──
+const TASK_TEMPLATES: { title: string; description: string; priority: TaskPriority; icon: React.ElementType }[] = [
+  { title: 'Anunciar aparelho no OLX', description: 'Publicar com fotos atualizadas e descrição completa.', priority: 'media', icon: Megaphone },
+  { title: 'Postar Stories/Feed no Instagram', description: '', priority: 'media', icon: Instagram },
+  { title: 'Enviar lista de Seminovos no grupo do WhatsApp', description: '', priority: 'media', icon: Zap },
+  { title: 'Conferir aparelhos parados no Estoque', description: 'Ver o que está há mais de 45 dias sem vender.', priority: 'media', icon: PackageSearch },
+  { title: 'Cobrar parcelas atrasadas', description: '', priority: 'alta', icon: Wallet },
+  { title: 'Enviar follow-up de 7 dias pros clientes', description: '', priority: 'media', icon: PhoneCall },
+  { title: 'Enviar mensagem de aniversário', description: '', priority: 'baixa', icon: Cake },
+  { title: 'Fazer fechamento de caixa do dia', description: '', priority: 'alta', icon: ClipboardCheck },
+];
 
 function emptyTaskForm() {
   return { title: '', description: '', priority: 'media' as TaskPriority, due_date: '', status: 'todo' as TaskStatus };
@@ -207,6 +221,7 @@ export const Tarefas: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [showArchived, setShowArchived] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // ── Load ──
   useEffect(() => {
@@ -237,6 +252,19 @@ export const Tarefas: React.FC = () => {
     setForm({ ...emptyTaskForm(), status });
     setIsFormOpen(true);
   };
+  const handleUseTemplate = (tpl: typeof TASK_TEMPLATES[number]) => {
+    const now = new Date().toISOString();
+    const newTask: Task = {
+      id: safeUUID(), title: tpl.title, description: tpl.description,
+      priority: tpl.priority, due_date: '', status: 'todo', archived: false,
+      created_at: now, updated_at: now,
+    };
+    persist([...tasks, newTask]);
+    addNotification({ type: 'tarefa_nova', title: 'Nova tarefa criada', message: newTask.title, link: '/tarefas' }).catch(() => {});
+    setShowTemplates(false);
+    toast.success('Tarefa criada!');
+  };
+
   const openEdit = (task: Task) => {
     setEditingId(task.id);
     setForm({ title: task.title, description: task.description, priority: task.priority, due_date: task.due_date, status: task.status });
@@ -267,6 +295,7 @@ export const Tarefas: React.FC = () => {
         updated_at: now,
       };
       persist([...tasks, newTask]);
+      addNotification({ type: 'tarefa_nova', title: 'Nova tarefa criada', message: newTask.title, link: '/tarefas' }).catch(() => {});
       toast.success('Tarefa criada!');
     }
     setIsSaving(false);
@@ -346,6 +375,9 @@ export const Tarefas: React.FC = () => {
               Ocultas ({archivedTasks.length})
             </Button>
           )}
+          <Button variant="secondary" leftIcon={<Zap size={16} />} onClick={() => setShowTemplates(true)}>
+            Tarefas Rápidas
+          </Button>
           <Button leftIcon={<Plus size={16} />} onClick={() => openCreate('todo')}>
             Nova Tarefa
           </Button>
@@ -449,6 +481,35 @@ export const Tarefas: React.FC = () => {
             <Button fullWidth loading={isSaving} type="submit">{editingId ? 'Salvar' : 'Criar Tarefa'}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* MODAL TAREFAS RÁPIDAS (modelos) */}
+      <Modal isOpen={showTemplates} onClose={() => setShowTemplates(false)} title="Tarefas Rápidas" maxWidth="sm">
+        <p className="text-xs text-neutral-400 -mt-2 mb-3">Clique numa tarefa do dia a dia pra criar na hora, direto em "A Fazer".</p>
+        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
+          {TASK_TEMPLATES.map((tpl) => {
+            const Icon = tpl.icon;
+            const pr = getPriority(tpl.priority);
+            return (
+              <button
+                key={tpl.title}
+                onClick={() => handleUseTemplate(tpl)}
+                className="w-full flex items-center gap-3 p-3 bg-neutral-50 hover:bg-neutral-100 border border-neutral-100 rounded-xl transition-colors text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-white border border-neutral-200 flex items-center justify-center flex-shrink-0 text-neutral-500">
+                  <Icon size={15} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-neutral-800 truncate">{tpl.title}</p>
+                  {tpl.description && <p className="text-[11px] text-neutral-400 truncate">{tpl.description}</p>}
+                </div>
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: pr.color, backgroundColor: pr.bg }}>
+                  {pr.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </Modal>
 
       {/* MODAL TAREFAS OCULTAS */}

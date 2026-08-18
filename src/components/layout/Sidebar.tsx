@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
   ChevronLeft, ChevronRight, LucideIcon, Users2, MessageSquare, Calculator, Trello, Workflow,
+  GripVertical, Pencil, Check, RotateCcw,
 } from 'lucide-react';
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAppStore } from '../../stores/appStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
+import { useNavOrderStore } from '../../store/navOrderStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -31,6 +41,7 @@ const ALL_MENU_ITEMS = [
   { icon: Trello,          label: 'Tarefas',       path: '/tarefas'       },
   { icon: Workflow,        label: 'Processos',     path: '/processos'     },
 ];
+const ITEM_MAP = Object.fromEntries(ALL_MENU_ITEMS.map((i) => [i.path.slice(1), i]));
 
 const SETTINGS_ITEM = { icon: Settings, label: 'Configurações', path: '/configuracoes' };
 
@@ -74,16 +85,50 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, path, isCollapsed 
   );
 };
 
+// Item arrastável — usado só quando o modo de reorganizar está ativo.
+const SortableNavItem: React.FC<{ item: typeof ALL_MENU_ITEMS[number] }> = ({ item }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.path.slice(1) });
+  const Icon = item.icon;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="flex items-center gap-1.5 px-1 py-1 rounded-lg bg-neutral-50 border border-neutral-100"
+    >
+      <button {...attributes} {...listeners} className="p-1.5 text-neutral-300 hover:text-neutral-600 cursor-grab active:cursor-grabbing touch-none flex-shrink-0">
+        <GripVertical size={14} />
+      </button>
+      <Icon size={15} className="text-neutral-400 flex-shrink-0" />
+      <span className="text-sm font-medium text-neutral-700 truncate">{item.label}</span>
+    </div>
+  );
+};
+
 export const Sidebar: React.FC = () => {
   const { sidebarMode, toggleSidebar } = useAppStore();
   const { allowedPages } = usePermissionsStore();
+  const { order, editMode, loaded, setEditMode, load, reorder, resetOrder } = useNavOrderStore();
+
+  useEffect(() => { load(); }, [load]);
 
   const isCollapsed = sidebarMode === 'collapsed';
 
-  const mainItems = ALL_MENU_ITEMS.filter(
+  // Ordena os itens conforme a ordem personalizada; qualquer item ainda não
+  // presente na ordem salva (ex.: página nova) cai no fim, na ordem padrão.
+  const orderedItems = loaded
+    ? [...order.map((key) => ITEM_MAP[key]).filter(Boolean), ...ALL_MENU_ITEMS.filter((i) => !order.includes(i.path.slice(1)))]
+    : ALL_MENU_ITEMS;
+
+  const mainItems = orderedItems.filter(
     (item) => allowedPages.includes(item.path.slice(1))
   );
   const showSettings = allowedPages.includes('configuracoes');
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (over && active.id !== over.id) reorder(String(active.id), String(over.id));
+  };
 
   return (
     <aside
@@ -118,18 +163,57 @@ export const Sidebar: React.FC = () => {
         {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
+      {/* Reorganizar menu — só quando expandido (precisa de espaço pro texto/drag) */}
+      {!isCollapsed && (
+        <div className="px-3 mb-1.5 flex items-center justify-between">
+          <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">
+            {editMode ? 'Arraste pra reordenar' : 'Menu'}
+          </span>
+          <div className="flex items-center gap-1">
+            {editMode && (
+              <button
+                onClick={resetOrder}
+                title="Restaurar ordem padrão"
+                className="p-1 text-neutral-300 hover:text-neutral-600 transition-colors"
+              >
+                <RotateCcw size={12} />
+              </button>
+            )}
+            <button
+              onClick={() => setEditMode(!editMode)}
+              title={editMode ? 'Concluir' : 'Reorganizar menu'}
+              className={cn('p-1 transition-colors', editMode ? 'text-primary-700' : 'text-neutral-300 hover:text-neutral-600')}
+            >
+              {editMode ? <Check size={13} /> : <Pencil size={12} />}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main navigation */}
-      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navegação principal">
-        {mainItems.map((item) => (
-          <NavItem
-            key={item.path}
-            icon={item.icon}
-            label={item.label}
-            path={item.path}
-            isCollapsed={isCollapsed}
-          />
-        ))}
-      </nav>
+      {editMode && !isCollapsed ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={mainItems.map((i) => i.path.slice(1))} strategy={verticalListSortingStrategy}>
+            <nav className="flex-1 px-2 space-y-1 overflow-y-auto overflow-x-hidden" aria-label="Reorganizar navegação">
+              {mainItems.map((item) => (
+                <SortableNavItem key={item.path} item={item} />
+              ))}
+            </nav>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navegação principal">
+          {mainItems.map((item) => (
+            <NavItem
+              key={item.path}
+              icon={item.icon}
+              label={item.label}
+              path={item.path}
+              isCollapsed={isCollapsed}
+            />
+          ))}
+        </nav>
+      )}
 
       {/* Settings pinned at bottom */}
       {showSettings && (

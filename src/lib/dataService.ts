@@ -866,4 +866,100 @@ export const dataService = {
       return true;
     }
   },
+
+  // ─── Ordem do menu lateral ───────────────────────────────────────────────
+  // Mesmo padrão do Dashboard Layout: um blob JSON por usuário em Supabase,
+  // com fallback em localStorage caso a tabela ainda não exista.
+  async getNavOrder(): Promise<string[] | null> {
+    const local = () => {
+      try {
+        const raw = localStorage.getItem('easy-imports-nav-order');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    };
+    if (useMock) return local();
+    try {
+      const uid = await getUid();
+      const { data, error } = await supabase
+        .from('nav_layout')
+        .select('order_list')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (error) {
+        if (isTableErr(error)) return local();
+        throw error;
+      }
+      if (data?.order_list) return data.order_list as string[];
+      return local();
+    } catch {
+      return local();
+    }
+  },
+  async saveNavOrder(order: string[]): Promise<boolean> {
+    try {
+      localStorage.setItem('easy-imports-nav-order', JSON.stringify(order));
+    } catch { /* ignore */ }
+    if (useMock) return true;
+    try {
+      const uid = await getUid();
+      const { error } = await supabase
+        .from('nav_layout')
+        .upsert(
+          { user_id: uid, order_list: order, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        );
+      if (error && !isTableErr(error)) throw error;
+      return true;
+    } catch {
+      return true;
+    }
+  },
+
+  // ─── Notificações (atividade do sistema) ────────────────────────────────
+  // Mesmo padrão do Dashboard Layout: um blob JSON por usuário em Supabase,
+  // com fallback em localStorage caso a tabela ainda não exista.
+  async getNotifications(): Promise<any[] | null> {
+    const local = () => {
+      try {
+        const raw = localStorage.getItem('easy-imports-notifications');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    };
+    if (useMock) return local();
+    try {
+      const uid = await getUid();
+      const { data, error } = await supabase
+        .from('notifications_board')
+        .select('items')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (error) {
+        if (isTableErr(error)) return local();
+        throw error;
+      }
+      if (data?.items) return data.items as any[];
+      return local();
+    } catch {
+      return local();
+    }
+  },
+  async saveNotifications(items: any[]): Promise<boolean> {
+    try {
+      localStorage.setItem('easy-imports-notifications', JSON.stringify(items));
+    } catch { /* ignore */ }
+    if (useMock) return true;
+    try {
+      const uid = await getUid();
+      const { error } = await supabase
+        .from('notifications_board')
+        .upsert(
+          { user_id: uid, items, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        );
+      if (error && !isTableErr(error)) throw error;
+      return true;
+    } catch {
+      return true;
+    }
+  },
 };

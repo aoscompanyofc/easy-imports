@@ -17,6 +17,8 @@ import { PostSaleLogistics } from '../components/PostSaleLogistics';
 import type { SaleMsgData } from '../lib/logisticsMessages';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
+import { addQuickTask } from '../lib/taskHelpers';
+import { addNotification } from '../lib/notificationHelpers';
 import { supabase } from '../lib/supabase';
 import { generatePDF, type CompanyInfo, type SalePDFData } from '../lib/pdfGenerator';
 import { isConnected as gcIsConnected, createCalendarEvent } from '../lib/googleCalendar';
@@ -846,6 +848,11 @@ export const Vendas: React.FC = () => {
             product_origin: device.origin || '',
             entry_date: device.entry_date || new Date(form.sale_date).toISOString().split('T')[0],
           });
+          // Aparelho recebido em troca entra como seminovo/usado por natureza —
+          // já gera a tarefa de anunciar no OLX, igual entrada manual no Estoque.
+          if (!(device.condition || 'Seminovo — Excelente').toLowerCase().startsWith('novo')) {
+            addQuickTask({ title: `Anunciar ${deviceName.trim()} na OLX`, priority: 'media', status: 'todo' }).catch(() => {});
+          }
           if (Number(device.purchase_price) > 0) {
             await dataService.addTransaction({
               description: `Aparelho Recebido ${saleNumber} — ${deviceName.trim()}`,
@@ -1156,6 +1163,13 @@ export const Vendas: React.FC = () => {
         })(),
       };
 
+      addNotification({
+        type: form.sale_type === 'troca' ? 'troca' : isPrazo ? 'prazo' : 'venda',
+        title: form.sale_type === 'troca' ? 'Troca registrada' : isPrazo ? 'Venda a prazo registrada' : 'Venda registrada',
+        message: `${productName || 'Produto'} — ${customerName} — ${formatCurrency(totalAmount)}`,
+        link: '/vendas',
+      }).catch(() => {});
+
       setPostSaleData({ customerName: postName, phone: whatsappPhone, signLink, saleNumber, saleType: form.sale_type, msg, address: resolvedCity || '' });
       setIsModalOpen(false);
       setAdditionalItems([]);
@@ -1355,6 +1369,12 @@ export const Vendas: React.FC = () => {
       }
 
       await dataService.deleteSale(deleteSale.id);
+      addNotification({
+        type: 'venda_cancelada',
+        title: 'Venda cancelada',
+        message: `${deleteSale.product_name || 'Produto'} — ${deleteSale.customer_name || 'Cliente'} — ${formatCurrency(Number(deleteSale.total_amount))}`,
+        link: '/vendas',
+      }).catch(() => {});
       toast.success('Operação cancelada e removida.');
       setDeleteSale(null);
       fetchData();

@@ -8,6 +8,7 @@ import { Modal } from '../components/ui/Modal';
 import { DeviceForm, emptyDeviceForm, deviceFormToProductName, type DeviceFormData } from '../components/ui/DeviceForm';
 import { formatCurrency, formatDate } from '../lib/formatters';
 import { dataService } from '../lib/dataService';
+import { addQuickTask } from '../lib/taskHelpers';
 import toast from 'react-hot-toast';
 
 const FILTER_CATEGORIES = ['Todas', 'iPhone', 'iPad', 'MacBook', 'Watch', 'AirPods', 'Acessórios', 'Capas & Cases', 'Smartphones', 'Games', 'Outro'];
@@ -386,6 +387,15 @@ export const Estoque: React.FC = () => {
         notes: addForm.notes || '',
       });
       toast.success('Aparelho adicionado ao estoque!');
+      // Todo aparelho seminovo/usado que entra no estoque já gera a tarefa de
+      // anunciar no OLX — não precisa lembrar de criar na mão.
+      if (!addForm.condition.toLowerCase().startsWith('novo')) {
+        addQuickTask({
+          title: `Anunciar ${name || addForm.model} na OLX`,
+          priority: 'media',
+          status: 'todo',
+        }).then((ok) => { if (ok) toast('Tarefa criada: anunciar no OLX 📋', { duration: 3000 }); });
+      }
       setIsAddModalOpen(false);
       setAddForm(emptyDeviceForm());
       fetchProducts();

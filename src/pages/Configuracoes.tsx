@@ -3,8 +3,17 @@ import {
   Settings, User, Bell, Shield, Database, Link, Trash2, Save,
   Key, RefreshCw, Camera, Users, Plus, X, Copy, Check, Loader2,
   Eye, EyeOff, MessageCircle, Shuffle, Calendar, Unlink, AlertTriangle,
-  Sparkles,
+  Sparkles, LayoutGrid, GripVertical, PanelLeft, PanelTop, RotateCcw,
 } from 'lucide-react';
+import { useAppStore } from '../stores/appStore';
+import { useNavOrderStore } from '../store/navOrderStore';
+import { ALL_MENU_ITEMS, type NavMenuItem } from '../lib/navItems';
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   getClientId, setClientId, isConnected, connect, disconnect,
 } from '../lib/googleCalendar';
@@ -110,13 +119,48 @@ function makeTempClient() {
   );
 }
 
+// Linha arrastável do menu — usada na aba "Menu" pra reordenar/ocultar páginas.
+const SortableMenuRow: React.FC<{ item: NavMenuItem; isHidden: boolean; onToggleHidden: () => void }> = ({ item, isHidden, onToggleHidden }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.path.slice(1) });
+  const Icon = item.icon;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className={cn(
+        'flex items-center gap-2 px-2 py-2 rounded-xl border',
+        isHidden ? 'bg-neutral-50/60 border-dashed border-neutral-200' : 'bg-neutral-50 border-neutral-100',
+      )}
+    >
+      <button {...attributes} {...listeners} className="p-1.5 text-neutral-300 hover:text-neutral-600 cursor-grab active:cursor-grabbing touch-none flex-shrink-0">
+        <GripVertical size={15} />
+      </button>
+      <Icon size={16} className={cn('flex-shrink-0', isHidden ? 'text-neutral-300' : 'text-neutral-400')} />
+      <span className={cn('text-sm font-bold flex-1 truncate', isHidden ? 'text-neutral-400 line-through' : 'text-neutral-700')}>{item.label}</span>
+      <button
+        onClick={onToggleHidden}
+        title={isHidden ? 'Mostrar no menu' : 'Ocultar do menu'}
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0',
+          isHidden ? 'text-neutral-400 hover:text-primary-700 hover:bg-primary/10' : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-200',
+        )}
+      >
+        {isHidden ? <><EyeOff size={13} /> Oculta</> : <><Eye size={13} /> Visível</>}
+      </button>
+    </div>
+  );
+};
+
 export const Configuracoes: React.FC = () => {
   const { user } = useAuthStore();
   const { name, cargo, avatar, telefone, cnpj, signature, storeAddress, setName, setCargo, setAvatar, setTelefone, setCnpj, setSignature, setStoreAddress } = useProfileStore();
   const { isAdmin } = usePermissionsStore();
+  const { sidebarPosition, setSidebarPosition } = useAppStore();
+  const { order: navOrder, hidden: navHidden, load: loadNavOrder, reorder: reorderNav, toggleHidden: toggleNavHidden, resetOrder: resetNavOrder } = useNavOrderStore();
 
   const TABS = [
     { id: 'profile', icon: User, label: 'Perfil' },
+    { id: 'menu', icon: LayoutGrid, label: 'Menu' },
     { id: 'notifications', icon: Bell, label: 'Notificações' },
     { id: 'security', icon: Shield, label: 'Segurança' },
     { id: 'database', icon: Database, label: 'Dados & Backup' },
@@ -125,6 +169,18 @@ export const Configuracoes: React.FC = () => {
     { id: 'ia', icon: Sparkles, label: 'IA' },
     ...(isAdmin ? [{ id: 'equipe', icon: Users, label: 'Equipe' }] : []),
   ];
+
+  useEffect(() => { loadNavOrder(); }, [loadNavOrder]);
+
+  const menuOrderedItems: NavMenuItem[] = [
+    ...navOrder.map((key) => ALL_MENU_ITEMS.find((i) => i.path.slice(1) === key)).filter(Boolean) as NavMenuItem[],
+    ...ALL_MENU_ITEMS.filter((i) => !navOrder.includes(i.path.slice(1))),
+  ];
+  const navSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleNavDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (over && active.id !== over.id) reorderNav(String(active.id), String(over.id));
+  };
 
   const [activeTab, setActiveTab] = useState('profile');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -587,6 +643,70 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;`;
               <Button leftIcon={<Save size={18} />} loading={isSavingProfile} onClick={handleSaveProfile}>
                 Salvar Alterações
               </Button>
+            </div>
+          </div>
+        );
+
+      case 'menu':
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h3 className="font-bold text-neutral-900 mb-1">Personalizar Menu</h3>
+              <p className="text-sm text-neutral-400">Escolha onde o menu fica, reorganize e oculte as páginas que você não usa no dia a dia.</p>
+            </div>
+
+            {/* Posição do menu */}
+            <div>
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-wide mb-2">Posição</p>
+              <div className="grid grid-cols-2 gap-3 max-w-md">
+                <button
+                  onClick={() => setSidebarPosition('left')}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all',
+                    sidebarPosition === 'left' ? 'border-primary bg-primary/5' : 'border-neutral-100 hover:border-neutral-200',
+                  )}
+                >
+                  <PanelLeft size={22} className={sidebarPosition === 'left' ? 'text-primary-700' : 'text-neutral-400'} />
+                  <span className={cn('text-sm font-bold', sidebarPosition === 'left' ? 'text-primary-900' : 'text-neutral-600')}>Lateral</span>
+                </button>
+                <button
+                  onClick={() => setSidebarPosition('top')}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all',
+                    sidebarPosition === 'top' ? 'border-primary bg-primary/5' : 'border-neutral-100 hover:border-neutral-200',
+                  )}
+                >
+                  <PanelTop size={22} className={sidebarPosition === 'top' ? 'text-primary-700' : 'text-neutral-400'} />
+                  <span className={cn('text-sm font-bold', sidebarPosition === 'top' ? 'text-primary-900' : 'text-neutral-600')}>Superior</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Ordem e visibilidade das páginas */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-black text-neutral-400 uppercase tracking-wide">Páginas — arraste pra reordenar</p>
+                <button
+                  onClick={resetNavOrder}
+                  className="flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-neutral-700 transition-colors"
+                >
+                  <RotateCcw size={12} /> Restaurar padrão
+                </button>
+              </div>
+              <DndContext sensors={navSensors} collisionDetection={closestCenter} onDragEnd={handleNavDragEnd}>
+                <SortableContext items={menuOrderedItems.map((i) => i.path.slice(1))} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1.5 max-w-md">
+                    {menuOrderedItems.map((item) => (
+                      <SortableMenuRow
+                        key={item.path}
+                        item={item}
+                        isHidden={navHidden.includes(item.path.slice(1))}
+                        onToggleHidden={() => toggleNavHidden(item.path.slice(1))}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         );

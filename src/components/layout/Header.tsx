@@ -3,7 +3,7 @@ import {
   Bell, Search, Menu, LogOut, Settings,
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, LucideIcon,
-  User, Loader2, Sun, Moon, Calculator,
+  User, Loader2, Sun, Moon, Calculator, Trello,
 } from 'lucide-react';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -19,7 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
   fornecedores: 'Fornecedores', marketing: 'Marketing',
   relatorios: 'Relatórios', documentacao: 'Documentação',
   vendedores: 'Vendedores', mensagens: 'Mensagens Prontas',
-  calculadora: 'Calculadora de Taxas',
+  calculadora: 'Calculadora de Taxas', tarefas: 'Tarefas',
   configuracoes: 'Configurações',
 };
 
@@ -38,6 +38,7 @@ const SEARCH_ROUTES: PageRoute[] = [
   { type: 'page', keywords: ['documentação', 'documentos', 'arquivos'], path: '/documentacao', label: 'Documentação', icon: FileText },
   { type: 'page', keywords: ['calculadora', 'taxa', 'taxas', 'maquininha', 'parcelamento', 'juros', 'cartão'], path: '/calculadora', label: 'Calculadora de Taxas', icon: Calculator },
   { type: 'page', keywords: ['configurações', 'config', 'perfil', 'conta', 'equipe'], path: '/configuracoes', label: 'Configurações', icon: Settings },
+  { type: 'page', keywords: ['tarefas', 'tarefa', 'trello', 'kanban', 'quadro', 'to-do', 'todo'], path: '/tarefas', label: 'Tarefas', icon: Trello },
 ];
 
 // ─── PT-BR date parsing ──────────────────────────────────────────

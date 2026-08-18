@@ -768,4 +768,54 @@ export const dataService = {
       return true;
     }
   },
+
+  // ─── Tarefas (quadro Kanban) ────────────────────────────────────────────
+  // Mesmo padrão do Dashboard Layout: um blob JSON por usuário em Supabase,
+  // com fallback em localStorage caso a tabela ainda não exista.
+  async getTasksBoard(): Promise<any[] | null> {
+    const local = () => {
+      try {
+        const raw = localStorage.getItem('easy-imports-tasks-board');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    };
+    if (useMock) return local();
+    try {
+      const uid = await getUid();
+      const { data, error } = await supabase
+        .from('tasks_board')
+        .select('tasks')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (error) {
+        if (isTableErr(error)) return local();
+        throw error;
+      }
+      if (data?.tasks) return data.tasks as any[];
+      return local();
+    } catch {
+      return local();
+    }
+  },
+  async saveTasksBoard(tasks: any[]): Promise<boolean> {
+    // Sempre grava local como cache/fallback offline.
+    try {
+      localStorage.setItem('easy-imports-tasks-board', JSON.stringify(tasks));
+    } catch { /* ignore */ }
+    if (useMock) return true;
+    try {
+      const uid = await getUid();
+      const { error } = await supabase
+        .from('tasks_board')
+        .upsert(
+          { user_id: uid, tasks, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        );
+      if (error && !isTableErr(error)) throw error;
+      return true;
+    } catch {
+      // Tabela inexistente ou offline: o localStorage já guardou.
+      return true;
+    }
+  },
 };

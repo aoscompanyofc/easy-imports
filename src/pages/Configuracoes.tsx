@@ -47,13 +47,14 @@ const PAGE_LABELS: Record<PageKey, string> = {
   vendedores: 'Vendedores',
   mensagens: 'Mensagens Prontas',
   calculadora: 'Calculadora de Taxas',
+  tarefas: 'Tarefas',
   configuracoes: 'Configurações',
 };
 
 // Pages that vendedores can be granted access to (admins always have all)
 const GRANTABLE_PAGES: PageKey[] = [
   'dashboard', 'vendas', 'estoque', 'clientes', 'leads',
-  'financeiro', 'fornecedores', 'marketing', 'relatorios', 'documentacao',
+  'financeiro', 'fornecedores', 'marketing', 'relatorios', 'documentacao', 'tarefas',
 ];
 
 const TEAM_SQL = `-- Execute no Supabase Dashboard → SQL Editor

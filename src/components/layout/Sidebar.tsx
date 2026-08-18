@@ -133,7 +133,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'hidden lg:flex flex-col bg-white border-r border-neutral-100 transition-all duration-300 relative flex-shrink-0',
+        'hidden lg:flex flex-col bg-white border-r border-neutral-100 transition-all duration-300 fixed left-0 top-0 h-screen z-30',
         isCollapsed ? 'w-[72px]' : 'w-[240px]'
       )}
     >

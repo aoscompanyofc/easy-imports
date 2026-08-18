@@ -9,6 +9,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissionsStore } from '../../stores/permissionsStore';
 import { useNavOrderStore } from '../../store/navOrderStore';
+import { useAppStore } from '../../stores/appStore';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -39,6 +40,8 @@ export const AppLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuthStore();
   const { allowedPages } = usePermissionsStore();
+  const { sidebarMode } = useAppStore();
+  const isSidebarCollapsed = sidebarMode === 'collapsed';
   const { order, loaded: navOrderLoaded, load: loadNavOrder } = useNavOrderStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -168,7 +171,10 @@ export const AppLayout: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+      <div className={cn(
+        'flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300',
+        isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]',
+      )}>
         <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
 
         <main className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8 overflow-x-hidden">

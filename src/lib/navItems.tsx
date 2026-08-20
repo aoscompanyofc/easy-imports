@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ShoppingCart, Package, Users, UserPlus,
   DollarSign, Truck, Megaphone, BarChart3, FileText, Settings,
-  Users2, MessageSquare, Calculator, Trello, Workflow, LucideIcon,
+  Users2, MessageSquare, Calculator, Trello, Workflow, KeyRound, LucideIcon,
 } from 'lucide-react';
 
 export interface NavMenuItem {
@@ -29,6 +29,7 @@ export const ALL_MENU_ITEMS: NavMenuItem[] = [
   { icon: Calculator,      label: 'Calculadora',   path: '/calculadora'   },
   { icon: Trello,          label: 'Tarefas',       path: '/tarefas'       },
   { icon: Workflow,        label: 'Processos',     path: '/processos'     },
+  { icon: KeyRound,        label: 'Senhas',        path: '/senhas'        },
 ];
 
 export const ITEM_MAP: Record<string, NavMenuItem> = Object.fromEntries(

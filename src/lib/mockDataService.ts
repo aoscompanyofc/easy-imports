@@ -204,5 +204,28 @@ export const mockDataService = {
     const newDoc = { ...document, id: safeUUID(), created_at: new Date().toISOString() };
     saveCollection('documents', [newDoc, ...data]);
     return newDoc;
-  }
+  },
+
+  // Passwords (cofre de senhas)
+  async getPasswords() {
+    return getCollection('passwords');
+  },
+  async addPassword(entry: any) {
+    const data = getCollection('passwords');
+    const now = new Date().toISOString();
+    const newEntry = { ...entry, id: safeUUID(), created_at: now, updated_at: now };
+    saveCollection('passwords', [newEntry, ...data]);
+    return newEntry;
+  },
+  async updatePassword(id: string, updates: any) {
+    const data = getCollection('passwords');
+    const updated = data.map((p: any) => p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p);
+    saveCollection('passwords', updated);
+    return updated.find((p: any) => p.id === id);
+  },
+  async deletePassword(id: string) {
+    const data = getCollection('passwords');
+    saveCollection('passwords', data.filter((p: any) => p.id !== id));
+    return true;
+  },
 };

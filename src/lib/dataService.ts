@@ -969,4 +969,54 @@ export const dataService = {
       return true;
     }
   },
+
+  // ─── Cofre de Senhas ─────────────────────────────────────────────────────
+  // Compartilhado entre dono e colaboradores via owner_id efetivo (ver
+  // supabase/migrations/007_passwords.sql) — não filtra por user_id porque
+  // a RLS já faz isso, e filtrar de novo no cliente ficaria dessincronizado
+  // do critério real (owner_id da equipe, não o auth.uid() de quem logou).
+  async getPasswords() {
+    if (useMock) return mockDataService.getPasswords();
+    const { data, error } = await supabase
+      .from('passwords')
+      .select('*')
+      .order('favorite', { ascending: false })
+      .order('title', { ascending: true });
+    if (error && isTableErr(error)) return [];
+    if (error) throw error;
+    return data || [];
+  },
+  async addPassword(entry: { title: string; category: string; username?: string; password: string; url?: string; notes?: string; favorite?: boolean; created_by_name?: string }) {
+    if (useMock) return mockDataService.addPassword(entry);
+    const { data, error } = await supabase
+      .from('passwords')
+      .insert([entry])
+      .select();
+    if (error && isTableErr(error)) {
+      throw new Error(
+        'Tabela de senhas ainda não existe no Supabase. ' +
+        'Clique em "SQL necessário" na página Senhas, copie o script e execute no SQL Editor do Supabase.'
+      );
+    }
+    if (error) throw error;
+    return data![0];
+  },
+  async updatePassword(id: string, updates: Partial<{ title: string; category: string; username: string; password: string; url: string; notes: string; favorite: boolean }>) {
+    if (useMock) return mockDataService.updatePassword(id, updates);
+    const { data, error } = await supabase
+      .from('passwords')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    if (error && isTableErr(error)) throw new Error('Tabela de senhas não existe. Execute o SQL necessário no Supabase.');
+    if (error) throw error;
+    return data![0];
+  },
+  async deletePassword(id: string) {
+    if (useMock) return mockDataService.deletePassword(id);
+    const { error } = await supabase.from('passwords').delete().eq('id', id);
+    if (error && isTableErr(error)) return true;
+    if (error) throw error;
+    return true;
+  },
 };

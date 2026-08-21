@@ -91,11 +91,10 @@ export const dataService = {
   },
   async addProduct(product: any) {
     if (useMock) return mockDataService.addProduct(product);
-    const uid = await getUid();
     const { name, category, purchase_price, sale_price, stock_quantity, status,
       imei, supplier_id, product_capacity, product_color, product_condition,
       product_warranty, product_origin, entry_date, description, notes, is_advertised } = product;
-    const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status, user_id: uid };
+    const base = { name, category, purchase_price, sale_price: sale_price || 0, stock_quantity, status };
     return tryInsert('products', [
       { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, description, notes, is_advertised },
       { ...base, imei, supplier_id, product_capacity, product_color, product_condition, product_warranty, product_origin, entry_date, is_advertised },
@@ -148,9 +147,8 @@ export const dataService = {
   async saveStockSnapshot(date: string, value: number) {
     if (!useMock) {
       try {
-        const uid = await getUid();
         await supabase.from('stock_snapshots').upsert(
-          { user_id: uid, snapshot_date: date, value },
+          { snapshot_date: date, value },
           { onConflict: 'user_id,snapshot_date', ignoreDuplicates: true },
         );
         return;
@@ -169,7 +167,6 @@ export const dataService = {
   },
   async addSale(sale: any, items: any[]) {
     if (useMock) return mockDataService.addSale(sale, items);
-    const uid = await getUid();
     const {
       customer_id, customer_name, product_name, total_amount, payment_method, status, created_at,
       sale_number: requestedSaleNumber, sale_type, installments, pdf_type,
@@ -193,7 +190,7 @@ export const dataService = {
     if (numMatch) {
       const [, prefix, digits] = numMatch;
       const { data: existingRows } = await supabase
-        .from('sales').select('sale_number').eq('user_id', uid).ilike('sale_number', `${prefix}%`);
+        .from('sales').select('sale_number').ilike('sale_number', `${prefix}%`);
       const used = new Set((existingRows || []).map((r: any) => r.sale_number));
       if (used.has(sale_number)) {
         let n = parseInt(digits, 10);
@@ -206,7 +203,7 @@ export const dataService = {
 
     const sign_token = safeUUID();
     const inst = installments || 1;
-    const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at, user_id: uid };
+    const base = { customer_id, customer_name, product_name, total_amount, payment_method, status, created_at };
 
     // Nível 1: schema completo — tudo incluindo incoming_*, pdf_type, customer_city, seller, multi-device, installments_json
     const p1 = { ...base, sale_number, sale_type, installments: inst, sign_token, pdf_type,
@@ -264,7 +261,7 @@ export const dataService = {
 
     const txDate = created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     for (const item of items) {
-      const { error: siErr } = await supabase.from('sale_items').insert([{ ...item, sale_id: saleId, user_id: uid }]);
+      const { error: siErr } = await supabase.from('sale_items').insert([{ ...item, sale_id: saleId }]);
       if (siErr && !isColErr(siErr)) throw siErr;
 
       // Receita criada primeiro — usa valor líquido quando há taxa descartada da maquininha
@@ -298,7 +295,6 @@ export const dataService = {
   },
   async updateSale(id: string, updates: Record<string, any>) {
     if (useMock) throw new Error('Mock não suporta updateSale');
-    const uid = await getUid();
 
     // Vendedor/comissão: tentativa dedicada, isolada do resto do payload — assim uma coluna
     // qualquer ausente no restante da venda nunca derruba junto a atribuição do vendedor
@@ -306,12 +302,12 @@ export const dataService = {
     const patchSeller = async () => {
       if (!('seller_id' in updates)) return;
       const sellerPayload = { seller_id: updates.seller_id, seller_display_name: updates.seller_display_name };
-      const { error } = await supabase.from('sales').update(sellerPayload).eq('id', id).eq('user_id', uid);
+      const { error } = await supabase.from('sales').update(sellerPayload).eq('id', id);
       if (error && !isColErr(error)) throw error;
     };
 
     // Nível 1: schema completo
-    const { error: e1 } = await supabase.from('sales').update(updates).eq('id', id).eq('user_id', uid);
+    const { error: e1 } = await supabase.from('sales').update(updates).eq('id', id);
     if (!e1) return true;
     if (!isColErr(e1)) throw e1;
 
@@ -324,7 +320,7 @@ export const dataService = {
     const lvl2 = Object.fromEntries(
       Object.entries(updates).filter(([k]) => !k.startsWith('incoming_') && k !== 'pdf_type' && k !== 'outgoing_items_json')
     );
-    const { error: e2 } = await supabase.from('sales').update(lvl2).eq('id', id).eq('user_id', uid);
+    const { error: e2 } = await supabase.from('sales').update(lvl2).eq('id', id);
     if (!e2) return true;
     if (!isColErr(e2)) throw e2;
 
@@ -334,7 +330,7 @@ export const dataService = {
     const lvl3 = Object.fromEntries(
       Object.entries(lvl2).filter(([k]) => !EXTRA_COLS.includes(k))
     );
-    const { error: e3 } = await supabase.from('sales').update(lvl3).eq('id', id).eq('user_id', uid);
+    const { error: e3 } = await supabase.from('sales').update(lvl3).eq('id', id);
     if (!e3) return true;
     if (!isColErr(e3)) throw e3;
 
@@ -345,21 +341,19 @@ export const dataService = {
     }
     await patchSeller();
     if (Object.keys(minimal).length === 0) return true;
-    const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id).eq('user_id', uid);
+    const { error: e4 } = await supabase.from('sales').update(minimal).eq('id', id);
     if (e4) throw e4;
     return true;
   },
 
   async tryUpdateSaleRevision(id: string, revision: number) {
     if (useMock) return;
-    const uid = await getUid();
-    const { error } = await supabase.from('sales').update({ revision }).eq('id', id).eq('user_id', uid);
+    const { error } = await supabase.from('sales').update({ revision }).eq('id', id);
     // Silently ignore column-missing errors — column needs migration
     if (error && !isColErr(error)) throw error;
   },
   async deleteSale(id: string) {
     if (useMock) return mockDataService.deleteSale(id);
-    const uid = await getUid();
 
     // Busca sale_number antes de deletar (para limpar transações pelo número da operação)
     const { data: saleRow } = await supabase
@@ -369,23 +363,23 @@ export const dataService = {
     if (saleRow?.sale_number) {
       const sn = saleRow.sale_number;
       await supabase.from('transactions').delete()
-        .like('description', `Receita ${sn} —%`).eq('user_id', uid);
+        .like('description', `Receita ${sn} —%`);
       await supabase.from('transactions').delete()
-        .like('description', `Custo ${sn} —%`).eq('user_id', uid);
+        .like('description', `Custo ${sn} —%`);
       await supabase.from('transactions').delete()
-        .like('description', `Custo Parcela ${sn} —%`).eq('user_id', uid);
+        .like('description', `Custo Parcela ${sn} —%`);
       await supabase.from('transactions').delete()
-        .like('description', `Aparelho Recebido ${sn} —%`).eq('user_id', uid);
+        .like('description', `Aparelho Recebido ${sn} —%`);
       await supabase.from('transactions').delete()
-        .like('description', `Ajuste Lucro ${sn} —%`).eq('user_id', uid);
+        .like('description', `Ajuste Lucro ${sn} —%`);
     }
 
     // Remove transações — formato antigo (Venda #xxxxxxxx / Custo Mercadoria #xxxxxxxx)
     const prefix = id.slice(0, 8);
     await supabase.from('transactions').delete()
-      .eq('description', `Venda #${prefix}`).eq('user_id', uid);
+      .eq('description', `Venda #${prefix}`);
     await supabase.from('transactions').delete()
-      .eq('description', `Custo Mercadoria #${prefix}`).eq('user_id', uid);
+      .eq('description', `Custo Mercadoria #${prefix}`);
 
     // Remove sale_items before removing the sale (FK integrity)
     await supabase.from('sale_items').delete().eq('sale_id', id);
@@ -404,10 +398,9 @@ export const dataService = {
   },
   async addCustomer(customer: any) {
     if (useMock) return mockDataService.addCustomer(customer);
-    const uid = await getUid();
     const { name, email, phone, cpf, city, notes, source, birthday } = customer;
     const hasCpfCity = !!(cpf?.trim() || city?.trim());
-    const base: any = { name, email, phone, user_id: uid };
+    const base: any = { name, email, phone };
     // Tenta primeiro com todos os campos extras
     const fullPayload = { ...base, cpf, city, notes, ...(source ? { source } : {}), ...(birthday ? { birthday } : {}) };
     const { data: d1, error: e1 } = await supabase.from('customers').insert([fullPayload]).select();
@@ -461,12 +454,11 @@ export const dataService = {
   },
   async addLead(lead: any) {
     if (useMock) return mockDataService.addLead(lead);
-    const uid = await getUid();
     const { name, phone, email, source, notes, status } = lead;
     return tryInsert('leads', [
-      { name, phone, email, source, notes, status, user_id: uid },
-      { name, phone, email, status, user_id: uid },
-      { name, phone, user_id: uid },
+      { name, phone, email, source, notes, status },
+      { name, phone, email, status },
+      { name, phone },
     ]);
   },
   async updateLead(id: string, updates: any) {
@@ -493,12 +485,11 @@ export const dataService = {
   },
   async addTransaction(transaction: any) {
     if (useMock) return mockDataService.addTransaction(transaction);
-    const uid = await getUid();
     const { description, amount, type, category, date } = transaction;
     return tryInsert('transactions', [
-      { description, amount, type, category, date, user_id: uid },
-      { description, amount, type, date, user_id: uid },
-      { description, amount, type, user_id: uid },
+      { description, amount, type, category, date },
+      { description, amount, type, date },
+      { description, amount, type },
     ]);
   },
   async updateTransaction(id: string, updates: { description: string; amount: number; type: string; category: string; date: string }) {
@@ -526,13 +517,12 @@ export const dataService = {
   },
   async addSupplier(supplier: any) {
     if (useMock) return mockDataService.addSupplier(supplier);
-    const uid = await getUid();
     const { name, contact_name, email, phone, category, country } = supplier;
     return tryInsert('suppliers', [
-      { name, contact_name, email, phone, category, country, user_id: uid },
-      { name, contact_name, phone, country, user_id: uid },
-      { name, phone, country, user_id: uid },
-      { name, user_id: uid },
+      { name, contact_name, email, phone, category, country },
+      { name, contact_name, phone, country },
+      { name, phone, country },
+      { name },
     ]);
   },
   async deleteSupplier(id: string) {
@@ -553,11 +543,10 @@ export const dataService = {
   },
   async addCampaign(campaign: any) {
     if (useMock) return mockDataService.addCampaign(campaign);
-    const uid = await getUid();
     const { name, platform, budget, spent, leads_count, status, start_date,
             description, objective, end_date, results_text, target_audience } = campaign;
     // Payloads progressivos: degrada conforme colunas ausentes (schema cache / PGRST204 / 42703)
-    const base = { name, budget, status, start_date, user_id: uid };
+    const base = { name, budget, status, start_date };
     return tryInsert('campaigns', [
       { ...base, platform, spent, leads_count, description, objective, end_date, results_text, target_audience },
       { ...base, platform, spent, leads_count, end_date, target_audience },
@@ -595,11 +584,9 @@ export const dataService = {
   // ─── Sellers (Vendedores) ────────────────────────────────────────────
   async getSellers() {
     if (useMock) return [];
-    const uid = await getUid();
     const { data, error } = await supabase
       .from('sellers')
       .select('*')
-      .eq('user_id', uid)
       .order('created_at', { ascending: true });
     // Table not created yet — silently return empty list
     if (error && isTableErr(error)) return [];
@@ -608,10 +595,9 @@ export const dataService = {
   },
   async addSeller(seller: { name: string; role: string; monthly_goal: number; color: string }) {
     if (useMock) return { id: safeUUID(), ...seller, active: true, created_at: new Date().toISOString() };
-    const uid = await getUid();
     const { data, error } = await supabase
       .from('sellers')
-      .insert([{ ...seller, user_id: uid, active: true }])
+      .insert([{ ...seller, active: true }])
       .select();
     if (error && isTableErr(error)) {
       throw new Error(
@@ -703,13 +689,12 @@ export const dataService = {
   },
   async addDocument(document: any) {
     if (useMock) return mockDataService.addDocument(document);
-    const uid = await getUid();
     const { title, category, file_url } = document;
     // Schema novo (title/category/file_url) → fallback schema antigo (name/type/content)
     return tryInsert('documents', [
-      { title, category, file_url, user_id: uid },
-      { name: title, type: category, content: file_url, user_id: uid },
-      { name: title, user_id: uid },
+      { title, category, file_url },
+      { name: title, type: category, content: file_url },
+      { name: title },
     ]);
   },
   async deleteDocument(id: string) {

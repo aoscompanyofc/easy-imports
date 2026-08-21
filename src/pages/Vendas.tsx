@@ -1600,15 +1600,13 @@ export const Vendas: React.FC = () => {
       // UUID-key não colide com outros #V0007 duplicados — é imune ao bug de numeração
       if (newCost > 0 && uid) {
         await supabase.from('transactions').delete()
-          .eq('description', `Custo Mercadoria #${idPrefix}`)
-          .eq('user_id', uid);
+          .eq('description', `Custo Mercadoria #${idPrefix}`);
         await supabase.from('transactions').insert([{
           description: `Custo Mercadoria #${idPrefix}`,
           amount: newCost,
           type: 'expense',
           category: 'stock',
           date: txDate,
-          user_id: uid,
         }]);
       }
 

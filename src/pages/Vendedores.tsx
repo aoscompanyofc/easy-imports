@@ -25,9 +25,20 @@ const SELLER_COLORS = [
 ];
 
 const SELLER_SQL = `-- Execute no Supabase Dashboard → SQL Editor
+CREATE OR REPLACE FUNCTION public.effective_owner_id()
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    (SELECT owner_id FROM public.team_members WHERE email = auth.email() LIMIT 1),
+    auth.uid()
+  );
+$$;
+
 CREATE TABLE IF NOT EXISTS sellers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL DEFAULT public.effective_owner_id(),
   name TEXT NOT NULL,
   role TEXT DEFAULT 'Vendedor',
   monthly_goal NUMERIC DEFAULT 0,
@@ -38,10 +49,11 @@ CREATE TABLE IF NOT EXISTS sellers (
 
 ALTER TABLE sellers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own sellers" ON sellers;
 CREATE POLICY "Users can manage their own sellers"
 ON sellers FOR ALL
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+USING (public.effective_owner_id() = user_id)
+WITH CHECK (public.effective_owner_id() = user_id);
 
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_id UUID;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS seller_display_name TEXT;

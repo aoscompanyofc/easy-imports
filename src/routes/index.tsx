@@ -19,7 +19,6 @@ import { MensagensProntas } from '../pages/MensagensProntas';
 import { CalculadoraTaxas } from '../pages/CalculadoraTaxas';
 import { Tarefas } from '../pages/Tarefas';
 import { Processos } from '../pages/Processos';
-import { Senhas } from '../pages/Senhas';
 import { Assinar } from '../pages/Assinar';
 
 export const AppRoutes: React.FC = () => {
@@ -45,7 +44,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="/calculadora" element={<CalculadoraTaxas />} />
         <Route path="/tarefas" element={<Tarefas />} />
         <Route path="/processos" element={<Processos />} />
-        <Route path="/senhas" element={<Senhas />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         
         {/* Default route redirect to dashboard */}

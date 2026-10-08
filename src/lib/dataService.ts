@@ -731,9 +731,11 @@ export const dataService = {
     };
     if (useMock) return local();
     try {
+      const uid = await getUid();
       const { data, error } = await supabase
         .from('dashboard_layouts')
         .select('layout')
+        .eq('user_id', uid)
         .maybeSingle();
       if (error) {
         if (isTableErr(error)) return local();
@@ -752,10 +754,11 @@ export const dataService = {
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
+      const uid = await getUid();
       const { error } = await supabase
         .from('dashboard_layouts')
         .upsert(
-          { layout, updated_at: new Date().toISOString() },
+          { user_id: uid, layout, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;
@@ -778,9 +781,11 @@ export const dataService = {
     };
     if (useMock) return local();
     try {
+      const uid = await getUid();
       const { data, error } = await supabase
         .from('tasks_board')
         .select('tasks')
+        .eq('user_id', uid)
         .maybeSingle();
       if (error) {
         if (isTableErr(error)) return local();
@@ -799,10 +804,11 @@ export const dataService = {
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
+      const uid = await getUid();
       const { error } = await supabase
         .from('tasks_board')
         .upsert(
-          { tasks, updated_at: new Date().toISOString() },
+          { user_id: uid, tasks, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;
@@ -825,9 +831,11 @@ export const dataService = {
     };
     if (useMock) return local();
     try {
+      const uid = await getUid();
       const { data, error } = await supabase
         .from('processos_board')
         .select('data')
+        .eq('user_id', uid)
         .maybeSingle();
       if (error) {
         if (isTableErr(error)) return local();
@@ -845,10 +853,11 @@ export const dataService = {
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
+      const uid = await getUid();
       const { error } = await supabase
         .from('processos_board')
         .upsert(
-          { data: board, updated_at: new Date().toISOString() },
+          { user_id: uid, data: board, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;
@@ -878,9 +887,11 @@ export const dataService = {
     };
     if (useMock) return normalize(local());
     try {
+      const uid = await getUid();
       const { data, error } = await supabase
         .from('nav_layout')
         .select('order_list')
+        .eq('user_id', uid)
         .maybeSingle();
       if (error) {
         if (isTableErr(error)) return normalize(local());
@@ -897,10 +908,11 @@ export const dataService = {
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
+      const uid = await getUid();
       const { error } = await supabase
         .from('nav_layout')
         .upsert(
-          { order_list: data, updated_at: new Date().toISOString() },
+          { user_id: uid, order_list: data, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;
@@ -922,9 +934,11 @@ export const dataService = {
     };
     if (useMock) return local();
     try {
+      const uid = await getUid();
       const { data, error } = await supabase
         .from('notifications_board')
         .select('items')
+        .eq('user_id', uid)
         .maybeSingle();
       if (error) {
         if (isTableErr(error)) return local();
@@ -942,10 +956,11 @@ export const dataService = {
     } catch { /* ignore */ }
     if (useMock) return true;
     try {
+      const uid = await getUid();
       const { error } = await supabase
         .from('notifications_board')
         .upsert(
-          { items, updated_at: new Date().toISOString() },
+          { user_id: uid, items, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error && !isTableErr(error)) throw error;

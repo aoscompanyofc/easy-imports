@@ -1175,7 +1175,10 @@ export const Vendas: React.FC = () => {
         entradaAmount: isPrazo && prazoHasEntrada && prazoEntrada > 0 ? prazoEntrada : undefined,
         incomingName: form.sale_type === 'troca' ? (primaryDevice?.model || '') : undefined,
         incomingValue: form.sale_type === 'troca' ? incomingValue : undefined,
-        cashReceived: form.sale_type === 'troca' ? Math.max(0, (unitPrice * form.quantity + additionalItemsTotal) - totalTradeInValue) : undefined,
+        // unitPrice já É o valor em dinheiro (campo "Você recebe em caixa"), sem o crédito da
+        // troca embutido — subtrair totalTradeInValue de novo aqui descontava o crédito da
+        // troca duas vezes, cobrando do cliente bem menos do que o combinado.
+        cashReceived: form.sale_type === 'troca' ? Math.max(0, unitPrice * form.quantity + additionalItemsTotal) : undefined,
         incomingDevices: tradeInDevices.length > 0 ? tradeInDevices : undefined,
         items: msgItems,
         saleDateISO: new Date(form.sale_date).toISOString(),
@@ -2991,8 +2994,8 @@ export const Vendas: React.FC = () => {
 
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-neutral-500">Você recebe em caixa</span>
-                        <span className="font-bold text-neutral-900">{formatCurrency(cashReceived)}</span>
+                        <span className="text-neutral-500">{cashReceived < 0 ? 'Você devolve ao cliente (downgrade)' : 'Você recebe em caixa'}</span>
+                        <span className={cn('font-bold', cashReceived < 0 ? 'text-red-600' : 'text-neutral-900')}>{formatCurrency(Math.abs(cashReceived))}</span>
                       </div>
                       {totalTradeIn > 0 && (
                         <div className="flex justify-between">
@@ -3103,7 +3106,7 @@ export const Vendas: React.FC = () => {
                 label={form.sale_type === 'troca' ? 'Você recebe em caixa (R$) *' : 'Valor de Venda (R$) *'}
                 type="number"
                 step="any" inputMode="decimal"
-                placeholder={form.sale_type === 'troca' ? 'Ex: 3100 (só o dinheiro)' : 'Digite o valor'}
+                placeholder={form.sale_type === 'troca' ? 'Ex: 3100 (só o dinheiro) · negativo se for devolver troco' : 'Digite o valor'}
                 value={form.sale_price_manual}
                 onChange={setF('sale_price_manual')}
                 required

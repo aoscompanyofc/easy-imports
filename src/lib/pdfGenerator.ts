@@ -690,9 +690,15 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
     ? sale.incoming_items.reduce((s, i) => s + (i.price || 0), 0)
     : (sale.incoming_purchase_price || 0);
   const totalValue    = sale.total_amount || 0;
-  // cash = quanto o cliente pagou em caixa (PIX/cartão), sem contar o aparelho da troca
-  const cashReceived  = Math.max(0, totalValue - tradeInCredit);
-  const isDirectSwap  = cashReceived === 0;
+  // cash = quanto o cliente pagou em caixa (PIX/cartão), sem contar o aparelho da troca.
+  // Pode ser negativo: downgrade (cliente entrega um aparelho mais caro e recebe um mais
+  // barato de volta) — nesse caso é a Easy Imports que deve dinheiro ao cliente. Antes isso
+  // era "zerado" com Math.max(0, ...), fazendo o PDF mostrar "troca direta" quando na
+  // verdade havia troco a devolver ao cliente.
+  const cashDiff        = totalValue - tradeInCredit;
+  const cashReceived    = Math.max(0, cashDiff);
+  const cashReturnedToClient = Math.max(0, -cashDiff);
+  const isDirectSwap    = cashDiff === 0;
 
   // Garantia do aparelho entregue pela Easy Imports: usa pdf_type explícito se informado
   const useNewWarranty = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
@@ -807,8 +813,14 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   <div class="sec-t">Condições de Pagamento</div>
   <div class="sec-b">
     <div class="row">
-      ${field('Valor Pago pelo Cliente', isDirectSwap ? 'Troca direta (sem pagamento)' : fmtMoney(cashReceived), 'f2')}
-      ${field('Forma de Pagamento', isDirectSwap ? 'Troca direta' : fmtPayment(sale.payment_method, sale.installments, cashReceived), 'f3')}
+      ${field('Valor Pago pelo Cliente',
+        isDirectSwap ? 'Troca direta (sem pagamento)'
+        : cashReturnedToClient > 0 ? `Easy Imports devolve ${fmtMoney(cashReturnedToClient)} ao cliente`
+        : fmtMoney(cashReceived), 'f2')}
+      ${field('Forma de Pagamento',
+        isDirectSwap ? 'Troca direta'
+        : cashReturnedToClient > 0 ? 'Troco ao cliente (dinheiro/PIX)'
+        : fmtPayment(sale.payment_method, sale.installments, cashReceived), 'f3')}
       ${field('Data', date)}
     </div>
   </div>

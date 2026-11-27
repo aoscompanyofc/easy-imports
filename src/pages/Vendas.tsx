@@ -246,6 +246,10 @@ export const Vendas: React.FC = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [expandedPrazoSale, setExpandedPrazoSale] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  // Prompt de data ao receber uma parcela — permite baixa retroativa (pagamento que já
+  // ocorreu antes de ser lançado no sistema), em vez de travar sempre na data de hoje.
+  const [payPrompt, setPayPrompt] = useState<{ sale: any; index: number; isDetail?: boolean } | null>(null);
+  const [payPromptDate, setPayPromptDate] = useState('');
   // Cost / sale-price inline edit in detail modal
   const [detailCostEditMode, setDetailCostEditMode] = useState(false);
   const [detailEditSaleVal, setDetailEditSaleVal] = useState('');
@@ -1435,12 +1439,14 @@ export const Vendas: React.FC = () => {
     }
   };
 
-  const handleMarkPaid = async (sale: any, instIndex: number) => {
+  const handleMarkPaid = async (sale: any, instIndex: number, paidDateOverride?: string) => {
     const key = `${sale.id}-${instIndex}`;
     try {
       setMarkingPaid(key);
       const installments: any[] = (() => { try { return JSON.parse(sale.installments_json || '[]'); } catch { return []; } })();
-      const paid_at = new Date().toISOString().slice(0, 10);
+      // Data retroativa: se o pagamento ocorreu antes de ser lançado no sistema, usa a data
+      // informada (não a de hoje) — assim o Financeiro/Dashboard agrupa a receita no dia certo.
+      const paid_at = paidDateOverride || new Date().toISOString().slice(0, 10);
       const updated = installments.map((inst, i) =>
         i === instIndex ? { ...inst, paid_at } : inst
       );
@@ -2178,7 +2184,7 @@ export const Vendas: React.FC = () => {
                                         </span>
                                       ) : (
                                         <button
-                                          onClick={() => handleMarkPaid(sale, i)}
+                                          onClick={() => { setPayPromptDate(new Date().toISOString().slice(0, 10)); setPayPrompt({ sale, index: i }); }}
                                           disabled={markingPaid === markKey}
                                           className={cn(
                                             'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors',
@@ -4375,6 +4381,59 @@ export const Vendas: React.FC = () => {
         )}
       </Modal>
 
+      {/* ─── CONFIRMAR DATA DE RECEBIMENTO (permite baixa retroativa) ─── */}
+      <Modal isOpen={!!payPrompt} onClose={() => setPayPrompt(null)} title="Confirmar Recebimento" maxWidth="sm">
+        {payPrompt && (() => {
+          const insts: any[] = (() => { try { return JSON.parse(payPrompt.sale.installments_json || '[]'); } catch { return []; } })();
+          const inst = insts[payPrompt.index];
+          const isBusy = markingPaid === `${payPrompt.sale.id}-${payPrompt.index}`;
+          return (
+            <div className="space-y-4">
+              <p className="text-sm text-neutral-600">
+                {inst?.is_entrada ? 'Entrada' : `Parcela ${inst?.n}`} de <strong>{formatCurrency(Number(inst?.amount || 0))}</strong>
+              </p>
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Data em que o pagamento ocorreu</label>
+                <input
+                  type="date"
+                  value={payPromptDate}
+                  onChange={(e) => setPayPromptDate(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                />
+                <p className="text-[11px] text-neutral-400 mt-1.5">
+                  Se o pagamento já aconteceu antes de hoje (baixa retroativa), ajuste a data — o Financeiro e o Dashboard usam essa data pra registrar a receita.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <Button variant="secondary" fullWidth type="button" onClick={() => setPayPrompt(null)} disabled={isBusy}>Cancelar</Button>
+                <Button
+                  fullWidth
+                  type="button"
+                  loading={isBusy}
+                  onClick={async () => {
+                    const { sale, index, isDetail } = payPrompt;
+                    await handleMarkPaid(sale, index, payPromptDate);
+                    if (isDetail) {
+                      setDetailSale((prev: any) => {
+                        if (!prev) return prev;
+                        let dInsts: any[] = [];
+                        try { dInsts = JSON.parse(prev.installments_json || '[]'); } catch { return prev; }
+                        if (!Array.isArray(dInsts)) return prev;
+                        const upd = dInsts.map((x: any, idx: number) => idx === index ? { ...x, paid_at: payPromptDate } : x);
+                        return { ...prev, installments_json: JSON.stringify(upd) };
+                      });
+                    }
+                    setPayPrompt(null);
+                  }}
+                >
+                  Confirmar Recebimento
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
       {/* ─── EDITAR VENDA MODAL (legacy — never opens; edit now reuses the create modal) ─── */}
       <Modal isOpen={false} onClose={() => setEditSale(null)} title="" maxWidth="2xl">
         {false && (
@@ -5165,17 +5224,7 @@ export const Vendas: React.FC = () => {
                               </span>
                             ) : (
                               <button
-                                onClick={async () => {
-                                  await handleMarkPaid(detailSale, i);
-                                  setDetailSale((prev: any) => {
-                                    if (!prev) return prev;
-                                    let insts: any[] = [];
-                                    try { insts = JSON.parse(prev.installments_json || '[]'); } catch { return prev; }
-                                    if (!Array.isArray(insts)) return prev;
-                                    const upd = insts.map((x: any, idx: number) => idx === i ? { ...x, paid_at: new Date().toISOString().slice(0, 10) } : x);
-                                    return { ...prev, installments_json: JSON.stringify(upd) };
-                                  });
-                                }}
+                                onClick={() => { setPayPromptDate(new Date().toISOString().slice(0, 10)); setPayPrompt({ sale: detailSale, index: i, isDetail: true }); }}
                                 disabled={markingPaid === markKey || markingPaid === `${detailSale.id}-${i}`}
                                 className={cn(
                                   'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors text-white',

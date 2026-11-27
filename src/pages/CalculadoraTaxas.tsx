@@ -67,12 +67,30 @@ function buildSimulationCanvas(valor: number, brand: CardBrand): HTMLCanvasEleme
   ctx.textAlign = 'right';
   ctx.fillText(brl(valor), W - pad - 18, y + valueH / 2 + 1);
 
-  // Bandeira
+  // Bandeira — em destaque (pill colorida), já que a simulação só vale pra essa bandeira
+  // e passava despercebida em texto cinza pequeno
   y += valueH;
+  ctx.font = '800 19px Poppins, Arial, sans-serif';
+  const badgeLabel = `💳 ${brandLabel.toUpperCase()}`;
+  const badgeTextW = ctx.measureText(badgeLabel).width;
+  const badgePadX = 20;
+  const badgeW = badgeTextW + badgePadX * 2;
+  const badgeHgt = brandH - 10;
+  const badgeX = (W - badgeW) / 2;
+  const badgeY = y + (brandH - badgeHgt) / 2;
+  const r = badgeHgt / 2;
+  ctx.fillStyle = PRIMARY;
+  ctx.beginPath();
+  ctx.moveTo(badgeX + r, badgeY);
+  ctx.arcTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + badgeHgt, r);
+  ctx.arcTo(badgeX + badgeW, badgeY + badgeHgt, badgeX, badgeY + badgeHgt, r);
+  ctx.arcTo(badgeX, badgeY + badgeHgt, badgeX, badgeY, r);
+  ctx.arcTo(badgeX, badgeY, badgeX + badgeW, badgeY, r);
+  ctx.closePath();
+  ctx.fill();
   ctx.textAlign = 'center';
-  ctx.font = '700 17px Poppins, Arial, sans-serif';
-  ctx.fillStyle = MUTED;
-  ctx.fillText(`Cartão: ${brandLabel}`, W / 2, y + brandH / 2);
+  ctx.fillStyle = DARK;
+  ctx.fillText(badgeLabel, W / 2, badgeY + badgeHgt / 2 + 1);
 
   // Colunas
   const cParc    = pad + 8;
@@ -446,9 +464,12 @@ export const CalculadoraTaxas: React.FC = () => {
           <span className="text-primary font-black text-xs uppercase tracking-widest">Valor simulado</span>
           <span className="text-white font-black text-xl">{brl(valor)}</span>
         </div>
-        <p className="text-center text-neutral-400 text-xs font-bold py-2 bg-[#111827]">
-          Cartão: {BRANDS.find((b) => b.id === brand)?.label}
-        </p>
+        <div className="flex justify-center py-2.5 bg-[#111827]">
+          <span className="inline-flex items-center gap-1.5 bg-primary text-neutral-900 text-xs sm:text-sm font-black uppercase tracking-wide px-4 py-1.5 rounded-full">
+            <CreditCard size={14} />
+            {BRANDS.find((b) => b.id === brand)?.label}
+          </span>
+        </div>
 
         {/* Cabeçalho */}
         <div className="grid grid-cols-[0.8fr_0.6fr_1.5fr_1.2fr] bg-[#0B1220] text-[11px] sm:text-xs font-black uppercase tracking-wider">

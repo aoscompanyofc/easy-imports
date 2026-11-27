@@ -4,7 +4,7 @@ import {
   Plus, Search, Phone, Mail, Trash2, Edit2, X,
   ShoppingBag, TrendingUp, Users, RepeatIcon,
   ChevronRight, Calendar, MapPin, FileText, CreditCard,
-  Send, Clock, Cake,
+  Send, Clock, Cake, AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -237,6 +237,17 @@ export const Clientes: React.FC = () => {
       return false;
     });
   };
+
+  // Aviso em tempo real enquanto o usuário digita (não só ao salvar) — evita cadastro
+  // duplicado já na hora do preenchimento, antes mesmo de clicar em Salvar.
+  const liveDupAdd = useMemo(
+    () => (formData.phone || formData.cpf) ? findDuplicateCustomer(formData) : null,
+    [formData.phone, formData.cpf, customers]
+  );
+  const liveDupEdit = useMemo(
+    () => (editForm.phone || editForm.cpf) ? findDuplicateCustomer(editForm, editingId || undefined) : null,
+    [editForm.phone, editForm.cpf, editingId, customers]
+  );
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -772,6 +783,14 @@ export const Clientes: React.FC = () => {
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Cadastrar Novo Cliente" maxWidth="lg">
         <form onSubmit={handleSave} className="space-y-4">
           <CustomerForm data={formData} onChange={setFormData} />
+          {liveDupAdd && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                <strong>Cliente já existente:</strong> "{liveDupAdd.name}"{liveDupAdd.phone ? ` — ${liveDupAdd.phone}` : ''}
+              </p>
+            </div>
+          )}
           <div className="flex gap-3 mt-6">
             <Button variant="secondary" fullWidth onClick={() => setIsAddOpen(false)} type="button">Cancelar</Button>
             <Button fullWidth loading={isSaving} type="submit">Salvar Cliente</Button>
@@ -783,6 +802,14 @@ export const Clientes: React.FC = () => {
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Editar Cliente" maxWidth="lg">
         <form onSubmit={handleEditSave} className="space-y-4">
           <CustomerForm data={editForm} onChange={setEditForm} />
+          {liveDupEdit && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                <strong>Cliente já existente:</strong> "{liveDupEdit.name}"{liveDupEdit.phone ? ` — ${liveDupEdit.phone}` : ''}
+              </p>
+            </div>
+          )}
           <div className="flex gap-3 mt-6">
             <Button variant="secondary" fullWidth onClick={() => setIsEditOpen(false)} type="button">Cancelar</Button>
             <Button fullWidth loading={isEditSaving} type="submit">Salvar Alterações</Button>

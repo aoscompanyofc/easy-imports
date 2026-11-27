@@ -17,6 +17,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'iPhone',
     models: [
+      // iPhone Duo (2026) — primeiro iPhone dobrável da Apple, anunciado em set/2026
+      { name: 'iPhone Duo', capacities: ['256GB', '512GB', '1TB'], colors: ['Branco Estelar', 'Céu Noturno'] },
       // iPhone 18 (2026)
       { name: 'iPhone 18 Pro Max', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Titânio Preto', 'Titânio Natural', 'Titânio Azul'] },
       { name: 'iPhone 18 Pro',     capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Preto', 'Titânio Natural', 'Titânio Azul'] },
@@ -26,6 +28,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iPhone 17 Pro',     capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Laranja-Cósmico', 'Titânio Azul-Intenso', 'Titânio Prateado'] },
       { name: 'iPhone 17 Air',     capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Azul', 'Verde', 'Rosa'] },
       { name: 'iPhone 17',         capacities: ['128GB', '256GB', '512GB'], colors: ['Lavanda', 'Sálvia', 'Azul Névoa', 'Branco', 'Preto'] },
+      // iPhone 17e (2026) — substitui o iPhone 16e na linha de entrada
+      { name: 'iPhone 17e',        capacities: ['256GB', '512GB'], colors: ['Preto', 'Branco', 'Rosa'] },
       // iPhone 16 (2024)
       { name: 'iPhone 16 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Natural', 'Titânio Preto', 'Titânio Branco', 'Titânio Deserto'] },
       { name: 'iPhone 16 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Natural', 'Titânio Preto', 'Titânio Branco', 'Titânio Deserto'] },
@@ -72,6 +76,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iPad Pro 12.9" (4ª gen)', capacities: ['128GB', '256GB', '512GB', '1TB'],      colors: ['Cinza Espacial', 'Prata'] },
       { name: 'iPad Pro 11" (2ª gen)',   capacities: ['128GB', '256GB', '512GB', '1TB'],      colors: ['Cinza Espacial', 'Prata'] },
       // ── iPad Air ──────────────────────────────────────────────────────────────
+      { name: 'iPad Air 13" M4',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Roxo', 'Estelar', 'Cinza Espacial'] },
+      { name: 'iPad Air 11" M4',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air 13" M3',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Verde-Água', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air 11" M3',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Verde-Água', 'Roxo', 'Estelar', 'Cinza Espacial'] },
       { name: 'iPad Air 13" M2',  capacities: ['128GB', '256GB', '512GB', '1TB'],             colors: ['Azul', 'Roxo', 'Estelar', 'Cinza Espacial'] },
@@ -93,6 +99,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'MacBook',
     models: [
+      // ── MacBook Neo (2026) — notebook de entrada com chip A18 Pro ────────────
+      { name: 'MacBook Neo', capacities: ['256GB', '512GB'] },
       // ── MacBook Pro M5 (2025) ────────────────────────────────────────────────
       { name: 'MacBook Pro 16" M5 Max', capacities: ['512GB', '1TB', '2TB', '4TB'], colors: ['Preto Espacial', 'Prata'] },
       { name: 'MacBook Pro 16" M5 Pro', capacities: ['512GB', '1TB', '2TB'],        colors: ['Preto Espacial', 'Prata'] },
@@ -147,6 +155,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'iMac M1',   capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Azul', 'Verde', 'Rosa', 'Prata', 'Amarelo', 'Laranja', 'Roxo'] },
       { name: 'iMac 27" (Intel 2020)', capacities: ['256GB', '512GB', '1TB', '2TB', '4TB'], colors: ['Prata'] },
       // ── Mac mini ─────────────────────────────────────────────────────────────
+      { name: 'Mac mini M6', capacities: ['256GB', '512GB', '1TB', '2TB'] },
+      { name: 'Mac mini M5 Pro', capacities: ['512GB', '1TB', '2TB'] },
       { name: 'Mac mini M4 Pro', capacities: ['512GB', '1TB', '2TB'] },
       { name: 'Mac mini M4',     capacities: ['256GB', '512GB', '1TB', '2TB'] },
       { name: 'Mac mini M2 Pro', capacities: ['512GB', '1TB', '2TB'] },
@@ -154,6 +164,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'Mac mini M1',     capacities: ['256GB', '512GB', '1TB', '2TB'] },
       { name: 'Mac mini (Intel 2020)', capacities: ['256GB', '512GB', '1TB', '2TB'] },
       // ── Mac Studio ───────────────────────────────────────────────────────────
+      { name: 'Mac Studio M5 Ultra', capacities: ['1TB', '2TB', '4TB', '8TB'] },
+      { name: 'Mac Studio M5 Max',   capacities: ['512GB', '1TB', '2TB', '4TB'] },
       { name: 'Mac Studio M4 Max',   capacities: ['512GB', '1TB', '2TB', '4TB', '8TB'] },
       { name: 'Mac Studio M2 Max',   capacities: ['512GB', '1TB', '2TB', '4TB'] },
       { name: 'Mac Studio M2 Ultra', capacities: ['1TB', '2TB', '4TB', '8TB'] },
@@ -168,6 +180,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'Watch',
     models: [
+      { name: 'Apple Watch Series 12', capacities: ['42mm', '46mm'], colors: ['Bronze Escuro', 'Preto', 'Dourado Claro', 'Cinza Espacial'] },
+      { name: 'Apple Watch Ultra 4',   capacities: ['49mm'],         colors: ['Titânio Natural', 'Titânio Preto'] },
       { name: 'Apple Watch Series 11', capacities: ['42mm', '46mm'], colors: ['Preto', 'Prata', 'Ouro Rosa', 'Titânio Natural'] },
       { name: 'Apple Watch Ultra 3',   capacities: ['49mm'],         colors: ['Titânio Natural', 'Titânio Preto'] },
       { name: 'Apple Watch Series 10', capacities: ['42mm', '46mm'], colors: ['Preto', 'Prata', 'Ouro Rosa', 'Polido Natural', 'Ouro', 'Ardósia'] },
@@ -193,6 +207,7 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'AirPods 4 (ANC)', capacities: ['—'] },
       { name: 'AirPods 4', capacities: ['—'] },
       { name: 'AirPods 3', capacities: ['—'] },
+      { name: 'AirPods Max 2', capacities: ['—'], colors: ['Meia-Noite', 'Estelar', 'Azul', 'Roxo', 'Laranja'] },
       { name: 'AirPods Max (USB-C)', capacities: ['—'], colors: ['Azul Meia-Noite', 'Luz das Estrelas', 'Laranja', 'Roxo', 'Rosa'] },
       { name: 'AirPods Max (Lightning)', capacities: ['—'], colors: ['Cinza Espacial', 'Prata', 'Azul Céu', 'Verde', 'Rosa'] },
       { name: 'Beats Studio Pro', capacities: ['—'] },
@@ -243,6 +258,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'Cubo de Carga USB-C 67W', capacities: ['—'] },
       { name: 'Cubo de Carga USB-C 96W', capacities: ['—'] },
       // AirTag
+      { name: 'AirTag 2ª Geração (unitário)', capacities: ['—'] },
+      { name: 'AirTag 2ª Geração (Pack com 4)', capacities: ['—'] },
       { name: 'AirTag (unitário)', capacities: ['—'] },
       { name: 'AirTag (Pack com 4)', capacities: ['—'] },
       // Alto-falantes e streaming
@@ -250,6 +267,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
       { name: 'HomePod mini', capacities: ['—'], colors: ['Branco', 'Meia-Noite', 'Amarelo', 'Laranja', 'Azul'] },
       { name: 'Apple TV 4K Wi-Fi + Ethernet', capacities: ['64GB'] },
       { name: 'Apple TV 4K Wi-Fi', capacities: ['64GB'] },
+      // Monitores
+      { name: 'Studio Display XDR', capacities: ['—'] },
       // Vision Pro
       { name: 'Apple Vision Pro', capacities: ['256GB', '512GB', '1TB'] },
       // Outros
@@ -308,6 +327,9 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Samsung', category: 'Smartphones',
     models: [
+      { name: 'Galaxy S26 Ultra', capacities: ['256GB', '512GB', '1TB'], colors: ['Preto', 'Branco', 'Violeta Cobalto', 'Azul Céu'] },
+      { name: 'Galaxy S26+', capacities: ['256GB', '512GB'], colors: ['Preto', 'Branco', 'Violeta Cobalto', 'Azul Céu'] },
+      { name: 'Galaxy S26', capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Violeta Cobalto', 'Azul Céu'] },
       { name: 'Galaxy S25 Ultra', capacities: ['256GB', '512GB', '1TB'], colors: ['Titanium Shadowblue', 'Titanium Black', 'Titanium White Silver', 'Titanium Silverblue'] },
       { name: 'Galaxy S25+', capacities: ['256GB', '512GB'], colors: ['Icy Blue', 'Mint', 'Navy', 'Silver Shadow'] },
       { name: 'Galaxy S25', capacities: ['128GB', '256GB', '512GB'], colors: ['Icy Blue', 'Mint', 'Navy', 'Silver Shadow'] },
@@ -354,6 +376,9 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Motorola', category: 'Smartphones',
     models: [
+      { name: 'Motorola Edge 70 Pro', capacities: ['256GB', '512GB'] },
+      { name: 'Motorola Razr 70 Ultra', capacities: ['256GB', '512GB'] },
+      { name: 'Motorola Razr 70', capacities: ['256GB'] },
       { name: 'Motorola Edge 50 Ultra', capacities: ['256GB', '512GB'] },
       { name: 'Motorola Edge 50 Pro', capacities: ['256GB'] },
       { name: 'Motorola Edge 50 Fusion', capacities: ['128GB', '256GB'] },

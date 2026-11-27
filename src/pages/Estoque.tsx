@@ -442,6 +442,25 @@ export const Estoque: React.FC = () => {
       setIsAddModalOpen(false);
       setAddForm(emptyDeviceForm());
       setAddQueue([]);
+
+      // Um filtro deixado ativo de uma navegação anterior (categoria, data, condição,
+      // preço, busca) pode esconder o aparelho recém-cadastrado da lista — ele foi salvo
+      // normalmente, mas "some" da tela, dando a impressão de que o cadastro falhou. Limpa
+      // só os filtros que de fato esconderiam algum dos aparelhos que acabaram de entrar.
+      const addedNames = pending.map(d => (deviceFormToProductName(d) || d.model || '').toLowerCase());
+      const addedCategories = pending.map(d => d.category || 'Outro');
+      const addedConditions = pending.map(d => d.condition || '');
+      const addedEntryDates = pending.map(d => d.entry_date || new Date().toISOString().split('T')[0]);
+      const addedPrices = pending.map(d => Number(d.sale_price) || 0);
+
+      if (searchTerm && !addedNames.some(n => n.includes(searchTerm.toLowerCase()))) setSearchTerm('');
+      if (filterCategory !== 'Todas' && !addedCategories.includes(filterCategory)) setFilterCategory('Todas');
+      if (filterCondition !== 'Todas' && !addedConditions.some(c => c.toLowerCase().startsWith(filterCondition.toLowerCase()))) setFilterCondition('Todas');
+      if (filterDateFrom && addedEntryDates.some(d => d < filterDateFrom)) setFilterDateFrom('');
+      if (filterDateTo && addedEntryDates.some(d => d > filterDateTo)) setFilterDateTo('');
+      if (filterPriceMin && addedPrices.some(p => p < Number(filterPriceMin))) setFilterPriceMin('');
+      if (filterPriceMax && addedPrices.some(p => p > Number(filterPriceMax))) setFilterPriceMax('');
+
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -483,6 +502,24 @@ export const Estoque: React.FC = () => {
       toast.success('Produto atualizado!');
       setIsEditModalOpen(false);
       setEditingId(null);
+
+      // Mesmo cuidado do cadastro: se a edição mudou categoria/condição/preço/data pra fora
+      // do filtro ativo, o produto some da lista mesmo tendo sido salvo certinho — limpa só
+      // o(s) filtro(s) que esconderiam ele.
+      const editedName = (deviceFormToProductName(editForm) || editForm.model || '').toLowerCase();
+      const editedCategory = editForm.category || 'Outro';
+      const editedCondition = editForm.condition || '';
+      const editedEntryDate = editForm.entry_date || new Date().toISOString().split('T')[0];
+      const editedPrice = Number(editForm.sale_price) || 0;
+
+      if (searchTerm && !editedName.includes(searchTerm.toLowerCase())) setSearchTerm('');
+      if (filterCategory !== 'Todas' && filterCategory !== editedCategory) setFilterCategory('Todas');
+      if (filterCondition !== 'Todas' && !editedCondition.toLowerCase().startsWith(filterCondition.toLowerCase())) setFilterCondition('Todas');
+      if (filterDateFrom && editedEntryDate < filterDateFrom) setFilterDateFrom('');
+      if (filterDateTo && editedEntryDate > filterDateTo) setFilterDateTo('');
+      if (filterPriceMin && editedPrice < Number(filterPriceMin)) setFilterPriceMin('');
+      if (filterPriceMax && editedPrice > Number(filterPriceMax)) setFilterPriceMax('');
+
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);

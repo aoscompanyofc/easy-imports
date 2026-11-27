@@ -279,11 +279,26 @@ export const dataService = {
       const { data: product } = await supabase
         .from('products').select('stock_quantity, purchase_price').eq('id', item.product_id).single();
       if (product) {
-        const newQty = product.stock_quantity - item.quantity;
-        await supabase.from('products')
+        const newQty = Math.max(0, product.stock_quantity - item.quantity);
+        const { data: decremented } = await supabase.from('products')
           .update({ stock_quantity: newQty, status: newQty <= 0 ? 'out_of_stock' : 'available' })
           .eq('id', item.product_id)
-          .eq('stock_quantity', product.stock_quantity);
+          .eq('stock_quantity', product.stock_quantity)
+          .select();
+        // A trava acima (.eq stock_quantity) existe pra não descontar duas vezes se outra
+        // venda mexeu no mesmo produto ao mesmo tempo — mas se ela travar por qualquer outro
+        // motivo (qualquer escrita no meio do caminho), o update afeta 0 linhas e o estoque
+        // fica incorreto silenciosamente. Reconsulta e aplica a baixa sem a trava nesse caso,
+        // porque não descontar o estoque é sempre pior que o raro risco de concorrência.
+        if (!decremented || decremented.length === 0) {
+          const { data: fresh } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
+          if (fresh) {
+            const retryQty = Math.max(0, fresh.stock_quantity - item.quantity);
+            await supabase.from('products')
+              .update({ stock_quantity: retryQty, status: retryQty <= 0 ? 'out_of_stock' : 'available' })
+              .eq('id', item.product_id);
+          }
+        }
         if (product.purchase_price > 0) {
           await this.addTransaction({
             description: `Custo ${sale_number || saleId.slice(0, 8)} — ${product_name || 'Produto'}`,

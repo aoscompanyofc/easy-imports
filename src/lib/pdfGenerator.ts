@@ -39,6 +39,19 @@ export interface SalePDFData {
   incoming_condition?: string;
   incoming_battery_health?: string;
   incoming_purchase_price?: number;
+  // Array of incoming (trade-in) devices for trocas com múltiplos aparelhos recebidos —
+  // quando presente com mais de 1 item, sobrepõe os campos incoming_* singulares acima
+  // (que seguem existindo pra compatibilidade com trocas de um único aparelho).
+  incoming_items?: Array<{
+    name: string;
+    imei?: string;
+    serial?: string;
+    capacity?: string;
+    color?: string;
+    condition?: string;
+    battery_health?: string;
+    price: number;
+  }>;
   signature_admin?: string;
   signature_client?: string;
   // 'novo' = garantia do fabricante (1 ano) | 'seminovo' = 90 dias Easy Imports
@@ -176,7 +189,7 @@ body {
 }
 
 /* CHECKBOXES */
-.ck-row { display: flex; align-items: center; gap: 14px; padding-top: 2px; }
+.ck-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-top: 2px; }
 .ck-lbl { font-size: 7pt; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
 .ck { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #333; }
 .ck-box {
@@ -442,11 +455,11 @@ ${body}
 export function generateVendaPDF(sale: SalePDFData, company: CompanyInfo) {
   const date = fmtDate(sale.created_at);
   const cond  = (sale.product_condition || '').toLowerCase();
-  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
-  const isSemi    = (c: string) => c.includes('seminovo');
-  const isBom     = (c: string) => c.includes('bom') && !c.includes('seminovo');
-  const isUsado   = (c: string) => c.includes('usado') || (c.includes('defeito'));
-
+  const isNovo     = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
+  const isComoNovo = (c: string) => c.includes('como novo');
+  const isSemi     = (c: string) => c.includes('seminovo') && !isComoNovo(c);
+  const isBom      = (c: string) => c.includes('bom') && !c.includes('seminovo') && !isComoNovo(c);
+  const isUsado    = (c: string) => (c.includes('usado') || c.includes('defeito')) && !isComoNovo(c);
 
   const body = `
 <div class="sec">
@@ -516,6 +529,7 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
         const forceNovo = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(cond));
         return `
           ${checkbox('Novo (lacrado)', forceNovo)}
+          ${checkbox('Como Novo', !forceNovo && isComoNovo(cond))}
           ${checkbox('Seminovo',  !forceNovo && isSemi(cond))}
           ${checkbox('Bom estado', !forceNovo && isBom(cond))}
           ${checkbox('Usado',      !forceNovo && isUsado(cond))}
@@ -604,13 +618,42 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
   const outCond = (sale.product_condition   || '').toLowerCase();
 
   // Helpers para detectar estado sem falso-positivo de "seminovo" → "novo"
-  const isNovo    = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
-  const isSemi    = (c: string) => c.includes('seminovo');
-  const isBom     = (c: string) => c.includes('bom') && !c.includes('seminovo');
-  const isDefeito = (c: string) => c.includes('defeito') || (c.includes('usado') && !c.includes('bom'));
+  const isNovo     = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
+  const isComoNovo = (c: string) => c.includes('como novo');
+  const isSemi     = (c: string) => c.includes('seminovo') && !isComoNovo(c);
+  const isBom      = (c: string) => c.includes('bom') && !c.includes('seminovo') && !isComoNovo(c);
+  const isDefeito  = (c: string) => (c.includes('defeito') || (c.includes('usado') && !c.includes('bom'))) && !isComoNovo(c);
 
-  // Aparelho entregue pelo cliente
-  const incomingBlock = `
+  // Aparelho(s) entregue(s) pelo cliente — tabela quando são 2 ou mais, senão os
+  // campos detalhados de sempre (mesmo padrão do outgoingBlock logo abaixo).
+  const incomingBlock = sale.incoming_items && sale.incoming_items.length > 1 ? `
+    <div class="split-box">
+      <div class="split-t">Aparelhos Entregues pelo Cliente</div>
+      <div class="split-b">
+        <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+          <thead>
+            <tr style="background:#f5f5f5;border-bottom:1px solid #222;">
+              <th style="text-align:left;padding:3px 5px;font-weight:700;">Modelo</th>
+              <th style="text-align:left;padding:3px 5px;font-weight:700;">IMEI/Série</th>
+              <th style="text-align:right;padding:3px 5px;font-weight:700;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sale.incoming_items!.map(item => `
+              <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:3px 5px;">${item.name || '—'}</td>
+                <td style="padding:3px 5px;font-family:monospace;font-size:7pt;">${item.imei || item.serial || '—'}</td>
+                <td style="padding:3px 5px;text-align:right;font-weight:700;">${fmtMoney(item.price)}</td>
+              </tr>
+            `).join('')}
+            <tr style="border-top:2px solid #111;background:#f9f9f9;">
+              <td colspan="2" style="padding:4px 5px;font-weight:700;text-align:right;">Total do(s) aparelho(s) recebido(s)</td>
+              <td style="padding:4px 5px;text-align:right;font-weight:900;">${fmtMoney(sale.incoming_items!.reduce((s, i) => s + (i.price || 0), 0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>` : `
     <div class="split-box">
       <div class="split-t">Aparelho Entregue pelo Cliente</div>
       <div class="split-b">
@@ -632,6 +675,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
           ${checkbox('Novo (lacrado)', isNovo(inCond))}
+          ${checkbox('Como Novo', isComoNovo(inCond))}
           ${checkbox('Seminovo', isSemi(inCond))}
           ${checkbox('Bom estado', isBom(inCond))}
           ${checkbox('Com defeito', isDefeito(inCond))}
@@ -639,8 +683,12 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
       </div>
     </div>`;
 
-  // Valores financeiros
-  const tradeInCredit = sale.incoming_purchase_price || 0;
+  // Valores financeiros — soma todos os aparelhos recebidos quando há mais de um,
+  // senão usa o valor único de sempre (antes isso só contava o primeiro aparelho,
+  // fazendo o valor final do PDF ficar errado em trocas com 2+ itens recebidos).
+  const tradeInCredit = sale.incoming_items && sale.incoming_items.length > 0
+    ? sale.incoming_items.reduce((s, i) => s + (i.price || 0), 0)
+    : (sale.incoming_purchase_price || 0);
   const totalValue    = sale.total_amount || 0;
   // cash = quanto o cliente pagou em caixa (PIX/cartão), sem contar o aparelho da troca
   const cashReceived  = Math.max(0, totalValue - tradeInCredit);
@@ -703,6 +751,7 @@ export function generateTrocaPDF(sale: SalePDFData, company: CompanyInfo) {
         <div class="ck-row">
           <span class="ck-lbl">Estado:</span>
           ${checkbox('Novo (lacrado)', useNewWarranty)}
+          ${checkbox('Como Novo', !useNewWarranty && isComoNovo(outCond))}
           ${checkbox('Seminovo',  !useNewWarranty && isSemi(outCond))}
           ${checkbox('Bom estado', !useNewWarranty && isBom(outCond))}
           ${checkbox('Usado',      !useNewWarranty && isDefeito(outCond))}
@@ -902,10 +951,11 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
 
   // Condition helpers (same as venda)
   const outCond = (sale.product_condition || '').toLowerCase();
-  const isNovo  = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
-  const isSemi  = (c: string) => c.includes('seminovo');
-  const isBom   = (c: string) => c.includes('bom') && !c.includes('seminovo');
-  const isUsado = (c: string) => c.includes('usado') || c.includes('defeito');
+  const isNovo     = (c: string) => c === 'novo' || c.startsWith('novo ') || c.startsWith('novo(');
+  const isComoNovo = (c: string) => c.includes('como novo');
+  const isSemi     = (c: string) => c.includes('seminovo') && !isComoNovo(c);
+  const isBom      = (c: string) => c.includes('bom') && !c.includes('seminovo') && !isComoNovo(c);
+  const isUsado    = (c: string) => (c.includes('usado') || c.includes('defeito')) && !isComoNovo(c);
   const forceNovo = sale.pdf_type === 'novo' || (!sale.pdf_type && isNovo(outCond));
   const forceApple = sale.pdf_type?.startsWith('apple_warranty') ?? false;
   const appleExpiryPrazo = parseAppleExpiry(sale.pdf_type);
@@ -947,13 +997,27 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
     </table>
   ` : `<div class="row">${field('Forma de Pagamento', sale.payment_method, 'f3')}${field('Valor Total', fmtMoney(totalContract), 'f2')}</div>`;
 
-  // Trade-in block (optional)
-  const hasTradeIn = !!sale.incoming_name?.trim();
+  // Trade-in block (optional) — lista todos quando há mais de um aparelho recebido
+  const hasTradeIn = (sale.incoming_items && sale.incoming_items.length > 0) || !!sale.incoming_name?.trim();
+  const multiTradeIn = sale.incoming_items && sale.incoming_items.length > 1 ? `
+    <table style="width:100%;border-collapse:collapse;font-size:8pt;margin-bottom:4px;">
+      <thead><tr style="background:#f5f5f5;border-bottom:1px solid #222;">
+        <th style="text-align:left;padding:3px 5px;font-weight:700;">Modelo</th>
+        <th style="text-align:left;padding:3px 5px;font-weight:700;">IMEI/Série</th>
+      </tr></thead>
+      <tbody>${sale.incoming_items!.map(item => `
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:3px 5px;">${item.name || '—'}</td>
+          <td style="padding:3px 5px;font-family:monospace;font-size:7pt;">${item.imei || item.serial || '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : '';
   const tradeInSection = hasTradeIn ? `
 <div class="sec">
-  <div class="sec-t">Aparelho Recebido na Troca</div>
+  <div class="sec-t">Aparelho(s) Recebido(s) na Troca</div>
   <div class="sec-b">
-    <div class="row">
+    ${multiTradeIn}
+    ${!multiTradeIn ? `<div class="row">
       ${field('Modelo', sale.incoming_name, 'f3')}
       ${field('Cor', sale.incoming_color)}
       ${field('Capacidade', sale.incoming_capacity)}
@@ -961,9 +1025,9 @@ export function generatePrazoPDF(sale: SalePDFData, company: CompanyInfo) {
     <div class="row">
       ${field('IMEI / Serial', sale.incoming_imei || sale.incoming_serial, 'f2')}
       ${sale.incoming_battery_health ? field('Saúde Bateria', sale.incoming_battery_health) : ''}
-    </div>
+    </div>` : ''}
     <p style="font-size:7.5pt;color:#555;margin-top:4px;">
-      O aparelho acima foi entregue pelo comprador à Easy Imports como parte do acordo comercial.
+      O(s) aparelho(s) acima foi(ram) entregue(s) pelo comprador à Easy Imports como parte do acordo comercial.
       O comprador declara ser o legítimo proprietário e que o aparelho não possui bloqueios ativos (iCloud/Google).
     </p>
   </div>
@@ -1049,6 +1113,7 @@ ${sale.outgoing_items && sale.outgoing_items.length > 1 ? `
     <div class="ck-row">
       <span class="ck-lbl">Estado:</span>
       ${checkbox('Novo (lacrado)', forceNovo)}
+      ${checkbox('Como Novo', !forceNovo && isComoNovo(outCond))}
       ${checkbox('Seminovo',  !forceNovo && isSemi(outCond))}
       ${checkbox('Bom estado', !forceNovo && isBom(outCond))}
       ${checkbox('Usado',      !forceNovo && isUsado(outCond))}

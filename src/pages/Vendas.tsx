@@ -149,6 +149,15 @@ export function getCompanyInfo(): CompanyInfo {
   };
 }
 
+// Converte um timestamp UTC (como vem do banco, ex: sale.created_at) pro valor que o
+// input <datetime-local> precisa — esse input não entende timezone, trata a string
+// como horário local "de parede". Sem essa conversão, abrir uma venda feita à noite
+// pra editar mostra a data errada (até um dia adiantado/atrasado, conforme o fuso).
+function toLocalDatetimeInputValue(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 function generateSaleNumber(sales: any[], type: string) {
   const prefix = type === 'troca' ? 'T' : type === 'prazo' ? 'P' : 'V';
   const regex = new RegExp(`^#${prefix}(\\d+)$`);
@@ -177,7 +186,7 @@ const emptyForm = () => ({
   // Pagamento
   payment_method: 'PIX',
   installments: 1,
-  sale_date: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })(),
+  sale_date: toLocalDatetimeInputValue(new Date()),
   // WhatsApp para envio automático do link de assinatura
   whatsapp_number: '',
   // Tipo de garantia: 'novo' | 'seminovo' | 'apple_warranty'
@@ -715,10 +724,14 @@ export const Vendas: React.FC = () => {
       const inlineName = form.seller_name.trim();
       if (!customerId && inlineName && inlineName.toLowerCase() !== 'avulso') {
         const inlinePhone = (form.customer_phone || '').replace(/\D/g, '');
+        // Telefone é o critério forte — nome sozinho não garante que seja a mesma pessoa
+        // (dois clientes reais podem se chamar igual). Casar só pelo nome já colou vendas
+        // no cliente errado, puxando telefone/endereço de outra pessoa pro PDF. Nome sem
+        // telefone informado só conta se não houver como desambiguar.
         const existing = customers.find((c: any) => {
-          const sameName = (c.name || '').trim().toLowerCase() === inlineName.toLowerCase();
-          const samePhone = inlinePhone && (c.phone || '').replace(/\D/g, '') === inlinePhone;
-          return sameName || samePhone;
+          const samePhone = inlinePhone && inlinePhone.length >= 8 && (c.phone || '').replace(/\D/g, '') === inlinePhone;
+          const sameNameNoPhone = !inlinePhone && (c.name || '').trim().toLowerCase() === inlineName.toLowerCase();
+          return samePhone || sameNameNoPhone;
         });
         if (existing) {
           customerId = existing.id;
@@ -1031,7 +1044,8 @@ export const Vendas: React.FC = () => {
         total_amount: totalAmount,
         payment_method: resolvedPaymentMethod,
         installments: form.split_payment ? 1 : form.installments,
-        // Aparelho entrante (troca) — PDF mostra o primeiro aparelho
+        // Aparelho entrante (troca) — campos singulares mantidos pra compatibilidade
+        // (trocas de 1 aparelho só); incoming_items abaixo leva TODOS quando há 2+.
         incoming_name: (deviceFormToProductName(primaryDevice) || primaryDevice.model) || undefined,
         incoming_imei: primaryDevice.imei || undefined,
         incoming_serial: primaryDevice.serial || undefined,
@@ -1041,6 +1055,20 @@ export const Vendas: React.FC = () => {
         incoming_condition: primaryDevice.condition || undefined,
         incoming_battery_health: primaryDevice.battery_health || undefined,
         incoming_purchase_price: Number(primaryDevice.purchase_price) || undefined,
+        incoming_items: (() => {
+          const filled = incomingDevices.filter(d => d.model.trim());
+          if (filled.length <= 1) return undefined;
+          return filled.map(d => ({
+            name: deviceFormToProductName(d) || d.model,
+            imei: d.imei || undefined,
+            serial: d.serial || undefined,
+            capacity: d.capacity || undefined,
+            color: d.color || undefined,
+            condition: d.condition || undefined,
+            battery_health: d.battery_health || undefined,
+            price: Number(d.purchase_price) || 0,
+          }));
+        })(),
         signature_admin: adminSignature || undefined,
         pdf_type: resolvedPdfType,
         installments_json: installmentsJson || undefined,
@@ -1510,8 +1538,8 @@ export const Vendas: React.FC = () => {
       payment_method: payMethod,
       installments: sale.installments || 1,
       sale_date: sale.created_at
-        ? new Date(sale.created_at).toISOString().slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
+        ? toLocalDatetimeInputValue(sale.created_at)
+        : toLocalDatetimeInputValue(new Date()),
       whatsapp_number: sale.customer_phone || sale.customers?.phone || '',
       pdf_type: sale.pdf_type?.startsWith('apple_warranty') ? 'apple_warranty' : (sale.pdf_type || (sale.product_condition?.toLowerCase().startsWith('novo') ? 'novo' : 'seminovo')),
       warranty_expiry: sale.pdf_type?.startsWith('apple_warranty:') ? sale.pdf_type.split(':')[1] || '' : '',
@@ -1657,6 +1685,23 @@ export const Vendas: React.FC = () => {
       incoming_condition: sale.incoming_condition || undefined,
       incoming_battery_health: sale.incoming_battery_health || undefined,
       incoming_purchase_price: sale.incoming_purchase_price || undefined,
+      incoming_items: (() => {
+        try {
+          const devices = JSON.parse(sale.incoming_devices_json || '[]');
+          const filled = devices.filter((d: any) => (d.model || '').trim());
+          if (filled.length <= 1) return undefined;
+          return filled.map((d: any) => ({
+            name: deviceFormToProductName(d) || d.model,
+            imei: d.imei || undefined,
+            serial: d.serial || undefined,
+            capacity: d.capacity || undefined,
+            color: d.color || undefined,
+            condition: d.condition || undefined,
+            battery_health: d.battery_health || undefined,
+            price: Number(d.purchase_price) || 0,
+          }));
+        } catch { return undefined; }
+      })(),
       signature_admin: adminSignature || undefined,
       signature_client: sale.signature_client || undefined,
       pdf_type: sale.pdf_type || undefined,
@@ -2707,16 +2752,38 @@ export const Vendas: React.FC = () => {
                               </select>
                             </div>
                           ) : (
-                            <div className="sm:col-span-2">
-                              <label className="block text-sm font-bold text-neutral-700 mb-1.5">Modelo / Produto *</label>
-                              <input
-                                type="text"
-                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
-                                value={item.name_override}
-                                placeholder="Ex: iPhone 13 Pro Max 128GB Prata"
-                                onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, name_override: e.target.value } : i))}
-                              />
-                            </div>
+                            <>
+                              <div className="sm:col-span-2">
+                                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Modelo / Produto *</label>
+                                <input
+                                  type="text"
+                                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                  value={item.name_override}
+                                  placeholder="Ex: iPhone 13 Pro Max"
+                                  onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, name_override: e.target.value } : i))}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Capacidade / Armazenamento</label>
+                                <input
+                                  type="text"
+                                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                  value={item.capacity_override}
+                                  placeholder="Ex: 128GB"
+                                  onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, capacity_override: e.target.value } : i))}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-neutral-700 mb-1.5">Cor</label>
+                                <input
+                                  type="text"
+                                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25"
+                                  value={item.color_override}
+                                  placeholder="Ex: Titânio Natural"
+                                  onChange={(e) => setAdditionalItems(prev => prev.map(i => i.id === item.id ? { ...i, color_override: e.target.value } : i))}
+                                />
+                              </div>
+                            </>
                           )}
                           <div>
                             <label className="block text-sm font-bold text-neutral-700 mb-1.5">Valor de Venda (R$)</label>

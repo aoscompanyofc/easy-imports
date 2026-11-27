@@ -358,54 +358,90 @@ export const Estoque: React.FC = () => {
     return products.find((p: any) => p.id !== excludeId && (p.imei || '').trim() === clean) || null;
   };
 
+  // Lote de aparelhos pendentes de salvar — permite cadastrar vários de uma vez (ex: 5+
+  // chegaram juntos de um fornecedor) sem precisar reabrir o modal pra cada um.
+  const [addQueue, setAddQueue] = useState<DeviceFormData[]>([]);
+
+  const validateDevice = (device: DeviceFormData, imeisInBatch: Set<string>): string | null => {
+    const name = deviceFormToProductName(device);
+    if (!name && !device.model) return 'Selecione ou informe o modelo.';
+    if (Number(device.purchase_price) < 0 || Number(device.sale_price) < 0) return 'Preço não pode ser negativo.';
+    const imei = (device.imei || '').trim();
+    if (imei) {
+      if (imeisInBatch.has(imei)) return `IMEI/Nº de série repetido nesta lista: ${imei}`;
+      const dupImei = findDuplicateImei(imei);
+      if (dupImei) return `Esse IMEI/Nº de série já está cadastrado em "${dupImei.name}" (${dupImei.stock_quantity > 0 ? 'disponível' : 'vendido'}). Confira se não é o mesmo aparelho.`;
+    }
+    return null;
+  };
+
+  const handleQueueAdd = () => {
+    const err = validateDevice(addForm, new Set(addQueue.map(d => (d.imei || '').trim()).filter(Boolean)));
+    if (err) { toast.error(err); return; }
+    setAddQueue(prev => [...prev, { ...addForm }]);
+    setAddForm(emptyDeviceForm());
+  };
+
+  const insertDeviceAsProduct = async (device: DeviceFormData) => {
+    const name = deviceFormToProductName(device);
+    const batteryNote = (device.battery_health ? ` · Bateria: ${device.battery_health}` : '')
+      + (device.battery_cycles ? ` · Ciclos: ${device.battery_cycles}` : '');
+    const created = await dataService.addProduct({
+      name: name || device.model,
+      category: device.category,
+      imei: device.imei,
+      purchase_price: Number(device.purchase_price),
+      sale_price: Number(device.sale_price) || 0,
+      stock_quantity: 1,
+      status: 'available',
+      product_capacity: device.capacity !== '—' ? device.capacity : '',
+      product_color: device.color,
+      product_condition: device.condition + batteryNote,
+      product_warranty: device.warranty || 'Sem garantia',
+      product_origin: device.origin || '',
+      entry_date: device.entry_date || new Date().toISOString().split('T')[0],
+      notes: device.notes || '',
+    });
+    // Todo aparelho seminovo/usado que entra no estoque já gera a tarefa de
+    // anunciar no OLX, vinculada a este produto — quando a tarefa for
+    // arrastada pra "Concluído" em Tarefas, o produto vira "Anunciado no
+    // OLX" sozinho aqui no Estoque (ver Tarefas.tsx).
+    if (!device.condition.toLowerCase().startsWith('novo')) {
+      addQuickTask({
+        title: `Anunciar ${name || device.model} na OLX`,
+        priority: 'media',
+        status: 'todo',
+        linkedProductId: created?.id,
+      }).catch(() => {});
+    }
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = deviceFormToProductName(addForm);
-    if (!name && !addForm.model) { toast.error('Selecione ou informe o modelo.'); return; }
-    if (Number(addForm.purchase_price) < 0 || Number(addForm.sale_price) < 0) {
-      toast.error('Preço não pode ser negativo.');
-      return;
+    // Se o formulário atual também está preenchido, ele entra no lote junto com o resto
+    // da lista — assim não é preciso clicar "Adicionar à lista" pro último aparelho.
+    const currentFilled = !!(deviceFormToProductName(addForm) || addForm.model.trim());
+    const pending = currentFilled ? [...addQueue, addForm] : addQueue;
+    if (pending.length === 0) { toast.error('Selecione ou informe o modelo.'); return; }
+
+    // Valida tudo antes de inserir qualquer um — evita salvar metade do lote e travar no meio.
+    const seenImeis = new Set<string>();
+    for (const device of pending) {
+      const err = validateDevice(device, seenImeis);
+      if (err) { toast.error(err); return; }
+      const imei = (device.imei || '').trim();
+      if (imei) seenImeis.add(imei);
     }
-    const dupImei = findDuplicateImei(addForm.imei);
-    if (dupImei) {
-      toast.error(`Esse IMEI/Nº de série já está cadastrado em "${dupImei.name}" (${dupImei.stock_quantity > 0 ? 'disponível' : 'vendido'}). Confira se não é o mesmo aparelho.`);
-      return;
-    }
+
     try {
       setIsSavingAdd(true);
-      const batteryNote = (addForm.battery_health ? ` · Bateria: ${addForm.battery_health}` : '')
-        + (addForm.battery_cycles ? ` · Ciclos: ${addForm.battery_cycles}` : '');
-      const created = await dataService.addProduct({
-        name: name || addForm.model,
-        category: addForm.category,
-        imei: addForm.imei,
-        purchase_price: Number(addForm.purchase_price),
-        sale_price: Number(addForm.sale_price) || 0,
-        stock_quantity: 1,
-        status: 'available',
-        product_capacity: addForm.capacity !== '—' ? addForm.capacity : '',
-        product_color: addForm.color,
-        product_condition: addForm.condition + batteryNote,
-        product_warranty: addForm.warranty || 'Sem garantia',
-        product_origin: addForm.origin || '',
-        entry_date: addForm.entry_date || new Date().toISOString().split('T')[0],
-        notes: addForm.notes || '',
-      });
-      toast.success('Aparelho adicionado ao estoque!');
-      // Todo aparelho seminovo/usado que entra no estoque já gera a tarefa de
-      // anunciar no OLX, vinculada a este produto — quando a tarefa for
-      // arrastada pra "Concluído" em Tarefas, o produto vira "Anunciado no
-      // OLX" sozinho aqui no Estoque (ver Tarefas.tsx).
-      if (!addForm.condition.toLowerCase().startsWith('novo')) {
-        addQuickTask({
-          title: `Anunciar ${name || addForm.model} na OLX`,
-          priority: 'media',
-          status: 'todo',
-          linkedProductId: created?.id,
-        }).then((ok) => { if (ok) toast('Tarefa criada: anunciar no OLX 📋', { duration: 3000 }); });
+      for (const device of pending) {
+        await insertDeviceAsProduct(device);
       }
+      toast.success(pending.length > 1 ? `${pending.length} aparelhos adicionados ao estoque!` : 'Aparelho adicionado ao estoque!');
       setIsAddModalOpen(false);
       setAddForm(emptyDeviceForm());
+      setAddQueue([]);
       fetchProducts();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
@@ -1037,7 +1073,7 @@ export const Estoque: React.FC = () => {
           <Button variant="secondary" leftIcon={<MessageSquare size={18} />} onClick={() => { setMessageCopied(false); setExcludedModels(new Set()); setIsMessageModalOpen(true); }}>
             Mensagem WhatsApp
           </Button>
-          <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setIsAddModalOpen(true); }}>
+          <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setAddQueue([]); setIsAddModalOpen(true); }}>
             Adicionar Aparelho
           </Button>
         </div>
@@ -1265,7 +1301,7 @@ export const Estoque: React.FC = () => {
             <p className="font-bold text-neutral-700">Estoque vazio</p>
             <p className="text-sm text-neutral-400 mt-1">Adicione aparelhos ao estoque para começar a vender.</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} size="sm" onClick={() => setIsAddModalOpen(true)}>
+          <Button leftIcon={<Plus size={16} />} size="sm" onClick={() => { setAddForm(emptyDeviceForm()); setAddQueue([]); setIsAddModalOpen(true); }}>
             Adicionar Aparelho
           </Button>
         </div>
@@ -1429,12 +1465,38 @@ export const Estoque: React.FC = () => {
       </Modal>
 
       {/* MODAL ADICIONAR */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Adicionar Aparelho ao Estoque" maxWidth="lg">
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => { setIsAddModalOpen(false); setAddQueue([]); setAddForm(emptyDeviceForm()); }}
+        title={addQueue.length > 0 ? `Adicionar Aparelhos ao Estoque (${addQueue.length} na lista)` : 'Adicionar Aparelho ao Estoque'}
+        maxWidth="lg"
+      >
         <form onSubmit={handleAdd} className="space-y-4">
+          {addQueue.length > 0 && (
+            <div className="space-y-1.5 max-h-40 overflow-y-auto border border-neutral-200 rounded-xl p-2 bg-neutral-50">
+              {addQueue.map((d, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-xs">
+                  <span className="font-bold text-neutral-700 truncate">{deviceFormToProductName(d) || d.model}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAddQueue(prev => prev.filter((_, idx) => idx !== i))}
+                    className="text-neutral-400 hover:text-red-500 flex-shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <DeviceForm value={addForm} onChange={setAddForm} />
+          <Button variant="secondary" fullWidth type="button" onClick={handleQueueAdd} leftIcon={<Plus size={16} />}>
+            Adicionar à Lista (cadastrar vários de uma vez)
+          </Button>
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => setIsAddModalOpen(false)} type="button">Cancelar</Button>
-            <Button fullWidth loading={isSavingAdd} type="submit">Salvar no Estoque</Button>
+            <Button variant="secondary" fullWidth onClick={() => { setIsAddModalOpen(false); setAddQueue([]); setAddForm(emptyDeviceForm()); }} type="button">Cancelar</Button>
+            <Button fullWidth loading={isSavingAdd} type="submit">
+              {addQueue.length > 0 ? `Salvar ${addQueue.length + (addForm.model.trim() ? 1 : 0)} no Estoque` : 'Salvar no Estoque'}
+            </Button>
           </div>
         </form>
       </Modal>

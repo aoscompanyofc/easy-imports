@@ -17,6 +17,10 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'iPhone',
     models: [
+      // iPhone 18 (2026)
+      { name: 'iPhone 18 Pro Max', capacities: ['256GB', '512GB', '1TB', '2TB'], colors: ['Titânio Preto', 'Titânio Natural', 'Titânio Azul'] },
+      { name: 'iPhone 18 Pro',     capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Preto', 'Titânio Natural', 'Titânio Azul'] },
+      { name: 'iPhone 18',         capacities: ['128GB', '256GB', '512GB'], colors: ['Preto', 'Branco', 'Azul', 'Verde', 'Rosa'] },
       // iPhone 17 (2025) — cores oficiais Apple
       { name: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], colors: ['Titânio Laranja-Cósmico', 'Titânio Azul-Intenso', 'Titânio Prateado'] },
       { name: 'iPhone 17 Pro',     capacities: ['128GB', '256GB', '512GB', '1TB'], colors: ['Titânio Laranja-Cósmico', 'Titânio Azul-Intenso', 'Titânio Prateado'] },
@@ -182,6 +186,8 @@ export const DEVICE_CATALOG: DeviceBrand[] = [
   {
     brand: 'Apple', category: 'AirPods',
     models: [
+      { name: 'AirPods Pro 3', capacities: ['—'] },
+      { name: 'AirPods 5', capacities: ['—'] },
       { name: 'AirPods Pro 2 (USB-C)', capacities: ['—'] },
       { name: 'AirPods Pro 2 (Lightning)', capacities: ['—'] },
       { name: 'AirPods 4 (ANC)', capacities: ['—'] },
@@ -426,12 +432,9 @@ export const WARRANTY_OPTIONS = [
 ];
 
 export const BATTERY_HEALTH_OPTIONS = [
-  '100%', '99%', '98%', '97%', '96%', '95%',
-  '94%', '93%', '92%', '91%', '90%',
-  '89%', '88%', '87%', '86%', '85%',
-  '84%', '83%', '82%', '81%', '80%',
-  '79%', '78%', '77%', '76%', '75%',
-  '70%', '65%', '60%', 'Abaixo de 60%', 'Não se aplica',
+  ...Array.from({ length: 51 }, (_, i) => `${100 - i}%`), // 100% até 50%, 1 em 1
+  'Abaixo de 50%',
+  'Não se aplica',
 ];
 
 export const COMMON_CONDITIONS = [

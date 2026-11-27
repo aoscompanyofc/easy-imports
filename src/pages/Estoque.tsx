@@ -33,6 +33,17 @@ function deduplicateName(name: string, capacity: string, color: string): string 
   return [n, cap, col].filter(Boolean).join(' ');
 }
 
+// Nome do modelo sem o sufixo de capacidade/cor (ex: "iPhone 16 Pro Max 256GB Titânio" → "iPhone 16 Pro Max"),
+// usado tanto pra agrupar a mensagem de estoque quanto pra montar o filtro por modelo no modal.
+function extractModel(p: any): string {
+  let name = p.name || '';
+  const col = (p.product_color || '').trim();
+  const cap = (p.product_capacity || '').trim();
+  if (col && name.endsWith(` ${col}`)) name = name.slice(0, -(col.length + 1));
+  if (cap && name.endsWith(` ${cap}`)) name = name.slice(0, -(cap.length + 1));
+  return name.trim();
+}
+
 interface Reservation { customerName: string; amount: number; date: string }
 
 // Sinal/reserva é guardado como JSON na coluna `description` (livre, não usada por outra feature).
@@ -112,15 +123,6 @@ export const Estoque: React.FC = () => {
         if (lower.includes('ciclo')) return `🔋 ${l}`;
         return `✨ ${l}`;
       });
-
-    const extractModel = (p: any): string => {
-      let name = p.name || '';
-      const col = (p.product_color || '').trim();
-      const cap = (p.product_capacity || '').trim();
-      if (col && name.endsWith(` ${col}`)) name = name.slice(0, -(col.length + 1));
-      if (cap && name.endsWith(` ${cap}`)) name = name.slice(0, -(cap.length + 1));
-      return name.trim();
-    };
 
     const buildProductEntry = (p: any): string => {
       const lines: string[] = [];
@@ -236,6 +238,9 @@ export const Estoque: React.FC = () => {
 
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [messageCopied, setMessageCopied] = useState(false);
+  // Modelos desmarcados pelo usuário ficam de fora da mensagem gerada — vazio = mostra tudo
+  // (comportamento de sempre), permitindo por ex. selecionar só iPhone 15 e 16 pro cliente.
+  const [excludedModels, setExcludedModels] = useState<Set<string>>(new Set());
   const autoFixedRef = useRef(false); // run dedup only once per session
 
   const [reserveProduct, setReserveProduct] = useState<any | null>(null);
@@ -1029,7 +1034,7 @@ export const Estoque: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" leftIcon={<MessageSquare size={18} />} onClick={() => { setMessageCopied(false); setIsMessageModalOpen(true); }}>
+          <Button variant="secondary" leftIcon={<MessageSquare size={18} />} onClick={() => { setMessageCopied(false); setExcludedModels(new Set()); setIsMessageModalOpen(true); }}>
             Mensagem WhatsApp
           </Button>
           <Button leftIcon={<Plus size={20} />} onClick={() => { setAddForm(emptyDeviceForm()); setIsAddModalOpen(true); }}>
@@ -1341,23 +1346,60 @@ export const Estoque: React.FC = () => {
             <p className="font-bold text-neutral-600">Estoque vazio</p>
             <p className="text-sm mt-1">Adicione aparelhos para gerar a mensagem.</p>
           </div>
-        ) : (
+        ) : (() => {
+          const sellableNow = available.filter(p => p.status !== 'reserved');
+          const modelGroups = Array.from(new Set(sellableNow.map(p => extractModel(p)))).sort();
+          const filteredForMessage = sellableNow.filter(p => !excludedModels.has(extractModel(p)));
+          return (
           <div className="space-y-4">
+            {modelGroups.length > 1 && (
+              <div className="border border-neutral-200 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Filtrar modelos na mensagem</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setExcludedModels(new Set())} className="text-xs font-bold text-primary hover:underline">Marcar todos</button>
+                    <button type="button" onClick={() => setExcludedModels(new Set(modelGroups))} className="text-xs font-bold text-neutral-400 hover:underline">Desmarcar todos</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {modelGroups.map(model => {
+                    const checked = !excludedModels.has(model);
+                    return (
+                      <label key={model} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border ${checked ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-neutral-50 border-neutral-200 text-neutral-400'}`}>
+                        <input
+                          type="checkbox"
+                          className="accent-primary"
+                          checked={checked}
+                          onChange={() => setExcludedModels(prev => {
+                            const next = new Set(prev);
+                            if (checked) next.add(model); else next.delete(model);
+                            return next;
+                          })}
+                        />
+                        {model}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               {(() => {
-                const listed = available.filter(p => p.status !== 'reserved').length;
-                const reservedCount = available.length - listed;
+                const listed = filteredForMessage.length;
+                const reservedCount = available.length - sellableNow.length;
+                const hiddenByFilter = sellableNow.length - listed;
                 return (
                   <p className="text-sm text-neutral-500">
                     {listed} aparelho{listed !== 1 ? 's' : ''} na mensagem
                     {reservedCount > 0 ? ` · ${reservedCount} reservado${reservedCount !== 1 ? 's' : ''} (não entra${reservedCount !== 1 ? 'm' : ''})` : ''}
+                    {hiddenByFilter > 0 ? ` · ${hiddenByFilter} oculto${hiddenByFilter !== 1 ? 's' : ''} pelo filtro` : ''}
                     {' '}· Atualizado agora
                   </p>
                 );
               })()}
               <button
                 onClick={() => {
-                  const msg = buildStockMessage(available);
+                  const msg = buildStockMessage(filteredForMessage);
                   navigator.clipboard.writeText(msg).then(() => {
                     setMessageCopied(true);
                     setTimeout(() => setMessageCopied(false), 3000);
@@ -1375,14 +1417,15 @@ export const Estoque: React.FC = () => {
             </div>
             <textarea
               readOnly
-              value={buildStockMessage(available)}
+              value={buildStockMessage(filteredForMessage)}
               className="w-full h-[60vh] font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-2xl p-4 resize-none outline-none text-neutral-700 leading-relaxed"
             />
             <p className="text-[11px] text-neutral-400 text-center">
               Adicione acessórios e observações em cada aparelho para aparecerem na mensagem.
             </p>
           </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* MODAL ADICIONAR */}

@@ -1276,12 +1276,22 @@ export const Vendas: React.FC = () => {
         const newName  = deviceName.trim();
         if (newName && newName !== prevName) {
           const batteryNote = primaryEditDevice.battery_health ? ` · Bateria: ${primaryEditDevice.battery_health}` : '';
-          await dataService.addProduct({
+          // newName muda com QUALQUER edição de modelo/capacidade/cor — então corrigir só a
+          // capacidade ou a cor do aparelho entrante (sem trocar o aparelho de verdade) caía
+          // aqui e criava um produto NOVO no estoque, duplicando o aparelho (o antigo, criado
+          // na hora da venda original, ficava esquecido lá). Por isso primeiro tenta achar e
+          // ATUALIZAR o produto já existente (por IMEI, ou pelo nome salvo antes da edição);
+          // só cria um produto novo se realmente não achar nenhum (ex: troca virou troca agora).
+          const prevImei = (editSale.incoming_imei || '').trim();
+          const existingIncomingProduct = products.find((p: any) => {
+            if (prevImei && p.imei) return p.imei === prevImei;
+            return prevName && p.name === prevName && p.stock_quantity > 0;
+          });
+          const incomingProductFields = {
             name: newName,
-            category: primaryEditDevice.category || 'iPhone',
+            category: primaryEditDevice.category || existingIncomingProduct?.category || 'iPhone',
             purchase_price: Number(primaryEditDevice.purchase_price) || 0,
             sale_price: Number(primaryEditDevice.sale_price) || 0,
-            stock_quantity: 1,
             status: 'available',
             imei: primaryEditDevice.imei || '',
             product_capacity: primaryEditDevice.capacity !== '—' ? primaryEditDevice.capacity : '',
@@ -1289,8 +1299,19 @@ export const Vendas: React.FC = () => {
             product_condition: (primaryEditDevice.condition || 'Seminovo — Excelente') + batteryNote,
             product_warranty: primaryEditDevice.warranty || 'Sem garantia',
             product_origin: primaryEditDevice.origin || '',
-            entry_date: primaryEditDevice.entry_date || new Date().toISOString().split('T')[0],
-          });
+          };
+          if (existingIncomingProduct) {
+            await dataService.updateProduct(existingIncomingProduct.id, {
+              ...incomingProductFields,
+              stock_quantity: existingIncomingProduct.stock_quantity > 0 ? existingIncomingProduct.stock_quantity : 1,
+            });
+          } else {
+            await dataService.addProduct({
+              ...incomingProductFields,
+              stock_quantity: 1,
+              entry_date: primaryEditDevice.entry_date || new Date().toISOString().split('T')[0],
+            });
+          }
         }
       }
       if (editForm.sale_type === 'prazo') {
